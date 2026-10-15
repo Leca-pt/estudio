@@ -7,7 +7,7 @@
 {{ m.alerts(error) }}
 {% if models %}
 <form method="post" action="/projetos/{{ project.id }}/video/padrao" class="sec" style="margin-bottom: 14px">{{ m.csrf() }}
-  <div class="sec-h"><h2 class="h2">Padrão do projeto</h2><span class="hint">· os planos usam este modelo e esta resolução até escolherem outros na página de vídeo do plano</span></div>
+  <div class="sec-h"><h2 class="h2">Padrão do projeto</h2>{{ m.tip_btn("Os planos usam este modelo e esta resolução até escolherem outros na página de vídeo do plano.") }}</div>
   <div class="sec-b">
     <div class="f span2"><label for="p_video_model">Modelo de vídeo</label>
       <select id="p_video_model" name="video_model" class="in">{% for md in models %}<option value="{{ md.name }}" {% if proj_model and md.name == proj_model.name %}selected{% endif %}>{{ md.name }}{% if md.cost_text %} · {{ md.cost_text }}{% endif %}{% if not md.video_refs %} · sem vídeo-guia{% endif %}</option>{% endfor %}</select></div>

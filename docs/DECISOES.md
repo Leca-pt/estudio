@@ -530,4 +530,7 @@ grelha de assets (cartões de 240 px: 3 por linha em vez de 2 — o utilizador t
 se quiseres» em 29/09). Um campo obrigatório numa secção fechada abre-a ao gravar (evento invalid).
 Antes → depois: etapa 1 2989 → cabe no ecrã; Mundo 4392 → 2445; cena 2543 → 1321; personagem 2392 → 1512;
 Configuração → Prompts 4773 → cabe no ecrã.
+Consistência: todas as secções que se fecham usam a mesma seta à esquerda (.fold-chev, roda ao abrir) e o mesmo resumo
+(«O mundo», os grupos de assets, o Episódio/Ato da História passaram a este padrão); explicações nos títulos só pelo «?»;
+um subtítulo de uma frase curta é aceite (Configuração). As setas para baixo que ficam são botões de mover, não secções.
 Estáticos: ao mudar app.css/app.js/scene3d.js sobe-se o ?v= (base.html e o import em app.js).

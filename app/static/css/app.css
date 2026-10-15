@@ -473,7 +473,7 @@ details.asset-group { margin-top: 14px; }
 details.asset-group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
 details.asset-group > summary::-webkit-details-marker { display: none; }
 details.asset-group > summary .n { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--tx3); }
-details.asset-group:not([open]) > summary svg { transform: rotate(-90deg); }
+/* a seta dos grupos é a .fold-chev comum (roda ao abrir) */
 .asset-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--s1); }
 .al-row { display: grid; grid-template-columns: 44px 220px minmax(0, 1fr) 100px 90px auto; gap: 12px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; font-size: 12.5px; }
 .al-row:first-child { border-top: 0; }
@@ -688,9 +688,6 @@ dialog.picker[open] { display: flex; }
 /* O mundo (topo da etapa Mundo): recolhido mostra o início do texto */
 details.world-sec > summary { list-style: none; cursor: pointer; gap: 10px; }
 details.world-sec > summary::-webkit-details-marker { display: none; }
-details.world-sec > summary .world-peek { font-size: 12px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1 1 auto; }
-details.world-sec[open] > summary .world-peek { display: none; }
-details.world-sec[open] > summary svg { transform: rotate(180deg); }
 
 /* Maquete 3D (visualizador three.js) */
 .m3d { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; }
@@ -1311,3 +1308,4 @@ details.sec.fold[open] .fold-thumbs { display: none; }
 .cfg-guide[open] > summary .pb-snip { visibility: hidden; }
 .cfg-guide > .f { padding: 0 12px 12px; }
 .cfg-guide > .f > label { display: none; }
+details.world-sec[open] > summary .fold-sum { display: none; }

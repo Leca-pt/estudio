@@ -49,10 +49,9 @@
 </dialog>
 {% endif %}
 {{ m.alerts(error, saved) }}
-<details class="sec world-sec" id="mundo" {% if not project.world or saved %}open{% endif %}>
-  <summary class="sec-h"><h2 class="h2">O mundo</h2>
-    <span class="world-peek dim">{{ (project.world or "Ainda por descrever.")|replace("\n", " ")|truncate(110, True, "…") }}</span>
-    <span class="sp"></span>{{ i.icon("chev-down", 14) }}</summary>
+<details class="sec fold world-sec" id="mundo" data-fold data-default-open="{{ 0 if project.world else 1 }}"{% if not project.world %} open{% endif %}>
+  <summary class="sec-h fold-h"><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 14) }}</span><h2 class="h2">O mundo</h2>{{ m.tip_btn("O que é verdade neste mundo e tem de se manter em todos os episódios. O Assistente usa-o em todas as etapas; «O mundo nos prompts» (em inglês, só o que se vê) entra nos prompts de ambiente.") }}
+    <span class="fold-sum">{{ (project.world or "Ainda por descrever.")|replace("\n", " ")|truncate(110, True, "…") }}</span></summary>
   <form method="post" action="/projetos/{{ project.id }}/mundo" class="col" style="gap: 8px; padding: 12px 16px">
     {{ m.csrf() }}
     <textarea id="world" name="world" class="in" style="min-height: 160px" placeholder="O que é verdade neste mundo e tem de se manter em todos os episódios.
@@ -101,7 +100,7 @@
 <p class="muted asset-none" hidden>Nenhum asset corresponde à pesquisa.</p>
 {% for gname, gcards in sections %}
 <details class="asset-group" open data-group>
-  <summary><span class="h3">{{ gname or "Sem grupo" }}</span><span class="n">{{ gcards|length }}</span><span class="sp"></span>{{ i.icon("chev-down", 14) }}</summary>
+  <summary><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 14) }}</span><span class="h3">{{ gname or "Sem grupo" }}</span><span class="n">{{ gcards|length }}</span></summary>
   {% if view == "lista" %}
   <div class="asset-list">
     {% for c in gcards %}{% set a = c.asset %}
