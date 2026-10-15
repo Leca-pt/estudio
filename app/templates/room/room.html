@@ -11,7 +11,8 @@
     {% if proposal %}<input type="hidden" name="proposal" value="{{ proposal }}">{% endif %}
     {% if task %}<input type="hidden" name="task" value="{{ task }}">{% endif %}
     {% if reply_to %}<input type="hidden" name="reply_to" value="{{ reply_to }}">{% endif %}
-    <textarea class="in" name="text" rows="{{ rows }}" required placeholder="{{ placeholder }}"></textarea>
+    {% set dkey = [file_id or "", proposal or "", task or "", reply_to or ""]|join("|") %}
+    <textarea class="in" name="text" rows="{{ rows }}" required placeholder="{{ placeholder }}">{% if comment_draft and comment_draft.key == dkey %}{{ comment_draft.text }}{% endif %}</textarea>
     <div class="row"><span class="hint">@{{ people|join(", @") }}, @todos</span><span class="sp"></span><button class="btn pri sm" type="submit">{{ i.icon("send", 13) }}{{ "Responder" if reply_to else "Publicar" }}</button></div>
   </form>
 {% endmacro %}
@@ -53,7 +54,7 @@
   <div class="content content-lg">
     <div class="phead">
       <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Sala de argumentistas</span></div><h1 class="h1">Sala de argumentistas</h1></div>
-      <span class="sp"></span><a class="btn" href="/projetos/{{ project.id }}/etapa/2">Ir para a História</a>
+      <span class="sp"></span><a class="btn" href="{{ back_place }}">{{ i.icon("chev-left", 14) }}Voltar ao projeto</a>
     </div>
     {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
@@ -64,6 +65,7 @@
         <a class="li {% if view == 'avisos' %}on{% endif %}" href="?v=avisos">{{ i.icon("alert", 14) }}Notificações{% if unread %}<span class="badge-n">{{ unread }}</span>{% endif %}</a>
         <a class="li {% if view in ('propostas', 'proposal') %}on{% endif %}" href="?v=propostas">{{ i.icon("sparkles", 14) }}Propostas<span class="n">{{ open_props or "" }}</span></a>
         <a class="li {% if view == 'tarefas' %}on{% endif %}" href="?v=tarefas">{{ i.icon("check", 14) }}Tarefas<span class="n">{{ active_tasks or "" }}</span></a>
+        <form class="rm-search" method="get" data-no-guard><input type="hidden" name="v" value="procura"><input class="in" type="search" name="s" value="{{ search_q or '' }}" placeholder="Procurar nos ficheiros e na discussão" aria-label="Procurar na sala"></form>
         <div class="row rm-tree-h"><span class="rm-folder dim">Ficheiros</span><span class="sp"></span>
           {% if tree.dirs %}<button class="ib sm" type="button" data-tree-all="open" title="Abrir todas as pastas" aria-label="Abrir todas as pastas">{{ i.icon("chev-down", 13) }}</button><button class="ib sm" type="button" data-tree-all="close" title="Fechar todas as pastas" aria-label="Fechar todas as pastas">{{ i.icon("chev-up", 13) }}</button>{% endif %}</div>
         <nav class="rm-tree" data-tree="{{ project.id }}">{{ tree_node(tree, 0) }}</nav>
@@ -93,6 +95,23 @@
         <div class="pn" style="margin-top: 12px">
           <h2 class="h2">Conversa geral</h2>
           {{ discussion(thread, placeholder="Escreve para as IAs (ex.: «@ChatGPT reescreve a cena do bar com mais tensão; @Claude vê se é filmável»).") }}
+        </div>
+
+        {% elif view == "procura" %}
+        <div class="pn">
+          <h2 class="h2">Procurar «{{ search_q }}»</h2>
+          {% if not search_q %}<p class="hint">Escreve o que procuras na caixa à esquerda.</p>{% else %}
+          <div class="rm-list">
+            {% for r in search_files %}
+            <a class="rm-n" href="?f={{ r.f.id }}"><span class="mono">{{ r.f.path }}</span><span class="dim">{{ r.n }} vez(es)</span>
+              <span class="t dim">{% for ln in r.lines %}… {{ ln }} {% endfor %}</span></a>
+            {% endfor %}
+            {% for c in search_comments %}
+            <a class="rm-n" href="{% if c.proposal_id %}?p={{ prop_numbers.get(c.proposal_id) }}{% elif c.file_id %}?f={{ c.file_id }}&tab=discussao{% else %}?{% endif %}#c{{ c.id }}">{{ who(c.author) }}<span class="t">{{ c.text|truncate(160) }}</span><span class="dim">{{ c.created_at|relative }}</span></a>
+            {% endfor %}
+            {% if not search_files and not search_comments %}<p class="hint">Nada encontrado.</p>{% endif %}
+          </div>
+          {% endif %}
         </div>
 
         {% elif view == "avisos" %}
@@ -174,7 +193,7 @@
             {{ i.icon("doc", 13) }}<a class="t" href="?f={{ f.id }}">{{ original_path(f) }}</a>
             <span class="dim">{{ author_label(f.deleted_by) }} · {{ f.deleted_at|relative }}</span>
             <form method="post" action="/projetos/{{ project.id }}/sala/{{ f.id }}/repor-ficheiro" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit">Repor</button></form>
-            <form method="post" action="/projetos/{{ project.id }}/sala/{{ f.id }}/apagar-de-vez" class="inline-form" onsubmit='return confirm({{ ("Apagar de vez «" ~ original_path(f) ~ "», com todas as versões, a discussão e as propostas? Não se desfaz.")|tojson }})'>{{ m.csrf() }}<button class="btn sm no" type="submit">Apagar de vez</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ f.id }}/apagar-de-vez" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Apagar de vez «{{ original_path(f) }}»?" data-confirm-text="Vai com todas as versões, a discussão e as propostas. Não se desfaz." data-confirm-ok="Apagar de vez">Apagar de vez</button></form>
           </div>
           {% else %}<p class="hint">Nada apagado.</p>{% endfor %}
           </div>
@@ -235,9 +254,9 @@
             {% else %}
             <a class="btn pri sm" href="?f={{ cur.id }}&tab=aprovar">{{ i.icon("check", 13) }}Aprovar…</a>
             {% endif %}
-            <a class="ib sm" href="/projetos/{{ project.id }}/sala/{{ cur.id }}/pdf{% if ver is defined and ver %}?ver={{ ver }}{% endif %}" hx-boost="false" download title="Descarregar em PDF" aria-label="Descarregar em PDF">{{ i.icon("download", 15) }}</a>
-            {% set del_msg = "Apagar «" ~ cur.path ~ "»? Vai para Apagados, com as versões e a discussão; podes repô-lo." ~ (" O que já passou para a app fica na app." if cur.status == "approved" else "") %}
-            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/apagar" class="inline-form" onsubmit='return confirm({{ del_msg|tojson }})'>{{ m.csrf() }}<button class="ib sm" type="submit" title="Apagar ficheiro" aria-label="Apagar ficheiro">{{ i.icon("trash", 15) }}</button></form>
+            <a class="ib sm" href="/projetos/{{ project.id }}/sala/{{ cur.id }}/pdf{% if ver is defined and ver %}?ver={{ ver }}{% endif %}" hx-boost="false" download data-busy-label="A preparar o PDF…" title="Descarregar em PDF (demora uns segundos)" aria-label="Descarregar em PDF">{{ i.icon("download", 15) }}</a>
+            {% set del_msg = "Vai para Apagados, com as versões e a discussão; podes repô-lo." ~ (" O que já passou para a app fica na app." if cur.status == "approved" else "") %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/apagar" class="inline-form">{{ m.csrf() }}<button class="ib sm" type="submit" data-confirm="Apagar «{{ cur.path }}»?" data-confirm-text="{{ del_msg }}" data-confirm-ok="Apagar" title="Apagar ficheiro" aria-label="Apagar ficheiro">{{ i.icon("trash", 15) }}</button></form>
             {% endif %}
           </div>
           {% if cur.deleted_at %}<div class="alert warn">Apagado por {{ author_label(cur.deleted_by) }} {{ cur.deleted_at|relative }}. Está só para leitura até o repores.</div>{% endif %}
@@ -282,13 +301,24 @@
             {% elif mode == "simples" %}
             <pre class="rm-text">{{ shown }}</pre>
             {% else %}
+            {% if conflict_rows is defined and conflict_rows %}
+            <details class="rm-conflict" open><summary><b>O que mudou no ficheiro enquanto editavas</b> <span class="dim">(− o teu texto · + a versão atual)</span></summary>{{ diffbox(conflict_rows) }}</details>
+            {% endif %}
             <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/gravar" class="col rm-edit-form" style="gap: 8px" data-edit-guard>
               {{ m.csrf() }}<input type="hidden" name="base_version" value="{{ cur.version }}">
               <div class="rm-savebar">
                 <input class="in" name="message" placeholder="O que mudaste (opcional)" aria-label="O que mudaste">
                 <span class="hint rm-dirty">Alterações por gravar</span>
-                <button class="btn pri sm" type="submit" title="Gravar (Ctrl+S)">Gravar versão</button>
+                <button class="btn pri sm" type="submit" title="Guardar (Ctrl+S)">Guardar versão</button>
               </div>
+              <details class="rm-propose"><summary class="hint">Em vez de guardar, propor esta mudança para o ChatGPT e o Claude darem parecer</summary>
+                <div class="col" style="gap: 6px; margin-top: 6px">
+                  <input class="in" name="p_title" placeholder="Título da proposta (ex.: Mais tensão na cena do bar)" aria-label="Título da proposta">
+                  <textarea class="in" name="p_rationale" rows="2" placeholder="Porquê" aria-label="Porquê"></textarea>
+                  <textarea class="in" name="p_impacts" rows="2" placeholder="Impactos na continuidade (opcional)" aria-label="Impactos na continuidade"></textarea>
+                  <button class="btn sm" type="submit" name="propose" value="1" style="align-self: flex-start">Propor (não guarda no ficheiro)</button>
+                </div>
+              </details>
               <textarea class="in mono rm-edit" name="content" spellcheck="false" aria-label="Texto">{{ shown }}</textarea>
             </form>
             {% endif %}
@@ -362,6 +392,9 @@
         {% endif %}
       </section>
     </div>
+  </div>
+  <div class="m-bar">
+    <button class="btn m-btn" type="button" data-toggle-asst>{{ i.icon("chat", 15) }}Assistente</button>
   </div>
 </main>
 {% include "assistant/_panel.html" %}

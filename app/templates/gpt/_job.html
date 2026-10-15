@@ -3,7 +3,9 @@
 <div class="res job-tile" id="job-{{ j.id }}"{% if j.status in ("queued", "running") %} hx-get="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}" hx-trigger="every 4s" hx-swap="outerHTML"{% endif %}>
   <div class="slot job-slot {{ 'job-fail' if j.status == 'failed' else '' }}">
     {% if j.status == "failed" %}
-      <span class="st no">Falhou · {{ item.provider_label }}</span><span class="job-err">{{ j.error or "Erro desconhecido." }}</span>
+      {% set fe = j.error|friendly_error %}
+      <span class="st no">Falhou · {{ item.provider_label }}</span><span class="job-err">{{ fe.msg }}</span>
+      {% if fe.detail %}<details class="job-detail"><summary class="hint">Ver detalhes</summary><span class="hint">{{ fe.detail }}</span></details>{% endif %}
     {% else %}
       <span class="dots"><i></i><i></i><i></i></span>
       <span>{{ "A gerar…" if j.status == "running" else ("Na fila" ~ (" · %d antes" % item.position if item.position else "")) }}</span>
@@ -13,7 +15,7 @@
   </div>
   <div class="acts">
     {% if j.status == "failed" %}
-    <form method="post" action="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}/repetir" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ request.url.path }}"><button class="btn sm" type="submit">Repetir</button></form>
+    <form method="post" action="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}/repetir" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ request.url.path }}"><button class="btn sm" type="submit" data-confirm="Repetir este pedido?" data-confirm-text="Faz um pedido novo ao fornecedor, que pode ter custo.{{ ' Como foi interrompido por um reinício, vê primeiro no fornecedor se já foi gerado (e pago).' if j.error and 'reinício' in j.error else '' }}" data-confirm-ok="Repetir">Repetir</button></form>
     {% endif %}
     {% if j.status in ("queued", "failed") %}
     <form method="post" action="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}/cancelar" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ request.url.path }}"><button class="btn ghost sm" type="submit">{{ "Cancelar" if j.status == "queued" else "Fechar" }}</button></form>

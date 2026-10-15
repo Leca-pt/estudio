@@ -19,7 +19,7 @@
 <div class="sb-layout">
   <div class="col" style="gap: 14px">
     <div class="f">
-      <label for="blocking">Notas de blocking <span class="dim" style="font-weight: 400">· quem está onde, de que lado fica a câmara (regra dos 180°); o Assistente usa-as ao montar as cenas 3D</span></label>
+      <label for="blocking">Notas de encenação <span class="dim" style="font-weight: 400">· quem está onde, de que lado fica a câmara (regra dos 180°); o Assistente usa-as ao montar as cenas 3D</span></label>
       <textarea id="blocking" name="blocking" form="scene-form" class="in" style="min-height: 112px" placeholder="ex.: a Ana atrás do balcão, à direita do ecrã; o Bruno entra pela porta da rua; a câmara fica do lado da sala.">{{ scene.blocking or '' }}</textarea>
     </div>
     <section class="sec">
@@ -68,7 +68,7 @@
   <div class="sec-h"><h2 class="h2">Encenação 3D</h2>
     <span class="hint">· quem está onde e o que se mexe ao longo de toda a cena; os planos são câmaras sobre ela</span>
     <span class="sp"></span>
-    {% if stage_d %}<span class="tag">{{ "%g"|format(stage_d) }} s</span>{% endif %}</div>
+    {% if stage_d %}<span class="tag">{{ (stage_d)|seg }} s</span>{% endif %}</div>
   {% set with_maquete = locations|selectattr("layout3d")|list %}
   {% if not with_maquete %}
   <div class="m3d-empty"><p>{% if locations %}O local desta cena ({{ locations[0].name }}) ainda não tem maquete 3D. Monta-a primeiro: a encenação passa-se dentro dela.{% else %}Esta cena ainda não tem local. Escolhe-o na cena (História) e monta a maquete dele.{% endif %}</p>
@@ -101,19 +101,19 @@
     <div class="m3d-bar row"></div>
     <div class="m3d-chips row"></div>
     <div class="m3d-legend row"></div>
-    <div class="m3d-actions row"><span class="hint">Os chips P01, P02… mostram a encenação pela câmara de cada plano, no troço dele.</span><span class="sp"></span>
-      {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="{{ 'Ajusta a encenação 3D desta cena: confere as posições, os olhares e os tempos das linhas contra o guião e as notas de blocking.' if scene.stage3d else 'Monta a encenação 3D desta cena dentro da maquete do local: o elenco e os figurantes com as posições e os olhares ao longo de toda a cena, a partir do guião e das notas de blocking, e marca em lines o segundo em que começa cada linha do guião.' }}">{{ i.icon("sparkles", 13) }}{{ "Ajustar com o Assistente" if scene.stage3d else "Montar a encenação com o Assistente" }}</button>{% endif %}
+    <div class="m3d-actions row"><span class="hint">Os chips P01, P02… mostram a encenação pela câmara de cada plano, na parte dele.</span><span class="sp"></span>
+      {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="{{ 'Ajusta a encenação 3D desta cena: confere as posições, os olhares e os tempos das linhas contra o guião e as notas de encenação.' if scene.stage3d else 'Monta a encenação 3D desta cena dentro da maquete do local: o elenco e os figurantes com as posições e os olhares ao longo de toda a cena, a partir do guião e das notas de encenação, e marca em lines o segundo em que começa cada linha do guião.' }}">{{ i.icon("sparkles", 13) }}{{ "Ajustar com o Assistente" if scene.stage3d else "Montar a encenação com o Assistente" }}</button>{% endif %}
       <span class="hint m3d-status"></span></div>
   </div>
   {% endif %}
   {% if windows and stage_d %}
-  <div class="stage-tl" aria-label="Troços dos planos na encenação" style="height: {{ tl_lanes * 28 + 24 }}px">
+  <div class="stage-tl" aria-label="Partes dos planos na encenação" style="height: {{ tl_lanes * 28 + 24 }}px">
     {% for t in tl_ticks %}<span class="stt" style="left: {{ (100 * t / tl_span)|round(2) }}%">{{ t }} s</span>{% endfor %}
-    {% if stage_d < tl_span %}<span class="st-end" style="left: {{ (100 * stage_d / tl_span)|round(2) }}%" title="Fim da encenação ({{ '%g'|format(stage_d) }} s)"></span>{% endif %}
+    {% if stage_d < tl_span %}<span class="st-end" style="left: {{ (100 * stage_d / tl_span)|round(2) }}%" title="Fim da encenação ({{ (stage_d)|seg }} s)"></span>{% endif %}
     {% for w in windows %}
     <a class="stw{% if not w.camera %} nocam{% endif %}{% if w.end > stage_d + 0.05 %} over{% endif %}" href="/projetos/{{ project.id }}/storyboard/planos/{{ w.shot.id }}#maquete"
        style="left: calc({{ (100 * w.start / tl_span)|round(3) }}% + 1px); width: calc({{ (100 * (w.end - w.start) / tl_span)|round(3) }}% - 2px); top: {{ w.lane * 28 + 20 }}px"
-       title="P{{ '%02d' % w.shot.number }}: {{ '%g'|format(w.start) }}–{{ '%g'|format(w.end) }} s{{ '' if w.camera else ' (sem câmara)' }}{{ ' · passa do fim da encenação' if w.end > stage_d + 0.05 else '' }}">P{{ '%02d' % w.shot.number }}<span class="dim"> {{ '%g'|format(w.start) }}–{{ '%g'|format(w.end) }} s</span></a>
+       title="P{{ '%02d' % w.shot.number }}: {{ (w.start)|seg }}–{{ (w.end)|seg }} s{{ '' if w.camera else ' (sem câmara)' }}{{ ' · passa do fim da encenação' if w.end > stage_d + 0.05 else '' }}">P{{ '%02d' % w.shot.number }}<span class="dim"> {{ (w.start)|seg }}–{{ (w.end)|seg }} s</span></a>
     {% endfor %}
   </div>
   {% endif %}
@@ -147,10 +147,10 @@
   <div class="row"><h2 class="h2">Planos</h2><span class="tag">{{ shots|length }}</span>
     {% if durations.shots %}<span class="hint">previsto {{ durations.planned_s|clock }}{% if durations.approved %} · takes escolhidos {{ (durations.approved_ms / 1000)|clock }}{% endif %}</span>{% endif %}
     <span class="sp"></span>
-    {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com o troço da encenação e a câmara (plano geral, campo/contracampo por cima do ombro de quem ouve, grandes planos), do mesmo lado do eixo.">Propor a cobertura</button>{% endif %}
+    {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com a parte da encenação e a câmara (plano geral, campo/contracampo por cima do ombro de quem ouve, grandes planos), do mesmo lado do eixo.">Propor a cobertura</button>{% endif %}
     <button class="btn sm" type="submit" form="scene-form" name="op" value="add_shot">{{ i.icon("plus", 13) }}Novo plano</button>
   </div>
-  <span class="hint">Cada plano é uma câmara sobre a encenação, num troço de tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.</span>
+  <span class="hint">Cada plano é uma câmara sobre a encenação, numa parte do tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.</span>
   {% if shots %}
   {% set ar = (project.aspect_ratio or "16:9").split(" ")[0] %}
   <div class="shot-rows" style="--ar: {{ ar|replace(':', ' / ') }}">
@@ -162,11 +162,11 @@
         <span class="dot {{ s.state }}"></span>
         <a class="sr-t" href="{{ url }}"><b>P{{ '%02d' % sh.number }}</b>{% if sh.shot_type %} · {{ sh.shot_type }}{% endif %}{% if sh.camera_movement %} · {{ sh.camera_movement }}{% endif %}{% if sh.title %}<span class="dim"> · {{ sh.title }}</span>{% endif %}</a>
         {% if s.lines %}<span class="tag" title="Linhas do guião que este plano cobre">linhas {{ s.lines|join(", ") }}</span>{% endif %}
-        {% set w = windows[loop.index0] %}<span class="tag mono" title="Troço da encenação que o plano mostra">{{ "%g"|format(w.start) }}–{{ "%g"|format(w.end) }} s</span>
+        {% set w = windows[loop.index0] %}<span class="tag mono" title="Parte da encenação que o plano mostra">{{ (w.start)|seg }}–{{ (w.end)|seg }} s</span>
         <span class="sp"></span>
         <a class="btn sm" href="{{ url }}">Abrir</a>
         <a class="btn sm ghost" href="/projetos/{{ project.id }}/video/planos/{{ sh.id }}">{{ i.icon("film", 13) }}Vídeo</a>
-        {{ m.op_button("delete_shot:%d" % sh.id, "trash", "Apagar o P%02d" % sh.number, confirm="Apagar o P%02d?" % sh.number, confirm_text="A câmara, os takes e as imagens deste plano são apagados (a encenação da cena fica). Os planos seguintes são renumerados.", confirm_ok="Apagar", form="scene-form") }}
+        {{ m.op_button("delete_shot:%d" % sh.id, "trash", "Apagar o P%02d" % sh.number, confirm="Apagar o P%02d?" % sh.number, confirm_text="Vai para a Reciclagem (no topo da página) com a câmara, os takes e as imagens: podes recuperá-lo durante 30 dias. A encenação da cena fica e os planos seguintes são renumerados.", confirm_ok="Apagar", form="scene-form") }}
       </div>
       <div class="sr-panels">
         {% for r in s.moments %}
@@ -174,7 +174,7 @@
           {% set img = r.image or r.render %}
           {% if img %}<span class="ph img-ph"><img src="{{ img.path|thumb }}" alt="P{{ '%02d' % sh.number }} · momento {{ r.n }}" loading="lazy"></span>{% else %}<span class="slot">Sem imagem</span>{% endif %}
           <span class="sr-meta mono dim">{{ r.n }} · {{ fmt_seconds(r.t) }}</span>
-          <span class="sr-c">{{ r.view.label if r.image else (("previs · a vista «%s» não tem imagem" % r.view.label if r.view else "previs · falta a vista") if r.render else "previs por tirar: abre o plano") }}</span>
+          <span class="sr-c">{{ r.view.label if r.image else (("previs · a vista «%s» não tem imagem" % r.view.label if r.view else "previs · falta a vista") if r.render else "previs por tirar: abre o plano e deixa a página aberta") }}</span>
         </a>
         {% if not loop.last %}<span class="board-arrow" aria-hidden="true">→</span>{% endif %}
         {% else %}<span class="hint">Ainda sem câmara.</span>
@@ -187,7 +187,7 @@
   <div class="empty" style="padding: 26px 20px; flex-direction: row; text-align: left; gap: 16px">
     <div class="ico" style="margin: 0">{{ i.icon("film", 22) }}</div>
     <div class="col" style="gap: 4px; flex: 1"><h3>Ainda sem planos</h3><p style="max-width: none">Cria os planos à mão ou pede ao Assistente para os propor a partir do guião.</p></div>
-    {% if asst.enabled %}<button class="btn" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com o troço da encenação e a câmara.">Propor a cobertura</button>{% endif %}
+    {% if asst.enabled %}<button class="btn" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com a parte da encenação e a câmara.">Propor a cobertura</button>{% endif %}
     <button class="btn pri" type="submit" form="scene-form" name="op" value="add_shot">Novo plano</button>
   </div>
   {% endif %}

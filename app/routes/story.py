@@ -12,7 +12,6 @@ from sqlmodel import Session, delete, func, select
 from app.db import get_session
 from app.forms import FormError, integer, text
 from app.models import SCENE_LINE_KINDS, Act, Asset, AssetSceneLink, Episode, Project, Scene, SceneLine, Season
-from app.media_service import purge_scene_files
 from app.options import duration_choices
 from app.routes.production import durations
 from app.security import csrf_protect, require_login
@@ -378,10 +377,9 @@ def _scene_ops(session: Session, project: Project, op: str, scenes: list[Scene],
         scene = next((s for s in scenes if s.id == int(arg)), None)
         if scene is None:
             raise HTTPException(status_code=404)
-        purge_scene_files(session, [scene.id])
-        session.delete(scene)
-        session.flush()
-        _renumber(session, [s for s in scenes if s.id != scene.id])
+        from app import trash
+
+        trash.trash_scene(session, project, scene)  # recuperável na Reciclagem (renumera as outras)
         return 0
     return None
 
@@ -431,12 +429,9 @@ async def overview_save(request: Request, project_id: int, session: Session = De
             elif verb in ("season_up", "season_down") and arg.isdigit():
                 _move(session, seasons, int(arg), -1 if verb == "season_up" else 1)
             elif verb == "del_season" and arg.isdigit():
-                season = _season(session, project, int(arg))
-                purge_scene_files(session, list(session.exec(
-                    select(Scene.id).join(Episode, Episode.id == Scene.episode_id).where(Episode.season_id == season.id)).all()))
-                session.delete(season)
-                session.flush()
-                _renumber(session, [s for s in seasons if s.id != int(arg)])
+                from app import trash
+
+                trash.trash_container(session, project, _season(session, project, int(arg)))
             elif verb == "add_episode" and arg.isdigit():
                 season = _season(session, project, int(arg))
                 episode = Episode(season_id=season.id, number=len(_episodes(session, season)) + 1,
@@ -462,16 +457,16 @@ async def overview_save(request: Request, project_id: int, session: Session = De
             elif verb in ("act_up", "act_down") and arg.isdigit():
                 _move(session, acts, int(arg), -1 if verb == "act_up" else 1)
             elif verb == "del_act" and arg.isdigit():
-                act = _act(session, project, int(arg))
-                purge_scene_files(session, list(session.exec(select(Scene.id).where(Scene.act_id == act.id)).all()))
-                session.delete(act)
-                session.flush()
-                _renumber(session, [a for a in acts if a.id != int(arg)])
+                from app import trash
+
+                trash.trash_container(session, project, _act(session, project, int(arg)))
     except FormError as exc:
         session.rollback()
         return overview_page(request, session, project, str(exc), 400)
 
     session.commit()
+    if (op or "").startswith(("del_scene", "del_season", "del_act")):
+        request.session["flash_info"] = "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias."
     return _redirect(f"/projetos/{project.id}/etapa/2", open_scene, saved=op is None)
 
 
@@ -493,12 +488,11 @@ async def episode_save(request: Request, project_id: int, episode_id: int, sessi
         scene = _save_scene(session, project, form, [s.id for s in scenes], op)
         open_scene = scene.id if scene else None
         if op == "del_episode":
-            siblings = [e for e in _episodes(session, season) if e.id != episode.id]
-            purge_scene_files(session, [s.id for s in scenes])
-            session.delete(episode)
-            session.flush()
-            _renumber(session, siblings)
+            from app import trash
+
+            trash.trash_container(session, project, episode)
             session.commit()
+            request.session["flash_info"] = "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias."
             return RedirectResponse(f"/projetos/{project.id}/etapa/2#temporada-{season.id}", status_code=303)
         if op:
             result = _scene_ops(session, project, op, scenes, where, episode=episode)
@@ -507,6 +501,8 @@ async def episode_save(request: Request, project_id: int, episode_id: int, sessi
         session.rollback()
         return _episode_view(request, session, project, episode, season, str(exc), 400)
     session.commit()
+    if (op or "").startswith("del_scene"):
+        request.session["flash_info"] = "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias."
     return _redirect(url, open_scene, saved=op is None)
 
 
@@ -532,5 +528,7 @@ async def act_save(request: Request, project_id: int, act_id: int, session: Sess
         session.rollback()
         return _act_view(request, session, project, act, str(exc), 400)
     session.commit()
+    if (op or "").startswith("del_scene"):
+        request.session["flash_info"] = "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias."
     return _redirect(url, open_scene, saved=op is None)
 

@@ -3,6 +3,7 @@ dia (ex.: «Postar Short 12» a 4/11), com estado (por fazer, em curso, feito). 
 episódio fica na app. Vistas: Hoje, Quadro, Linha do tempo e Visão geral. As publicações recorrentes criam itens de um
 dia, numerados."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -37,11 +38,86 @@ def first(item: PlanItem) -> date:
     return item.start or item.due
 
 
-def items(session: Session, project_id: int | None = None) -> list[PlanItem]:
+@dataclass
+class Filter:
+    """O filtro das vistas: projeto, tipo e texto (no título e nas notas)."""
+    project_id: int | None = None
+    kind: str | None = None
+    q: str | None = None
+
+    def __bool__(self) -> bool:
+        return bool(self.project_id or self.kind or self.q)
+
+
+def items(session: Session, project_id: "int | Filter | None" = None) -> list[PlanItem]:
+    f = project_id if isinstance(project_id, Filter) else Filter(project_id)
     q = select(PlanItem)
-    if project_id:
-        q = q.where(PlanItem.project_id == project_id)
-    return list(session.exec(q.order_by(PlanItem.due, PlanItem.position, PlanItem.id)).all())
+    if f.project_id:
+        q = q.where(PlanItem.project_id == f.project_id)
+    if f.kind in PLAN_KINDS:
+        q = q.where(PlanItem.kind == f.kind)
+    rows = list(session.exec(q.order_by(PlanItem.due, PlanItem.position, PlanItem.id)).all())
+    if f.q and f.q.strip():
+        needle = f.q.strip().lower()
+        rows = [i for i in rows if needle in f"{i.title} {i.notes or ''}".lower()]
+    return rows
+
+
+def bulk(session: Session, ids: list[int], action: str, days: int = 0) -> int:
+    """Ações em massa: done | doing | todo | shift (adiar/antecipar N dias) | delete. Devolve quantos mudaram."""
+    n = 0
+    for i in session.exec(select(PlanItem).where(PlanItem.id.in_(ids))).all() if ids else []:
+        if action in PLAN_STATUS:
+            set_status(i, action)
+        elif action == "shift" and days:
+            i.due += timedelta(days=days)
+            if i.start:
+                i.start += timedelta(days=days)
+        elif action == "delete":
+            session.delete(i)
+            n += 1
+            continue
+        else:
+            continue
+        session.add(i)
+        n += 1
+    return n
+
+
+def update_recurrence(session: Session, rec: PlanRecurrence, form) -> int:
+    """Muda o título, os dias e o fim de uma recorrência: as publicações de hoje em diante por fazer são refeitas (as
+    feitas e as atrasadas ficam). Devolve quantas ficaram de hoje em diante."""
+    title = (form.get("title") or rec.title).strip()
+    if "{n}" not in title:
+        title += " {n}"
+    weekdays = sorted({int(x) for x in form.getlist("weekdays") if str(x).isdigit() and 0 <= int(x) <= 6}) or rec.weekdays
+    try:
+        end = date.fromisoformat(form.get("end")) if form.get("end") else rec.end
+    except ValueError:
+        raise AgendaError("Data de fim inválida.")
+    if end < rec.start:
+        raise AgendaError("O fim tem de ser depois do início.")
+    dates = recurring_dates(rec.start, end, weekdays)
+    if len(dates) > MAX_RECURRING:
+        raise AgendaError(f"Isso dá mais de {MAX_RECURRING} publicações: encurta o período.")
+    t = today()
+    kept = {}
+    for i in session.exec(select(PlanItem).where(PlanItem.recurrence_id == rec.id)).all():
+        if i.status == "done" or i.due < t:
+            kept[i.due] = i
+        else:
+            session.delete(i)
+    session.flush()
+    n = 0
+    for k, d in enumerate(dates):
+        if d < t or d in kept:
+            continue
+        session.add(PlanItem(project_id=rec.project_id, title=title.replace("{n}", str(rec.first_number + k)), kind=rec.kind,
+                             due=d, recurrence_id=rec.id, position=k))
+        n += 1
+    rec.title, rec.weekdays, rec.end = title[:200], weekdays, end
+    session.add(rec)
+    return n
 
 
 def info(item: PlanItem, t: date | None = None) -> dict:
@@ -196,7 +272,14 @@ def save_item(session: Session, item: PlanItem, form: dict) -> PlanItem:
     item.title, item.kind, item.start, item.due = title[:200], kind, start, due
     item.notes = (form.get("notes") or "").strip() or None
     link = (form.get("link") or "").strip()
-    item.link = link if link.startswith("/") and not link.startswith("//") else None
+    if link.startswith(("http://", "https://")):  # colaram o endereço inteiro: fica só o caminho na app
+        from urllib.parse import urlsplit
+
+        u = urlsplit(link)
+        link = u.path + (f"?{u.query}" if u.query else "") + (f"#{u.fragment}" if u.fragment else "")
+    if link and not link.startswith("/"):
+        raise AgendaError("A ligação tem de ser uma página desta app (ex.: /projetos/2/sala?f=5 ou o endereço completo).")
+    item.link = link if link and not link.startswith("//") else None
     if form.get("status") in PLAN_STATUS:
         set_status(item, form["status"])
     session.add(item)

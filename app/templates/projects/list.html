@@ -27,11 +27,14 @@
         <a href="/projetos?tipo=short" class="{% if filter == 'short' %}on{% endif %}">Curtas / spots</a>
         <a href="/projetos?tipo=series" class="{% if filter == 'series' %}on{% endif %}">Séries</a>
         <a href="/projetos?tipo=film" class="{% if filter == 'film' %}on{% endif %}">Filmes</a>
+        {% if archived_n %}<a href="/projetos?tipo=arquivados" class="{% if filter == 'arquivados' %}on{% endif %}">Arquivados · {{ archived_n }}</a>{% endif %}
       </div>
+      <input class="in proj-search" type="search" placeholder="Procurar projeto" aria-label="Procurar projeto" data-filter-cards=".proj-card">
       <span class="sp"></span>
       <button class="btn pri" type="button" data-open-dialog="new-project">{{ i.icon("plus", 15) }}Novo projeto</button>
     </div>
     {{ m.alerts(error) }}
+    {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
     {% if cards %}
     <div class="grid proj-grid">
       {% for c in cards %}

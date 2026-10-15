@@ -325,6 +325,42 @@
   tlToday();
   document.addEventListener('htmx:afterSettle', tlToday);
 
+  // Procurar numa grelha de cartões (ex.: a lista de projetos), sem ir ao servidor.
+  document.addEventListener('input', (e) => {
+    const t = e.target; if (!t.matches || !t.matches('[data-filter-cards]')) return;
+    const q = t.value.trim().toLowerCase();
+    document.querySelectorAll(t.dataset.filterCards).forEach((c) => { c.hidden = q && !c.textContent.toLowerCase().includes(q); });
+  });
+
+  // Agenda › Lista: escolher todos e contar os escolhidos.
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.matches && t.matches('[data-check-all]')) {
+      t.closest('form').querySelectorAll('[data-check-one]').forEach((c) => { c.checked = t.checked; });
+    }
+    if (t.matches && (t.matches('[data-check-all]') || t.matches('[data-check-one]'))) {
+      const f = t.closest('form'); const n = f.querySelectorAll('[data-check-one]:checked').length;
+      const out = f.querySelector('[data-checked-n]'); if (out) out.textContent = `${n} escolhido${n === 1 ? '' : 's'}`;
+    }
+  });
+  // Agenda › Publicações recorrentes: quantas publicações vão ser criadas, antes de criar.
+  function recPreview(dlg) {
+    const out = dlg.querySelector('[data-rec-preview]'); if (!out) return;
+    const a = dlg.querySelector('[name=start]').value, b = dlg.querySelector('[name=end]').value;
+    const days = [...dlg.querySelectorAll('[name=weekdays]:checked')].map((x) => +x.value);
+    if (!a || !b || !days.length) { out.textContent = ''; return; }
+    let n = 0; const d = new Date(a + 'T12:00:00'), end = new Date(b + 'T12:00:00');
+    while (d <= end && n < 1000) { if (days.includes((d.getDay() + 6) % 7)) n += 1; d.setDate(d.getDate() + 1); }
+    out.textContent = n ? `Vão ser criadas ${n} publicações.` : 'Nenhum destes dias cai no período.';
+  }
+  document.addEventListener('input', (e) => { const d = e.target.closest && e.target.closest('[data-rec-count]'); if (d) recPreview(d); });
+  document.addEventListener('change', (e) => { const d = e.target.closest && e.target.closest('[data-rec-count]'); if (d) recPreview(d); });
+  // Datas: o prazo não pode ser antes do início (avisa já no formulário).
+  document.addEventListener('change', (e) => {
+    const t = e.target; if (!t.matches || !t.matches('[data-min-for]')) return;
+    const due = document.getElementById(t.dataset.minFor); if (due) due.min = t.value || '';
+  });
+
   // Sala de argumentistas: árvore de pastas na barra. Cada pasta lembra-se de estar aberta ou fechada (por projeto, neste
   // browser); a pasta do ficheiro aberto abre sempre. O morph não mexe no «open» destas pastas.
   const treeKey = (nav) => 'estudio-tree-' + nav.dataset.tree;
@@ -360,22 +396,60 @@
   applyTree();
   document.addEventListener('htmx:afterSettle', applyTree);
 
-  // Sala de argumentistas, «Editar»: avisa antes de sair com alterações por gravar; Ctrl/Cmd+S grava.
-  const editDirty = () => { const f = document.querySelector('[data-edit-guard]'); return f && f.classList.contains('dirty') ? f : null; };
-  document.addEventListener('input', (e) => { const f = e.target.closest && e.target.closest('[data-edit-guard]'); if (f && e.target.name === 'content') f.classList.add('dirty'); }, true);
-  document.addEventListener('submit', (e) => { if (e.target.matches('[data-edit-guard]')) e.target.classList.remove('dirty'); }, true);
+  // Alterações por gravar: qualquer formulário onde se escreveu e que ainda não foi submetido. Antes de sair da página
+  // (ligações, seletores de navegação, fechar o separador) pergunta-se; Ctrl/Cmd+S grava o formulário principal.
+  // Fora: o Assistente (mensagens) e formulários marcados data-no-guard.
+  const dirtyForms = new Set();
+  const guarded = (f) => f && f.method && f.method.toLowerCase() === 'post' && !f.hasAttribute('data-no-guard')
+    && !f.closest('#asst') && !f.matches('#asst-form');
+  function markDirty(e) {
+    const el = e.target;
+    if (!el || !el.form || el.type === 'file' || el.type === 'hidden' || el.hasAttribute('data-autosubmit')) return;
+    if (!guarded(el.form)) return;
+    dirtyForms.add(el.form);
+    el.form.classList.add('dirty');
+  }
+  document.addEventListener('input', markDirty, true);
+  document.addEventListener('submit', (e) => { dirtyForms.delete(e.target); e.target.classList.remove('dirty'); }, true);
+  const anyDirty = () => { for (const f of [...dirtyForms]) { if (!f.isConnected) dirtyForms.delete(f); } return dirtyForms.size > 0; };
+  window.estudioLeaveOk = () => !anyDirty() || confirm('Tens alterações por guardar nesta página. Sair sem guardar?')
+    && (dirtyForms.clear(), true);
   document.addEventListener('click', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
-    if (!a || !editDirty() || a.closest('[data-edit-guard]')) return;
-    if (!confirm('Tens alterações por gravar neste ficheiro. Sair sem gravar?')) { e.preventDefault(); e.stopImmediatePropagation(); }
+    if (!a || !anyDirty() || a.hasAttribute('download') || a.target === '_blank' || a.getAttribute('href').startsWith('#')) return;
+    if (a.closest('form') && dirtyForms.has(a.closest('form'))) return;
+    const to = new URL(a.href, location.href);
+    if (to.origin !== location.origin || (to.pathname === location.pathname && to.search === location.search)) return;
+    if (!window.estudioLeaveOk()) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
-  window.addEventListener('beforeunload', (e) => { if (editDirty()) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (anyDirty()) { e.preventDefault(); e.returnValue = ''; } });
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-      const f = document.querySelector('[data-edit-guard]');
+      const f = document.querySelector('[data-edit-guard]') || [...dirtyForms].find((x) => x.isConnected)
+        || document.querySelector('.content form[method=post]');
       if (f) { e.preventDefault(); f.requestSubmit(); }
     }
   });
+
+  // Erros: um pedido que falha (servidor ou rede) diz-o, em vez de falhar em silêncio.
+  function toast(msg, kind) {
+    let t = document.getElementById('toast');
+    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'alert'); document.body.appendChild(t); }
+    t.textContent = msg; t.classList.toggle('info', kind === 'info'); t.classList.add('on');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 8000);
+  }
+  window.estudioToast = toast;
+  // Descargas que demoram (ex.: o PDF da sala): diz que está a preparar.
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[data-busy-label]');
+    if (a) toast(a.dataset.busyLabel + ' Começa a descarregar dentro de segundos.', 'info');
+  });
+  document.addEventListener('htmx:responseError', (e) => {
+    const st = e.detail.xhr ? e.detail.xhr.status : 0;
+    toast(st >= 500 ? 'Não foi possível concluir: o servidor deu um erro. O que escreveste continua na página; tenta outra vez daqui a pouco.'
+      : `Não foi possível concluir (erro ${st}). Recarrega a página e tenta outra vez.`);
+  });
+  document.addEventListener('htmx:sendError', () => toast('Sem ligação ao servidor. Verifica a internet; o que escreveste continua na página.'));
 
   // Ao vivo: se alguém mudou o projeto (o conector MCP, o Assistente, um pedido que acabou), a página redesenha-se
   // sozinha. Não durante um pedido da própria página; o que se está a escrever fica (o morph não mexe nos campos mexidos).
@@ -433,7 +507,7 @@
     (root || document).querySelectorAll('textarea[data-count]').forEach(updateCounter);
     // Maquete 3D: o three.js só se carrega nas páginas que têm uma
     const models = document.querySelectorAll('[data-scene3d]:not([data-mounted])');
-    if (models.length) import('/static/js/scene3d.js?v=39').then(m => models.forEach(el => m.mount(el)))
+    if (models.length) import('/static/js/scene3d.js?v=40').then(m => models.forEach(el => m.mount(el)))
       .catch(err => models.forEach(el => { const s = el.querySelector('.m3d-status'); if (s) s.textContent = 'Não foi possível abrir o 3D: ' + err.message; }));
   }
 
@@ -534,7 +608,7 @@
       && !(touched(el) && ['value', 'selected', 'checked'].includes(attr));
     Idiomorph.defaults.callbacks.beforeNodeMorphed = (oldNode, newNode) => {
       if (oldNode.nodeType === 1 && touched(oldNode)) return false;  // mexido e por gravar: fica como está
-      if (oldNode.nodeType === 1 && oldNode.closest && oldNode.closest('[data-edit-guard].dirty')) return false;  // a editar na sala
+      if (oldNode.nodeType === 1 && oldNode.closest && oldNode.closest('form.dirty')) return false;  // formulário com alterações por guardar
       if (oldNode.nodeType !== 1 || !oldNode.hasAttribute('data-scene3d') || !oldNode.dataset.mounted) return true;
       const same = (sel) => oldNode.querySelector(sel)?.textContent === newNode.querySelector?.(sel)?.textContent;
       return !(same('.m3d-data') && same('.m3d-lviews') && same('.m3d-moments') && same('.m3d-locpending')
@@ -714,8 +788,9 @@
     if (t.matches('input[type=file][data-autosubmit]') && t.files.length) t.form.requestSubmit();
     if (t.matches('input[type=radio][data-autosubmit]') && t.form) t.form.requestSubmit();
     if (t.matches('select[data-autosubmit]') && t.form) t.form.requestSubmit();
-    if (t.matches('select[data-nav]')) window.location = t.value;
+    if (t.matches('select[data-nav]')) { if (window.estudioLeaveOk()) window.location = t.value; return; }
     if (t.matches('select[data-ep-select]')) {
+      if (!window.estudioLeaveOk()) return;
       // Mudar de episódio: fica na mesma etapa, agora do outro episódio.
       const u = new URL(location.href);
       if (/\/historia\/episodios\/\d+/.test(u.pathname)) { window.location = u.pathname.replace(/episodios\/\d+/, 'episodios/' + t.value); return; }
@@ -723,7 +798,8 @@
       if (/\/etapa\/3$/.test(u.pathname)) u.searchParams.set('grupo', t.value);
       else if (/\/etapa\/[67]$/.test(u.pathname)) u.searchParams.set('ambito', 'ep-' + t.value);
       else u.searchParams.set('ep', t.value);
-      if (/\/(storyboard|video)\/(cenas|planos)\//.test(u.pathname)) { window.location = '/projetos/' + u.pathname.split('/')[2] + '/etapa/5?ep=' + t.value; return; }
+      if (/\/storyboard\/(cenas|planos)\//.test(u.pathname)) { window.location = '/projetos/' + u.pathname.split('/')[2] + '/etapa/5?ep=' + t.value; return; }
+      if (/\/video\/planos\//.test(u.pathname)) { window.location = '/projetos/' + u.pathname.split('/')[2] + '/etapa/6?ambito=ep-' + t.value; return; }
       u.hash = ''; window.location = u.toString();
     }
     if (t.matches('select[data-line-kind]')) {

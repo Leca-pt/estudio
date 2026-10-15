@@ -99,21 +99,21 @@
 <div class="pb" id="prompt-{{ p.kind }}-{{ p.ref }}">
   <div class="pb-h">
     <span class="t">{{ p.title }}</span>
-    <span class="tag pstate {{ p.state }}" title="{{ {'missing': 'Ao Gerar, o Assistente escreve-o primeiro', 'stale': 'Os dados mudaram depois de o Assistente o escrever: ao Gerar, é reescrito primeiro', 'manual': 'Editado à mão: vai tal como está', 'assistant': 'Escrito pelo Assistente com os dados atuais'}[p.state] }}">{{ p.state_label }}</span>
+    <span class="tag pstate {{ p.state }}" title="{{ {'missing': 'Ao Gerar, o escritor de prompts escreve-o primeiro', 'stale': 'Os dados mudaram depois de o escritor o escrever: ao Gerar, é reescrito primeiro', 'manual': 'Editado à mão: vai tal como está', 'assistant': 'Escrito pelo Assistente com os dados atuais'}[p.state] }}">{{ p.state_label }}</span>
     <span class="sp"></span>
     <span class="cnt" id="{{ tid }}-cnt" data-max="{{ p.max_chars }}">{{ p.text|length }} / {{ p.max_chars }} · {{ p.text|wordcount }} palavras</span>
     <button class="btn sm" type="button" data-copy="{{ tid }}"{% if not p.text %} disabled{% endif %}>{{ i.icon("copy", 13) }}<span class="lbl">Copiar</span></button>
   </div>
   {% for w in p.warnings %}<div class="warnbar">{{ i.icon("warn", 12) }}{{ w }}</div>{% endfor %}
-  <div class="pb-ta"><textarea id="{{ tid }}" name="{{ p.name }}" data-only-if-changed aria-label="{{ p.title }}" lang="en" style="height: {{ height }}px" form="{{ form }}" data-count="{{ p.max_chars }}" data-mentions='{{ p.mentions|tojson }}' placeholder="Ainda sem prompt. Carrega em {{ gen_label }}: o Assistente escreve-o e a geração segue logo a seguir. Ou em Escrever, para o veres antes.">{{ p.text }}</textarea>
+  <div class="pb-ta"><textarea id="{{ tid }}" name="{{ p.name }}" data-only-if-changed aria-label="{{ p.title }}" lang="en" style="height: {{ height }}px" form="{{ form }}" data-count="{{ p.max_chars }}" data-mentions='{{ p.mentions|tojson }}' placeholder="Ainda sem prompt. Carrega em {{ gen_label }}: o escritor de prompts escreve-o e a geração segue logo a seguir. Ou em Escrever, para o veres antes.">{{ p.text }}</textarea>
   <div class="mention-list" hidden role="listbox" aria-label="Imagens de referência"></div></div>
   {% if p.legend %}<div class="ref-legend"><span class="dim">Imagens que seguem (cada marcador liga-se à sua imagem ao gerar):</span>{% for r in p.legend %}<span class="rl"><span class="mono">{{ r.token }}</span>{% if r.sent and r.sent != r.token[1:] %} → <span class="mono">{{ r.sent }}</span>{% endif %} <span class="dim">{{ r.label }}</span></span>{% endfor %}</div>{% endif %}
   {% if p.text %}
   <details class="pchat-wrap">
-    <summary class="btn ghost sm">{{ i.icon("sparkles", 12) }}Pedir uma alteração ao Assistente</summary>
+    <summary class="btn ghost sm">{{ i.icon("sparkles", 12) }}Pedir uma alteração ao escritor</summary>
     <div class="pchat" data-pchat="/projetos/{{ project.id }}/escritor/{{ p.kind }}/{{ p.ref }}/rever" data-pchat-poll="/projetos/{{ project.id }}/escritor-rever/" data-target="{{ tid }}">
       <div class="pchat-log"></div>
-      <div class="pchat-row"><input class="in" type="text" placeholder="Ex.: tira os toldos; a rua está molhada; só dois carros…" aria-label="Pedido ao Assistente">
+      <div class="pchat-row"><input class="in" type="text" placeholder="Ex.: tira os toldos; a rua está molhada; só dois carros…" aria-label="Pedido ao escritor de prompts">
         <button class="btn sm" type="button" data-pchat-send>{{ i.icon("sparkles", 13) }}Pedir</button></div>
       <span class="hint">O texto muda na caixa; fica gravado quando carregares em Guardar ou em {{ gen_label }}.</span>
     </div>
@@ -126,7 +126,7 @@
       <div class="versions-box">
         {% for v in p.versions %}
         <div class="version">
-          <div class="col" style="gap: 2px; flex: 1; min-width: 0"><span class="dim">{{ v.created_at|relative }} · {{ "Assistente" if v.source == "assistente" else "editado à mão" }} · {{ v.text|wordcount }} palavras</span><span class="mono v-text">{{ v.text|truncate(140) }}</span>{% if p.version_takes and p.version_takes.get(v.id) %}<span class="v-takes">{% for tk in p.version_takes[v.id] %}<span class="tag">{{ tk }}</span>{% endfor %}</span>{% endif %}</div>
+          <div class="col" style="gap: 2px; flex: 1; min-width: 0"><span class="dim">{{ v.created_at|relative }} · {{ "Escritor" if v.source == "assistente" else "editado à mão" }} · {{ v.text|wordcount }} palavras</span><span class="mono v-text">{{ v.text|truncate(140) }}</span>{% if p.version_takes and p.version_takes.get(v.id) %}<span class="v-takes">{% for tk in p.version_takes[v.id] %}<span class="tag">{{ tk }}</span>{% endfor %}</span>{% endif %}</div>
           {% if v.text != p.text %}<button class="btn sm" type="submit" name="op" value="prestore:{{ p.kind }}:{{ p.ref }}:{{ v.id }}" form="{{ form }}">Repor</button>{% else %}<span class="tag">Atual</span>{% endif %}
         </div>
         {% endfor %}
@@ -145,9 +145,9 @@
       <select name="gen:{{ p.kind }}:{{ p.ref }}" class="gen-select" aria-label="Modelo para gerar" form="{{ form }}" title="Modelo (a opção por omissão escolhe-se na Configuração)">
         {% for v, l in gens.options %}<option value="{{ v }}" data-res="{{ gens.res.get(v, '') }}"{% if v == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}
       </select>{{ res_select("res:%s:%s" % (p.kind, p.ref), form) }}{% endif %}
-      <button class="btn sm gpt-btn{% if p.video %} pri{% endif %}" type="submit" name="op" value="pgen:{{ p.kind }}:{{ p.ref }}" form="{{ form }}" {% if p.busy or gen_disabled or (not p.video and not gens.options) %}disabled title="{{ gen_disabled or ('Sem modelos de imagem disponíveis: liga um fornecedor na Configuração' if not p.video and not gens.options else 'O Assistente está a escrever') }}"{% else %}title="{{ 'Grava e gera' if p.state in ('manual', 'assistant') else 'O Assistente escreve o prompt e a geração segue logo a seguir' }}"{% endif %} data-busy-label="A enviar…">{{ i.icon("film" if p.video else "image", 13) }}{{ gen_label }}</button>
+      <button class="btn sm gpt-btn{% if p.video %} pri{% endif %}" type="submit" name="op" value="pgen:{{ p.kind }}:{{ p.ref }}" form="{{ form }}" {% if p.video %}data-confirm="Gerar um take novo?" data-confirm-text="{% if cost_now %}Custa ≈ {{ cost_now.text }}.{% else %}O custo é o que aparece ao lado do botão (se ainda diz «por cotar…», espera um momento).{% endif %} O pedido segue para o fornecedor e é pago." data-confirm-ok="Gerar"{% endif %} {% if p.busy or gen_disabled or (not p.video and not gens.options) %}disabled title="{{ gen_disabled or ('Sem modelos de imagem disponíveis: liga um fornecedor na Configuração' if not p.video and not gens.options else 'O escritor está a escrever') }}"{% else %}title="{{ 'Grava e gera' if p.state in ('manual', 'assistant') else 'O escritor de prompts escreve o prompt e a geração segue logo a seguir' }}"{% endif %} data-busy-label="A enviar…">{{ i.icon("film" if p.video else "image", 13) }}{{ gen_label }}</button>
     </span>
-    {% if cost_url %}<span class="hint gen-cost" title="Custo estimado do take, pedido ao fornecedor"{% if not cost_now %} data-lazy="{{ cost_url }}"{% endif %}>{% if cost_now %}≈ {{ cost_now.text }}{% else %}por cotar…{% endif %}</span>{% endif %}
+    {% if cost_url %}<span class="hint gen-cost" title="Custo estimado do take, pedido ao fornecedor"{% if not cost_now %} data-lazy="{{ cost_url }}"{% endif %}>{% if cost_now %}≈ {{ cost_now.text }}{% else %}a calcular o custo…{% endif %}</span>{% endif %}
     {% endif %}{% endif %}
   </div>
 </div>
@@ -165,11 +165,16 @@
 {% endmacro %}
 
 {# Resultados por decidir: miniatura + Aprovar/Rejeitar. #}
+{# Os rejeitados que ainda têm o ficheiro: repor (volta a por decidir) ou aprovar. #}
+{% macro rejected_block(items, ratio="r43", width=110, video=False) %}{% if items %}<details class="rejected-takes"><summary class="hint">Rejeitados ({{ items|length }}) · ficam guardados: podes repor ou {{ "escolher" if video else "aprovar" }}</summary><div class="results">{{ results(items, ratio=ratio, width=width, video=video, rejected=True) }}</div></details>{% endif %}{% endmacro %}
+
 {% macro results(items, ratio="r916", width=120, video=False, edit=False, takes=None, frame_post=None, take_info=None, draft_base=None, rejected=False) %}
 {% for r in items %}
 {% set fname = r.path.rsplit('/', 1)[-1] %}
 <div class="res{% if takes and r.status == 'approved' %} chosen{% endif %}" style="width: {{ width }}px"{% if takes and r.status == 'approved' %} id="take-escolhido"{% endif %}>
-  {% if video %}
+  {% if r.kind == "audio" %}
+  <div class="voice-res"><audio controls preload="none" src="/media/{{ r.path }}"></audio>{% if r.duration_ms %}<span class="hint">{{ "%.1f"|format(r.duration_ms / 1000)|replace(".", ",") }} s</span>{% endif %}</div>
+  {% elif video %}
   <div class="ph {{ ratio }} img-ph" style="width: {{ width }}px"><video src="/media/{{ r.path }}#t=0.1" poster="/media/capa/{{ r.path }}" preload="none" controls playsinline></video><a class="zoom" href="/media/{{ r.path }}" hx-boost="false" aria-label="Ver {{ fname }} em grande" title="Ver em grande"{% if frame_post %} data-frame-post="{{ frame_post }}" data-take="{{ r.id }}"{% endif %}>{{ i.icon("film", 12) }}</a><span class="lb">{{ takes[r.id] if takes and r.id in takes else fname }}{% if r.duration_ms %} · {{ (r.duration_ms / 1000)|clock }}{% endif %}</span></div>
   {% else %}
   <a class="ph {{ ratio }} img-ph" style="width: {{ width }}px" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="{{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">{{ fname }}</span></a>
@@ -177,33 +182,33 @@
   {% endif %}
   <div class="acts">
     <a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar {{ takes.get(r.id, fname) if takes else fname }}" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
-    {% if rejected %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/repor" class="inline-form">{{ csrf() }}<button class="btn sm" type="submit" title="Volta aos takes por decidir">Repor</button></form>
-    <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ csrf() }}<button class="btn sm ok" type="submit">Escolher</button></form>
+    {% if rejected %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/repor" class="inline-form">{{ csrf() }}<button class="btn sm" type="submit" title="Volta aos {{ 'takes' if video else 'resultados' }} por decidir">Repor</button></form>
+    <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ csrf() }}<button class="btn sm ok" type="submit">{{ "Escolher" if video else "Aprovar" }}</button></form>
     {% else %}
     {% if takes and r.status == 'approved' %}<span class="chosen-tag">{{ i.icon("check", 12) }}Escolhido</span>
     {% else %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ csrf() }}<button class="btn sm ok" type="submit">{{ "Escolher" if takes else "Aprovar" }}</button></form>{% endif %}
     {% if takes %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ takes.get(r.id, fname) }}?" data-confirm-text="O take sai{{ ' de escolhido e' if r.status == 'approved' }} dos takes por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
-    {% else %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>{% endif %}
+    {% else %}<form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>{% endif %}
     {% endif %}
   </div>
   {% set ti = take_info.get(r.id) if take_info else none %}
   {% if ti and ti.draft and draft_base %}
   <form method="post" action="{{ draft_base }}/{{ r.id }}" class="inline-form">{{ csrf() }}<button class="btn sm" type="submit" style="width: 100%" title="O mesmo take, renderizado em 1080p (até {{ ti.draft_until.strftime('%d/%m') }})">Passar a 1080p (mesmo take)</button></form>
-  <span class="hint" style="font-size: 10.5px">custo: <span data-lazy="{{ draft_base }}/{{ r.id }}/custo">a pedir…</span></span>
+  <span class="hint" style="font-size: 10.5px">custo: <span data-lazy="{{ draft_base }}/{{ r.id }}/custo">a calcular…</span></span>
   {% endif %}
-  {% if ti %}<details class="take-info"><summary class="hint">Prompt e definições</summary><span class="hint">{{ ti.model or "" }}{% if ti.resolution %} · {{ ti.resolution }}{% endif %}{% if ti.credits %} · {{ ti.credits }} créditos{% if ti.quote and ti.quote != ti.credits %} (o ecrã mostrava {{ ti.quote }}){% endif %}{% endif %}</span>{% if ti.sent is not none %}<span class="hint">Seguiu: {% for x in ti.sent %}<span class="mono">{{ x.ref }}</span>{% if x.mode in ("start_frame", "end_frame") %} ({{ "frame inicial" if x.mode == "start_frame" else "frame final" }}){% endif %}{{ ", " if not loop.last }}{% endfor %}{% if not ti.guide %} · <b>sem vídeo-guia</b>{% endif %}</span>{% endif %}<pre class="mono">{{ ti.prompt }}</pre></details>{% endif %}
+  {% if ti %}<details class="take-info"><summary class="hint">Prompt e definições</summary><span class="hint">{{ ti.model or "" }}{% if ti.resolution %} · {{ ti.resolution }}{% endif %}{% if ti.credits %} · {{ ti.credits }} créditos{% if ti.quote and ti.quote != ti.credits %} (o ecrã mostrava {{ ti.quote }}){% endif %}{% endif %}</span>{% if ti.sent is not none %}<span class="hint">Seguiu: {% for x in ti.sent %}<span class="mono">{{ x.ref }}</span>{% if x.mode in ("start_frame", "end_frame") %} ({{ "primeira imagem" if x.mode == "start_frame" else "última imagem" }}){% endif %}{{ ", " if not loop.last }}{% endfor %}{% if not ti.guide %} · <b>sem vídeo-guia</b>{% endif %}</span>{% endif %}<pre class="mono">{{ ti.prompt }}</pre></details>{% endif %}
 </div>
 {% endfor %}
 {% endmacro %}
 
 {# Imagem aprovada com rótulo, descarregar e rejeitar. #}
-{% macro approved_image(media, label, ratio="r916", width=None, reject_text="O ficheiro é apagado e sai de onde era usado. Esta ação não se desfaz.", edit=False) %}
+{% macro approved_image(media, label, ratio="r916", width=None, reject_text="Deixa de estar aprovada e de seguir para onde era usada. Fica em «Rejeitados», com o ficheiro guardado: podes repô-la.", edit=False) %}
 <div class="approved-img"{% if width %} style="width: {{ width }}px"{% endif %}>
   <a class="ph {{ ratio }} img-ph" href="/media/{{ media.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ media.path|thumb }}" alt="{{ label }}"><span class="corner">{{ status("ok", "Aprovada") }}</span><span class="lb">{{ label }}</span></a>
   <div class="row" style="gap: 6px">
     <a class="btn sm" href="/projetos/{{ project.id }}/media/{{ media.id }}/descarregar" hx-boost="false">{{ i.icon("download", 13) }}Descarregar</a>
     {% if edit %}<button class="btn sm" type="button" data-edit-image="{{ media.id }}" data-edit-role="{{ media.role }}" data-edit-src="{{ media.path|thumb }}" data-edit-name="{{ label }}">Editar imagem</button>{% endif %}
-    <form method="post" action="/projetos/{{ project.id }}/media/{{ media.id }}/rejeitar" class="inline-form">{{ csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar a imagem aprovada?" data-confirm-text="{{ reject_text }}" data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+    <form method="post" action="/projetos/{{ project.id }}/media/{{ media.id }}/rejeitar" class="inline-form">{{ csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar a imagem aprovada?" data-confirm-text="{{ reject_text }}" data-confirm-ok="Rejeitar">Rejeitar</button></form>
   </div>
 </div>
 {% endmacro %}
@@ -258,9 +263,9 @@
 {% endmacro %}
 
 {# Botão "Escrever prompts" de um grupo (ex.: todas as vistas de uma zona). #}
-{% macro writer_button(kind, ref, form, task=None, label="Escrever com o Assistente", title="") %}
+{% macro writer_button(kind, ref, form, task=None, label="Escrever com o escritor de prompts", title="") %}
 <span class="writer">
-  <button class="btn sm" type="submit" form="{{ form }}" name="op" value="pwrite:{{ kind }}:{{ ref }}" title="{{ title or 'O Assistente escreve os prompts com o contexto todo do projeto e as imagens; ficam gravados, com versão, e podes editar' }}"{% if task and task.status == 'running' %} disabled{% endif %}>{{ i.icon("sparkles", 13) }}<span class="lbl">{{ label }}</span></button>
+  <button class="btn sm" type="submit" form="{{ form }}" name="op" value="pwrite:{{ kind }}:{{ ref }}" title="{{ title or 'O escritor de prompts escreve os prompts com o contexto todo do projeto e as imagens; ficam gravados, com versão, e podes editar' }}"{% if task and task.status == 'running' %} disabled{% endif %}>{{ i.icon("sparkles", 13) }}<span class="lbl">{{ label }}</span></button>
   {% if task %}{% with pid=project.id %}{% include "writer/_status.html" %}{% endwith %}{% endif %}
 </span>
 {% endmacro %}

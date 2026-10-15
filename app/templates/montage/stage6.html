@@ -10,7 +10,7 @@
   <div class="sec-h"><h2 class="h2">Padrão do projeto</h2><span class="hint">· os planos usam este modelo e esta resolução até escolherem outros na página de vídeo do plano</span></div>
   <div class="sec-b">
     <div class="f span2"><label for="p_video_model">Modelo de vídeo</label>
-      <select id="p_video_model" name="video_model" class="in">{% for md in models %}<option value="{{ md.name }}" {% if proj_model and md.name == proj_model.name %}selected{% endif %}>{{ md.name }}{% if not md.video_refs %} · sem vídeo-guia{% endif %}</option>{% endfor %}</select></div>
+      <select id="p_video_model" name="video_model" class="in">{% for md in models %}<option value="{{ md.name }}" {% if proj_model and md.name == proj_model.name %}selected{% endif %}>{{ md.name }}{% if md.cost_text %} · {{ md.cost_text }}{% endif %}{% if not md.video_refs %} · sem vídeo-guia{% endif %}</option>{% endfor %}</select></div>
     <div class="f"><label for="p_video_resolution">Resolução</label>
       <select id="p_video_resolution" name="video_resolution" class="in">{% for r in resolutions %}<option value="{{ r }}" {% if r == proj_res %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
   </div>
@@ -18,7 +18,7 @@
 </form>
 {% endif %}
 {% if rows %}
-<span class="hint">Escolhe um plano para montar o prompt de vídeo e carregar os clips.</span>
+<span class="hint">Escolhe um plano para gerar ou carregar os takes.</span>
 {% include "montage/_rows.html" %}
 {% else %}
 {% call m.empty_state("Ainda sem cenas", "Os planos criados no Storyboard aparecem aqui, cada um com o seu prompt de vídeo e os clips carregados.", "film") %}

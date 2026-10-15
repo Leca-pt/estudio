@@ -26,7 +26,7 @@
         <div class="acts">
           {{ m.op_button("season_up:%d" % season.id, "chev-up", "Subir temporada", disabled=loop.first) }}
           {{ m.op_button("season_down:%d" % season.id, "chev-down", "Descer temporada", disabled=loop.last) }}
-          {{ m.op_button("del_season:%d" % season.id, "trash", "Apagar temporada", confirm="Apagar a temporada %d?" % season.number, confirm_text="Os episódios e as cenas desta temporada também são apagados. Esta ação não se desfaz.") }}
+          {{ m.op_button("del_season:%d" % season.id, "trash", "Apagar temporada", confirm="Apagar a temporada %d?" % season.number, confirm_text="Vai para a Reciclagem (no topo da página) com os episódios, as cenas, os planos e os takes: podes recuperá-la durante 30 dias.") }}
         </div>
       </div>
       <div class="sec-b">
@@ -75,7 +75,7 @@
         <div class="acts">
           {{ m.op_button("act_up:%d" % act.id, "chev-up", "Subir ato", disabled=loop.first) }}
           {{ m.op_button("act_down:%d" % act.id, "chev-down", "Descer ato", disabled=loop.last) }}
-          {{ m.op_button("del_act:%d" % act.id, "trash", "Apagar ato", confirm="Apagar o ato %d?" % act.number, confirm_text="As cenas deste ato também são apagadas. Esta ação não se desfaz.") }}
+          {{ m.op_button("del_act:%d" % act.id, "trash", "Apagar ato", confirm="Apagar o ato %d?" % act.number, confirm_text="Vai para a Reciclagem (no topo da página) com as cenas, os planos e os takes: podes recuperá-lo durante 30 dias.") }}
         </div>
       </div>
       <div class="sec-b">

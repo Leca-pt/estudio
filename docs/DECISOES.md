@@ -450,3 +450,26 @@ as propostas dele). Pode propor, assinado «Assistente» e só gravado com «Apl
 com menções), ficheiros novos, tarefas, mudanças por partes, o texto inteiro (ficheiros até 60 000 caracteres) e
 propostas formais para os outros participantes darem parecer. A versão vai na chave do campo (room_edit:<f>:<v>…) e
 serve de base à fusão a três quando o ficheiro mudou entre a proposta e o «Aplicar».
+
+## 2026-10-15 — Revisão de UI/UX (rede de segurança, erros, navegação, custos, Agenda, Sala, nomes)
+- Apagar na app (cena, temporada, episódio, ato, plano, asset) vai para a Reciclagem, como pelo MCP
+  (trash.trash_container para temporadas/episódios/atos, com as cenas); a Reciclagem aparece sempre no topo.
+- «Rejeitar» deixa de apagar o que o utilizador gerou ou carregou (takes, folhas, retratos, looks, vistas, capa, vozes,
+  fotos): fica em «Rejeitados», com Repor/Aprovar (media_service.KEEP_ON_REJECT); os ficheiros técnicos (vídeo-guia,
+  renders) apagam-se. Confirmação em todos os Rejeitar; textos certos.
+- Erros: aviso (toast) quando um pedido falha ou não há rede; erros das gerações em linguagem de utilizador com «Ver
+  detalhes»; «Repetir» pede confirmação (pode ter custo). Aviso de alterações por guardar em todos os formulários (e
+  Ctrl/Cmd+S); na Sala, um conflito ao guardar mantém o texto no editor com as diferenças; comentários com erro não se perdem.
+- Navegação: a app lembra o último projeto e a última página de cada um (cartão, seletor, «Voltar a …» nas páginas
+  globais, «Voltar ao projeto» na Sala); o cartão abre a etapa que mostra; a árvore e os títulos da Montagem ficam na
+  etapa; o episódio atual segue a cena/plano aberto; «Seguinte: …» no fim de cada etapa; a barra da cena passa de um
+  episódio/ato para o seguinte; Assistente no telemóvel na Sala.
+- Custos: custo de cada modelo de vídeo nas listas; confirmação com o custo antes de gerar um take.
+- Agenda: filtros por tipo e pesquisa em todas as vistas; vista Lista com ações em massa (feitos, estado, mudar datas,
+  apagar); recorrências editáveis (refaz as por fazer de hoje em diante); diálogos não perdem o que se escreveu;
+  ligação aceita o endereço inteiro; «Agendar» no topo de qualquer página de projeto; «Parar» volta a por fazer.
+- Sala: pesquisa nos ficheiros e na discussão; o utilizador também faz propostas a partir do editor; aviso enquanto
+  prepara o PDF; mensagens sem as dicas para as IAs.
+- Nomes: «escritor de prompts» (os prompts) ≠ «Assistente» (o chat); take em vez de clip; Guardar; português claro
+  (Primeira/Última imagem, parte da encenação, notas de encenação, Traços marcantes, Formato); sem «painéis».
+- Projetos: arquivar (sai da lista e do seletor; «Arquivados»), pesquisa na lista; criar um asset abre a ficha nova.

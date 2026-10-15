@@ -66,7 +66,7 @@
   <section class="sec">
     <div class="sec-h"><span class="n">05</span><h2 class="h2">Formato</h2></div>
     <div class="sec-b">
-      {{ m.select("aspect_ratio", "Aspect ratio", options.aspect_ratio, p.aspect_ratio) }}
+      {{ m.select("aspect_ratio", "Formato (proporção)", options.aspect_ratio, p.aspect_ratio) }}
       {% if project.type == "series" %}
         {{ m.duration_select("target_duration_s", "Duração por episódio", duration_choices, p.target_duration_s, hint="Valor inicial de cada episódio novo; cada episódio pode ajustar.") }}
       {% elif project.type == "film" %}
@@ -100,14 +100,25 @@
       <div class="row" style="gap: 10px; flex-wrap: wrap; align-items: flex-start">
         {{ m.job_tiles(cover_jobs) }}
         {{ m.results(cover_results, ratio="r169", width=200, edit=gpt_enabled) }}
+        {{ m.rejected_block(rejected_files(project.id, "cover", asset_id=None), "r169", 160) }}
       </div>
-      {{ m.upload_zone("/projetos/%d/capa/resultados" % project.id, "image/png,image/jpeg,image/webp", "Ou carrega uma imagem", "PNG, JPG ou WEBP.", compact=True) }}
+      {{ m.upload_zone("/projetos/%d/capa/resultados" % project.id, "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP.", compact=True) }}
     </div>
     <div class="col" style="gap: 8px">
       <span class="cap">Capa atual</span>
-      {% if cover %}{{ m.approved_image(cover, "%s_cover.%s" % (project.prefix, cover.path.rsplit('.', 1)[-1]), ratio="r169", edit=gpt_enabled, reject_text="A capa é apagada. Esta ação não se desfaz.") }}
+      {% if cover %}{{ m.approved_image(cover, "%s_cover.%s" % (project.prefix, cover.path.rsplit('.', 1)[-1]), ratio="r169", edit=gpt_enabled, reject_text="Deixa de ser a capa. Fica em «Rejeitados», com o ficheiro guardado: podes repô-la.") }}
       {% else %}<div class="slot r169">{{ i.icon("image", 20) }}Sem capa — usa-se a primeira imagem aprovada do projeto</div>{% endif %}
     </div>
   </div>
 </section>
 {% endif %}
+
+<section class="sec" id="arquivar">
+  <div class="sec-h"><h2 class="h2">Arquivar</h2><span class="sp"></span>
+    <form method="post" action="/projetos/{{ project.id }}/arquivar" class="inline-form">{{ m.csrf() }}
+      {% if project.archived_at %}<button class="btn sm" type="submit">Voltar a pôr na lista</button>
+      {% else %}<button class="btn sm" type="submit" data-confirm="Arquivar «{{ project.name }}»?" data-confirm-text="Sai da lista de projetos e do seletor do topo; nada é apagado. Voltas a vê-lo em Projetos › Arquivados." data-confirm-ok="Arquivar">Arquivar projeto</button>{% endif %}
+    </form>
+  </div>
+  <div class="sec-b"><span class="hint span3">{% if project.archived_at %}Este projeto está arquivado: não aparece na lista nem no seletor.{% else %}Para projetos acabados ou parados: saem da lista e do seletor, mas ficam guardados com tudo.{% endif %}</span></div>
+</section>

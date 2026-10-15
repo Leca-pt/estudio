@@ -54,7 +54,7 @@
 
   <section class="sec" id="maquete">
     <div class="sec-h"><h2 class="h2">2 · Câmara sobre a encenação</h2><span class="sp"></span>
-      <span class="hint">O plano mostra um troço da encenação 3D da cena (as posições de toda a gente são as da cena); aqui só se põe a câmara.</span></div>
+      <span class="hint">O plano mostra uma parte da encenação 3D da cena (as posições de toda a gente são as da cena); aqui só se põe a câmara.</span></div>
     {% set scene_url = "/projetos/%d/storyboard/cenas/%d#encenacao" % (project.id, scene.id) %}
     {% if not location %}
     <div class="m3d-empty">
@@ -76,7 +76,7 @@
         {% if cur_d not in m3d_durations %}<option value="{{ cur_d }}" selected>{{ cur_d }} s (fora do modelo)</option>{% endif %}
         {% for d in m3d_durations %}<option value="{{ d }}" {% if d == cur_d %}selected{% endif %}>{{ d }} s</option>{% endfor %}
       </select>
-      <span class="tag mono">{{ "%g"|format(win_start) }}–{{ "%g"|format(win_end) }} s de {{ "%g"|format(stage_d) }} s</span>
+      <span class="tag mono">{{ (win_start)|seg }}–{{ (win_end)|seg }} s de {{ (stage_d)|seg }} s</span>
       {% if window_over %}<span class="hint c-wip">Passa do fim da encenação: depois do fim, ninguém se mexe.</span>{% endif %}
       <a class="btn sm ghost" href="{{ scene_url }}">Ver a encenação da cena</a>
     </div>
@@ -100,7 +100,7 @@
       <div class="m3d-chips row"></div>
       <div class="m3d-legend row"></div>
       <div class="m3d-actions row">
-        {% if asst is defined and asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Revê a câmara deste plano: o troço da encenação, o enquadramento de quem fala e de quem ouve, e a regra dos 180° em relação aos outros planos da cena.">{{ i.icon("sparkles", 13) }}Rever a câmara com o Assistente</button>{% endif %}
+        {% if asst is defined and asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Revê a câmara deste plano: a parte da encenação, o enquadramento de quem fala e de quem ouve, e a regra dos 180° em relação aos outros planos da cena.">{{ i.icon("sparkles", 13) }}Rever a câmara com o Assistente</button>{% endif %}
         <span class="sp"></span>
         <span class="hint m3d-status"></span>
         <button class="btn sm" type="button" data-m3d="record" title="Grava a animação pela câmara do plano (demora o tempo do plano)">{{ i.icon("film", 13) }}Gravar vídeo-guia</button>
@@ -108,8 +108,8 @@
     </div>
     {% else %}
     <div class="m3d-empty">
-      <p>Ainda sem câmara. O Assistente põe-na sobre a encenação: o troço que o plano mostra (pelas linhas do guião que cobre) e a câmara em cada momento — plano geral, por cima do ombro, grande plano…</p>
-      {% if asst is defined and asst.enabled %}<button class="btn pri" type="button" data-asst-ask="Põe a câmara deste plano sobre a encenação da cena: o início do troço pelas linhas do guião que o plano cobre e a câmara (marca com &quot;moment&quot; as posições que contam), de acordo com o tipo de plano e o que acontece nele." data-ask-from="description">{{ i.icon("sparkles", 14) }}Pôr a câmara com o Assistente</button>{% else %}<span class="hint">Liga o Assistente na Configuração.</span>{% endif %}
+      <p>Ainda sem câmara. O Assistente põe-na sobre a encenação: a parte que o plano mostra (pelas linhas do guião que cobre) e a câmara em cada momento — plano geral, por cima do ombro, grande plano…</p>
+      {% if asst is defined and asst.enabled %}<button class="btn pri" type="button" data-asst-ask="Põe a câmara deste plano sobre a encenação da cena: o início da parte pelas linhas do guião que o plano cobre e a câmara (marca com &quot;moment&quot; as posições que contam), de acordo com o tipo de plano e o que acontece nele." data-ask-from="description">{{ i.icon("sparkles", 14) }}Pôr a câmara com o Assistente</button>{% else %}<span class="hint">Liga o Assistente na Configuração.</span>{% endif %}
     </div>
     {% endif %}
     {% endif %}
@@ -119,6 +119,7 @@
   <section class="sec" id="momentos">
     <div class="sec-h"><h2 class="h2">3 · Vistas do local nos momentos da câmara</h2><span class="sp"></span>
       <span class="hint">Em cada momento, a vista do local que vai para o vídeo (sem pessoas: o aspeto do sítio). A app escolhe a mais parecida com a câmara; se nenhuma serve, cria uma a partir desta câmara.</span></div>
+    {% if moments|rejectattr("render")|list %}<p class="hint" style="margin: 0 0 8px">Os previs (o esboço 3D de cada momento) tiram-se no teu browser enquanto esta página está aberta: deixa-a aberta até aparecerem. Se fechares antes, tiram-se da próxima vez que a abrires.</p>{% endif %}
     <div class="moments">
       {% for r in moments %}
       <div class="moment">
@@ -145,7 +146,7 @@
           {% if not gens.options %}<span class="hint">Sem modelos de imagem ligados (Configuração → Ligações ou Chaves de API).</span>{% else %}
           {% if r.task and r.task.status == "failed" %}<span class="hint c-no">{{ r.task.error or "Não foi possível escrever o prompt." }}</span>{% endif %}
           <span class="gen-split"><select name="gen:vista:{{ r.view.id }}" class="gen-select" form="{{ F }}" aria-label="Modelo">{% for v, l in gens.options %}<option value="{{ v }}" data-res="{{ gens.res.get(v, '') }}"{% if v == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % r.view.id, F) }}
-            <button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgen:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="O Assistente escreve o prompt da vista e a imagem gera-se logo a seguir">{{ i.icon("image", 13) }}Gerar imagem</button></span>
+            <button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgen:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="O escritor de prompts escreve o prompt da vista e a imagem gera-se logo a seguir">{{ i.icon("image", 13) }}Gerar imagem</button></span>
           {% endif %}{% endif %}
           <a class="btn sm ghost" href="/projetos/{{ project.id }}/assets/{{ location.id }}#vista3d-{{ r.view.id }}">Ver o prompt</a>
         </div>
@@ -167,7 +168,7 @@
         {% if guide_replaces %}{{ m.status("wip", "Vídeo-guia novo, por aprovar") }}<span class="hint">Até o aprovares, o que segue para o vídeo continua a ser o anterior.</span>
         <div class="row" style="gap: 6px">
           <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar este vídeo-guia?" data-confirm-text="O vídeo-guia é apagado (é a app que o faz: grava-se outro quando precisares)." data-confirm-ok="Rejeitar">Rejeitar</button></form>
         </div>
         {% elif guide_stale %}{{ m.status("no", "Vídeo-guia desatualizado") }}<span class="hint">Foi gravado com {{ (guide.duration_ms / 1000)|round(1) }} s e o plano tem agora {{ shot.duration_s }} s: grava de novo (não segue para o vídeo assim).</span>
         {% elif guide_old %}{{ m.status("wip", "Vídeo-guia de uma versão anterior") }}<span class="hint">A encenação da cena ou a câmara mudou depois de o gravares: grava-o de novo para o vídeo seguir as posições atuais.</span>
@@ -175,7 +176,7 @@
         {% else %}{{ m.status("wip", "Vídeo-guia por aprovar") }}<span class="hint">Vê se a câmara e o movimento estão como queres antes de o usar.</span>
         <div class="row" style="gap: 6px">
           <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar este vídeo-guia?" data-confirm-text="O vídeo-guia é apagado (é a app que o faz: grava-se outro quando precisares)." data-confirm-ok="Rejeitar">Rejeitar</button></form>
         </div>{% endif %}
       </div>
     </div>
@@ -191,7 +192,7 @@
             <span class="mono">{{ g.path.rsplit('/', 1)[-1].rsplit('.', 1)[0]|replace('guide_', '') }}</span> · {{ g.created_at|relative }}
             {% if g.id == shot.guide_video_id %}<span class="tag">Aprovado</span>{% else %}
             <form method="post" action="/projetos/{{ project.id }}/media/{{ g.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ g.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" title="Apaga o ficheiro">Rejeitar</button></form>{% endif %}
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ g.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar este vídeo-guia?" data-confirm-text="O vídeo-guia é apagado (é a app que o faz: grava-se outro quando precisares)." data-confirm-ok="Rejeitar">Rejeitar</button></form>{% endif %}
           </figcaption>
         </figure>
         {% endfor %}
@@ -222,7 +223,7 @@
     </div>
   </details>
 
-  <div class="row" style="gap: 6px"><span class="sp"></span>{{ m.op_button("delete_shot", "trash", "Apagar plano", confirm="Apagar o P%02d?" % shot.number, confirm_text="A cena 3D, os takes e as imagens deste plano são apagados. As vistas criadas na maquete do local ficam.", confirm_ok="Apagar", form=F) }}<span class="hint">Apagar plano</span></div>
+  <div class="row" style="gap: 6px"><span class="sp"></span>{{ m.op_button("delete_shot", "trash", "Apagar plano", confirm="Apagar o P%02d?" % shot.number, confirm_text="Vai para a Reciclagem (no topo da página) com a câmara, os takes e as imagens: podes recuperá-lo durante 30 dias. As vistas criadas na maquete do local ficam.", confirm_ok="Apagar", form=F) }}<span class="hint">Apagar plano</span></div>
 </div>
 
 {% if script %}{{ m.picker("pick-lines", "Linhas do guião deste plano", line_groups, shot_lines, "line", F, hint="As linhas que este plano cobre. Uma linha pode estar em vários planos (ex.: plano geral e grande plano da mesma fala).", sent_name="lines_sent") }}{% endif %}

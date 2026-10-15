@@ -8,12 +8,12 @@
     <div class="phead"><h1 class="h1">Reciclagem</h1><span class="sp"></span><a class="btn" href="/projetos/{{ project.id }}">Voltar ao projeto</a></div>
     {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
-    <p class="hint">Cenas, planos e assets apagados pelo Claude (conector MCP). Ficam aqui 30 dias, com o guião, os planos, a encenação, as câmaras, os prompts e os ficheiros; depois apagam-se de vez.</p>
+    <p class="hint">Tudo o que apagaste (na app ou pelo Claude/ChatGPT): temporadas, episódios, atos, cenas, planos e assets. Ficam aqui 30 dias, com o guião, os planos, a encenação, as câmaras, os takes, os prompts e os ficheiros; depois apagam-se de vez.</p>
     {% if items %}
     <div class="col" style="gap: 8px; margin-top: 12px">
       {% for it in items %}
       <div class="row card" style="gap: 12px; align-items: center; padding: 10px 14px">
-        <span class="tag">{{ {"scene": "Cena", "shot": "Plano", "asset": "Asset"}[it.kind] }}</span>
+        <span class="tag">{{ {"scene": "Cena", "shot": "Plano", "asset": "Asset", "season": "Temporada", "episode": "Episódio", "act": "Ato"}.get(it.kind, it.kind) }}</span>
         <span style="flex: 1; min-width: 0">{{ it.label }}{% if it.kind == "scene" %} <span class="hint">· {{ it.data.shots|length }} plano(s), {{ it.data.lines|length }} linha(s) do guião</span>{% endif %}</span>
         <span class="hint">apagado {{ it.created_at|relative }}</span>
         <form method="post" action="/projetos/{{ project.id }}/reciclagem/{{ it.id }}/recuperar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Recuperar</button></form>

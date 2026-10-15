@@ -65,6 +65,7 @@ class Project(TimestampedModel, table=True):
     # Capa (imagem do cartão na lista de projetos)
     cover_media_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
     cover_prompt: Optional[str] = None  # EN; escrito pelo escritor de prompts (ou editado à mão)
+    archived_at: Optional[datetime] = None  # arquivado: sai da lista e do seletor (fica em «Arquivados»)
 
 
 class Season(TimestampedModel, table=True):

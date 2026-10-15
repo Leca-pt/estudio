@@ -7,9 +7,9 @@
   <span class="sp"></span>
   {% if summary.approved %}
   <button class="btn" type="button" data-play-all>{{ i.icon("play", 14) }}Ver seguido</button>
-  <a class="btn pri" href="/projetos/{{ project.id }}/montagem/exportar.zip?ambito={{ scope }}" hx-boost="false">{{ i.icon("download", 15) }}Exportar clips (zip)</a>
+  <a class="btn pri" href="/projetos/{{ project.id }}/montagem/exportar.zip?ambito={{ scope }}" hx-boost="false">{{ i.icon("download", 15) }}Exportar takes (zip)</a>
   {% else %}
-  <button class="btn pri" type="button" disabled>{{ i.icon("download", 15) }}Exportar clips (zip)</button>
+  <button class="btn pri" type="button" disabled>{{ i.icon("download", 15) }}Exportar takes (zip)</button>
   {% endif %}
 </div>
 {{ m.alerts(error) }}

@@ -195,8 +195,9 @@ def build_tree(session: Session, project: Project, current: tuple = ("project",)
     def scene_href(s: Scene, story_base: str) -> str:
         if stage == 5:
             return f"{base}/storyboard/cenas/{s.id}"
-        if stage >= 6:
-            return f"{base}/etapa/{stage}#cena-{s.id}"
+        if stage >= 6:  # a cena no âmbito certo (o episódio ou ato dela), para a âncora existir na página
+            scope = f"?ambito=ep-{s.episode_id}" if s.episode_id else (f"?ambito=ato-{s.act_id}" if s.act_id else "")
+            return f"{base}/etapa/{stage}{scope}#cena-{s.id}"
         return f"{story_base}?cena={s.id}#cena-{s.id}"
 
     def scene_nodes(s: Scene, level: int, story_base: str) -> list[dict]:
@@ -216,7 +217,15 @@ def build_tree(session: Session, project: Project, current: tuple = ("project",)
         return nodes_
 
     nodes = [{"level": 1, "prefix": project.prefix, "title": "Projeto", "href": f"{base}/etapa/1",
-              "on": current == ("project",)}]
+              "on": current == ("project",) and stage == 1}]
+
+    def unit_href(kind_: str, obj_id: int, story: str) -> str:
+        """Um episódio ou ato na árvore: nas etapas de produção fica na etapa (filtrada), senão abre na História."""
+        if stage == 5 and kind_ == "ep":
+            return f"{base}/etapa/5?ep={obj_id}"
+        if stage >= 6:
+            return f"{base}/etapa/{stage}?ambito={kind_ if kind_ == 'ep' else 'ato'}-{obj_id}"
+        return story
     if project.type == "short":
         for s in scenes:
             nodes += scene_nodes(s, 1, f"{base}/etapa/2")
@@ -243,7 +252,8 @@ def build_tree(session: Session, project: Project, current: tuple = ("project",)
                 ep_scenes = [s for s in scenes if s.episode_id == e.id]
                 is_open = e.id == open_episode
                 nodes.append({"level": 2, "code": f"E{e.number:02d}", "title": e.title or f"Episódio {e.number}",
-                              "href": f"{hist}/episodios/{e.id}", "dot": _group_state([scene_state(s) for s in ep_scenes]),
+                              "href": unit_href("ep", e.id, f"{hist}/episodios/{e.id}"),
+                              "dot": _group_state([scene_state(s) for s in ep_scenes]),
                               "chevron": ("down" if is_open else "right") if ep_scenes else "none",
                               "on": current == ("episode", e.id)})
                 if is_open:
@@ -257,7 +267,8 @@ def build_tree(session: Session, project: Project, current: tuple = ("project",)
             act_scenes = [s for s in scenes if s.act_id == a.id]
             is_open = a.id == open_act
             nodes.append({"level": 1, "code": f"A{a.number}", "title": a.title or f"Ato {a.number}",
-                          "href": f"{hist}/atos/{a.id}", "dot": _group_state([scene_state(s) for s in act_scenes]),
+                          "href": unit_href("ato", a.id, f"{hist}/atos/{a.id}"),
+                          "dot": _group_state([scene_state(s) for s in act_scenes]),
                           "chevron": ("down" if is_open else "right") if act_scenes else "none",
                           "on": current == ("act", a.id)})
             if is_open:
@@ -406,8 +417,17 @@ def render_stage(
 ):
     """Desenha uma vista dentro da shell do projeto, com a etapa `stage` ativa."""
     states = stage_states(session, project)
-    episode = current_episode(request, session, project,
-                              override=current[1] if current and current[0] == "episode" else None)
+    override = current[1] if current and current[0] == "episode" else None
+    if current and current[0] in ("scene", "shot") and len(current) > 1 and project.type == "series":
+        # numa cena ou num plano, o episódio atual é o dela (vinda da Montagem, da Agenda ou da Sala)
+        sc = session.get(Scene, current[1]) if current[0] == "scene" else None
+        if current[0] == "shot":
+            from app.models import Shot
+
+            sh = session.get(Shot, current[1])
+            sc = session.get(Scene, sh.scene_id) if sh else None
+        override = sc.episode_id if sc and sc.episode_id else None
+    episode = current_episode(request, session, project, override=override)
     steps = build_steps(session, project, stage, current, episode)
     full_ctx = {
         "project": project,

@@ -326,7 +326,7 @@ def approve_voice(project_id: int, asset_id: int, voice_id: int) -> str:
 
 
 @server.tool(annotations=DESTRUCTIVE, title="Rejeitar voz",
-             description="Rejeita uma voz, como o botão Rejeitar: o ficheiro é apagado.")
+             description="Rejeita uma voz, como o botão Rejeitar: sai das vozes por decidir e fica em «Rejeitados» (o utilizador pode repô-la).")
 def reject_voice(project_id: int, asset_id: int, voice_id: int) -> str:
     from app.media_service import reject_media
 
@@ -334,4 +334,4 @@ def reject_voice(project_id: int, asset_id: int, voice_id: int) -> str:
         a, m = _voice(s, project_id, asset_id, voice_id)
         reject_media(s, m)
         s.commit()
-        return f"Rejeitada e apagada: voz {voice_id} de {a.name}."
+        return f"Rejeitada: voz {voice_id} de {a.name} (fica em «Rejeitados»)."

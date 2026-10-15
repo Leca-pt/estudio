@@ -1,6 +1,7 @@
 """Sala de argumentistas (app/writing.py): a página do utilizador. Vê os ficheiros, as versões, as propostas, as tarefas e a
 discussão das IAs, participa em tudo, e é o único que aprova para a app (e tranca) e destranca."""
 
+import logging
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -17,7 +18,28 @@ from app.templating import templates
 
 router = APIRouter(prefix="/projetos/{project_id}/sala", dependencies=[Depends(require_login), Depends(csrf_protect)])
 TABS = ("texto", "discussao", "historico", "aprovar")
+# Rascunhos que falharam ao gravar (conflito, erro): voltam ao editor ou ao comentário em vez de se perderem.
+# Em memória, por token, e só uma vez (o texto pode ser grande demais para a sessão).
+_DRAFTS: dict[str, dict] = {}
+
+
+def _for_user(msg: str) -> str:
+    """As mensagens da sala também servem as IAs («Usa list_files.»): na página tira-se o que é só para elas."""
+    import re
+
+    return re.sub(r"\s*Usa (list_\w+|read_\w+|file_diff|edit_file)[^.]*\.", "", msg).strip()
+
+
+def _keep_draft(data: dict) -> str:
+    import secrets
+
+    if len(_DRAFTS) > 200:
+        _DRAFTS.clear()
+    token = secrets.token_urlsafe(8)
+    _DRAFTS[token] = data
+    return token
 ME = writing.USER
+log = logging.getLogger("estudio.sala")
 
 
 def _file(session: Session, project_id: int, file_id: int) -> WritingFile:
@@ -69,12 +91,13 @@ def _tree(fs: list[WritingFile], cur: WritingFile | None = None) -> dict:
 
 @router.get("")
 def room_page(request: Request, project_id: int, f: int | None = None, tab: str = "texto", ver: int | None = None,
+              rascunho: str | None = None,
               d: int | None = None, p: int | None = None, v: str | None = None, modo: str | None = None, session: Session = Depends(get_session)):
     project = get_project(session, project_id)
     fs = writing.files(session, project.id)
     cur = _file(session, project.id, f) if f else None
     tab = tab if tab in TABS else "texto"
-    view = "file" if cur else "proposal" if p else v if v in ("propostas", "tarefas", "avisos", "apagados") else "geral"
+    view = "file" if cur else "proposal" if p else v if v in ("propostas", "tarefas", "avisos", "apagados", "procura") else "geral"
     ctx = {"project": project, "tree": _tree(fs, cur if f else None), "cur": cur, "tab": tab, "view": view, "files_n": len(fs),
            "counts": writing.comment_counts(session, project.id), "targets": writing.targets(session, project),
            "taken": {x.target: x.path for x in fs if x.target}, "author_label": writing.author_label,
@@ -86,6 +109,23 @@ def room_page(request: Request, project_id: int, f: int | None = None, tab: str 
            "PSTATUS": writing.PROPOSAL_STATUS, "TSTATUS": writing.TASK_STATUS, "VERDICTS": writing.VERDICTS,
            "back": request.url.query,
            "notice": request.session.pop("flash_info", None), "error": request.session.pop("flash_error", None)}
+    ctx["comment_draft"] = None
+    if rascunho and rascunho in _DRAFTS and "text" in _DRAFTS[rascunho]:
+        ctx["comment_draft"] = _DRAFTS.pop(rascunho)
+    if view == "procura":
+        q = (request.query_params.get("s") or "").strip()
+        ctx["search_q"], ctx["search_files"], ctx["search_comments"] = q, [], []
+        ctx["prop_numbers"] = {x.id: x.number for x in writing.proposals(session, project.id, None)}
+        if q:
+            low = q.lower()
+            for x in fs:
+                n = x.content.lower().count(low) + (3 if low in x.path.lower() else 0)
+                if n:
+                    lines = [ln.strip()[:140] for ln in x.content.splitlines() if low in ln.lower()][:3]
+                    ctx["search_files"].append({"f": x, "n": n, "lines": lines})
+            ctx["search_files"].sort(key=lambda r: -r["n"])
+            ctx["search_comments"] = [c for c in writing.comments(session, project.id, everything=True, limit=2000)
+                                      if low in c.text.lower()][-30:][::-1]
     if view == "geral":
         ctx["thread"] = writing.threaded(writing.comments(session, project.id))
     elif view == "propostas":
@@ -121,6 +161,10 @@ def room_page(request: Request, project_id: int, f: int | None = None, tab: str 
             ctx["ver"] = ver if ver and 1 <= ver < cur.version else None
             ctx["shown"] = writing.version_text(session, cur, ctx["ver"]) if ctx["ver"] else cur.content
             ctx["mode"] = modo if modo in ("editar", "simples") else "ler"
+            draft = _DRAFTS.pop(rascunho, None) if rascunho else None
+            if draft and draft.get("file_id") == cur.id and "content" in draft and cur.status == "draft":
+                ctx["mode"], ctx["shown"] = "editar", draft["content"]
+                ctx["conflict_rows"] = [r for r in writing.diff_rows(draft["content"], cur.content)] if draft.get("conflict") else None
             if ctx["mode"] == "editar" and (ctx["ver"] or cur.status != "draft" or cur.deleted_at):
                 ctx["mode"] = "simples"
             if ctx["mode"] == "ler":
@@ -142,6 +186,8 @@ def room_page(request: Request, project_id: int, f: int | None = None, tab: str 
 
     ctx["asst"] = panel_data(session, project, f"room_file:{cur.id}" if cur else "room", None)
     ctx["back_url"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    place = (request.session.get("places_before_room") or {}).get(str(project.id))
+    ctx["back_place"] = place or f"/projetos/{project.id}/etapa/2"
     return templates.TemplateResponse(request, "room/room.html", ctx)
 
 
@@ -155,7 +201,7 @@ def _do(request: Request, session: Session, fn, ok: str | None = None) -> bool:
         return True
     except writing.WritingError as exc:
         session.rollback()
-        request.session["flash_error"] = str(exc)
+        request.session["flash_error"] = _for_user(str(exc))
         return False
 
 
@@ -182,7 +228,8 @@ async def file_pdf(request: Request, project_id: int, file_id: int, ver: int | N
     try:
         pdf = await room_pdf.to_pdf(room_pdf.page_html(title, sub, body), f"{project.prefix} · {path} · v{v}")
     except Exception as exc:  # noqa: BLE001 — o browser do servidor falhou: diz-se na página
-        request.session["flash_error"] = f"Não foi possível gerar o PDF ({type(exc).__name__})."
+        request.session["flash_error"] = "Não foi possível gerar o PDF agora (o gerador do servidor não respondeu). Tenta outra vez daqui a pouco."
+        log.warning("PDF falhou: %r", exc)
         return _back(project.id, f)
     name = f"{title}{'' if v == f.version else f'-v{v}'}.pdf"
     ascii_name = re.sub(r"[^A-Za-z0-9._-]+", "-", unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()) or "ficheiro.pdf"
@@ -224,8 +271,12 @@ async def comment(request: Request, project_id: int, session: Session = Depends(
     def go():
         writing.comment(session, project, form.get("text") or "", ME, path, reply_to=integer(form, "reply_to", "Resposta"),
                         proposal=integer(form, "proposal", "Proposta"), task=integer(form, "task", "Tarefa"))
-    _do(request, session, go)
-    return _to(project.id, text(form, "back"))
+    if _do(request, session, go):
+        return _to(project.id, text(form, "back"))
+    token = _keep_draft({"text": form.get("text") or "", "key": "|".join(str(form.get(k) or "") for k in
+                                                                          ("file_id", "proposal", "task", "reply_to"))})
+    back = (text(form, "back") or "").lstrip("?")
+    return _to(project.id, (back + "&" if back else "") + f"rascunho={token}")
 
 
 @router.post("/{file_id}/gravar")
@@ -234,14 +285,33 @@ async def save(request: Request, project_id: int, file_id: int, session: Session
     f = _file(session, project.id, file_id)
     form = await request.form()
     base = integer(form, "base_version", "Versão")
-
-    def go():
-        writing._locked(f)
-        _f, _c, note = writing.write(session, project, f.path, form.get("content") or "", ME, text(form, "message") or "",
-                                     base_version=base)
-        return f"Gravado ({note})." if note else None
-    _do(request, session, go)
-    return _back(project.id, f)
+    content = form.get("content") or ""
+    if form.get("propose"):
+        try:
+            with writing.lock:
+                prop = writing.propose(session, project, f.path, ME, text(form, "p_title") or "", text(form, "p_rationale") or "",
+                                       text(form, "p_impacts") or "", content=content, base_version=base)
+                session.commit()
+            request.session["flash_info"] = f"Proposta #{prop.number} criada: o ChatGPT e o Claude podem dar parecer."
+            return _back(project.id, p=prop.number)
+        except writing.WritingError as exc:
+            session.rollback()
+            request.session["flash_error"] = str(exc)
+            return _back(project.id, f, modo="editar", rascunho=_keep_draft({"file_id": f.id, "content": content}))
+    try:
+        with writing.lock:
+            writing._locked(f)
+            _f, _c, note = writing.write(session, project, f.path, content, ME, text(form, "message") or "",
+                                         base_version=base)
+            session.commit()
+        if note:
+            request.session["flash_info"] = f"Guardado ({note})."
+        return _back(project.id, f)
+    except writing.WritingError as exc:
+        session.rollback()
+        request.session["flash_error"] = _for_user(str(exc))
+        token = _keep_draft({"file_id": f.id, "content": content, "conflict": exc.conflict})
+        return _back(project.id, f, modo="editar", rascunho=token)
 
 
 @router.post("/{file_id}/destino")

@@ -22,7 +22,7 @@ import re
 
 CUT_RISK = re.compile(r"\b(?:at\s+)?\d+(?:[.,]\d+)?\s*[-–]\s*\d+(?:[.,]\d+)?\s*s(?:ec(?:onds?)?)?\b", re.I)
 
-STATE_LABELS = {"missing": "Por escrever", "manual": "Editado à mão", "assistant": "Escrito pelo Assistente",
+STATE_LABELS = {"missing": "Por escrever", "manual": "Editado à mão", "assistant": "Escrito pelo escritor",
                 "stale": "Desatualizado"}
 
 

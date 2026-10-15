@@ -16,7 +16,7 @@ def _nav_projects():
     from app.models import Project
 
     with Session(engine) as session:
-        return list(session.exec(select(Project).order_by(Project.name)).all())
+        return list(session.exec(select(Project).where(Project.archived_at.is_(None)).order_by(Project.name)).all())
 
 
 templates.env.globals["nav_projects"] = _nav_projects
@@ -231,3 +231,92 @@ def _agenda_today() -> dict:
 
 
 templates.env.globals["agenda_today"] = _agenda_today
+
+
+def _rejected_files(project_id: int, roles: tuple | list | str = (), **filters) -> list:
+    """Os rejeitados que ainda têm o ficheiro (para a secção «Rejeitados», de onde se repõem), do mais recente."""
+    from sqlmodel import Session, select
+
+    from app.db import engine
+    from app.media import media_root
+    from app.models import MediaFile
+
+    roles = (roles,) if isinstance(roles, str) else tuple(roles)
+    with Session(engine) as s:
+        q = select(MediaFile).where(MediaFile.project_id == project_id, MediaFile.status == "rejected")
+        if roles:
+            q = q.where(MediaFile.role.in_(roles))
+        for k, v in filters.items():
+            q = q.where(getattr(MediaFile, k) == v) if v is not None else q.where(getattr(MediaFile, k).is_(None))
+        rows = s.exec(q.order_by(MediaFile.id.desc()).limit(40)).all()
+        return [m for m in rows if (media_root() / m.path).is_file()]
+
+
+templates.env.globals["rejected_files"] = _rejected_files
+
+
+def _friendly_error(raw: str | None) -> dict:
+    """O erro de uma geração em linguagem de utilizador: {"msg", "detail"} (detail = o texto técnico, se for outro)."""
+    text = (raw or "").strip()
+    low = text.lower()
+
+    def out(msg: str) -> dict:
+        return {"msg": msg, "detail": text if text and text != msg else ""}
+    if not text:
+        return out("Falhou sem explicação do fornecedor. Tenta outra vez.")
+    if "reinício" in low:
+        return out(text)
+    if any(k in low for k in ("confirmcost", "confirmação", "confirmar o custo", "confirm the cost")):
+        return out("O fornecedor pede que confirmes o custo. Carrega em «Repetir» para aceitar e gerar.")
+    if any(k in low for k in ("insufficient", "not enough credit", "créditos insuficientes", "saldo", "balance", "quota")):
+        return out("Não há créditos suficientes no fornecedor. Carrega créditos (ou escolhe outro modelo) e tenta outra vez.")
+    if any(k in low for k in ("safety", "moderation", "content policy", "policy", "flagged", "nsfw", "sensitive",
+                              "real person", "public figure", "inappropriate")):
+        return out("O fornecedor recusou o pedido pelas regras de conteúdo (ex.: caras de pessoas reais, violência). Muda "
+                   "o prompt ou as referências e tenta outra vez.")
+    if any(k in low for k in ("timeout", "timed out", "tempo limite", "demorou")):
+        return out("Demorou demasiado e foi cancelado. Tenta outra vez; às vezes o fornecedor está sobrecarregado.")
+    if any(k in low for k in ("rate limit", "429", "too many requests")):
+        return out("O fornecedor está a limitar pedidos. Espera uns minutos e carrega em «Repetir».")
+    if any(k in low for k in ("connection", "network", "name resolution", "unreachable", "502", "503", "504")):
+        return out("Não foi possível falar com o fornecedor (rede ou serviço em baixo). Tenta outra vez daqui a pouco.")
+    if any(k in low for k in ("traceback", "exception", "error:", "errno", "claude code falhou", "ilegível")):
+        return out("O pedido falhou do lado do fornecedor. Tenta outra vez; se repetir, escolhe outro modelo.")
+    return {"msg": text, "detail": ""}
+
+
+templates.env.filters["friendly_error"] = _friendly_error
+
+
+def _last_project(request):
+    """O último projeto aberto (para o topo das páginas globais: Agenda, Configuração, lista de projetos)."""
+    from sqlmodel import Session
+
+    from app.db import engine
+    from app.models import Project
+
+    try:
+        pid = request.session.get("last_project")
+    except AssertionError:  # sem sessão
+        return None
+    if not pid:
+        return None
+    with Session(engine) as s:
+        p = s.get(Project, int(pid))
+        if p is not None:
+            s.expunge(p)
+        return p
+
+
+templates.env.globals["last_project"] = _last_project
+
+
+def _seg(value) -> str:
+    """Segundos (ou outro número) para mostrar: sem zeros a mais e com vírgula decimal (12,5)."""
+    try:
+        return f"{float(value):g}".replace(".", ",")
+    except (TypeError, ValueError):
+        return ""
+
+
+templates.env.filters["seg"] = _seg

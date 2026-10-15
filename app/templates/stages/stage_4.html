@@ -61,11 +61,11 @@
 · Sociedade e poder: quem manda, como vive a população, o que é crime.
 · Regras do fantástico: o que os poderes fazem, o que não conseguem, o que custam.
 · Aspeto visual recorrente: néon, chuva, publicidade holográfica, lixo nas ruas.">{{ project.world or '' }}</textarea>
-    <span class="hint">Texto livre, em português. O Assistente usa-o em todas as etapas para escrever, descrever locais, adereços e painéis coerentes com o mundo, e para avisar quando algo o contradiz.</span>
+    <span class="hint">Texto livre, em português. O Assistente usa-o em todas as etapas para escrever, descrever locais, adereços e planos coerentes com o mundo, e para avisar quando algo o contradiz.</span>
     {% set wp_words = (project.world_prompt or "").split()|length %}
     <label class="l" for="world_prompt" style="margin-top: 6px">O mundo nos prompts <span class="dim">· em inglês, só o que se vê · {{ wp_words }} palavra(s)</span></label>
     <textarea id="world_prompt" name="world_prompt" class="in mono" lang="en" rows="3" placeholder="Ex.: Europe, near future: present-day streets and buildings, more physical advertising screens, many surveillance cameras, autonomous electric cars, delivery drones overhead, very clean streets; no holograms.">{{ project.world_prompt or '' }}</textarea>
-    <div class="row"><span class="hint">Entra sozinho nos prompts de ambiente (imagem geral e vistas dos locais, vistas da maquete, painéis, capa), antes do bloco de estilo. Não entra nas folhas de personagens e adereços. Ideal: até 30 palavras{% if wp_words > 30 %} — <b>este tem {{ wp_words }}, encurta-o</b> (cada imagem aguenta ~80 palavras){% endif %}. Pede ao Assistente: «Resume o mundo para os prompts».</span><span class="sp"></span>
+    <div class="row"><span class="hint">Entra sozinho nos prompts de ambiente (imagem geral e vistas dos locais, vistas da maquete, previs dos planos, capa), antes do bloco de estilo. Não entra nas folhas de personagens e adereços. Ideal: até 30 palavras{% if wp_words > 30 %} — <b>este tem {{ wp_words }}, encurta-o</b> (cada imagem aguenta ~80 palavras){% endif %}. Pede ao Assistente: «Resume o mundo para os prompts».</span><span class="sp"></span>
       <button class="btn pri sm" type="submit">Guardar o mundo</button></div>
   </form>
 </details>

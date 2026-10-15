@@ -655,6 +655,16 @@ export function mount(el) {
     return j;
   }
 
+  // Erros dos renders em linguagem de utilizador (o detalhe técnico fica na consola).
+  const human = (err) => {
+    console.warn(err);
+    const m = String(err && err.message || '');
+    if (/Erro 5\d\d/.test(m)) return 'o servidor deu um erro; volta a abrir a página para tentar outra vez';
+    if (/Erro 4\d\d/.test(m)) return 'a página está desatualizada; recarrega-a e tenta outra vez';
+    if (/fetch|network|Failed/i.test(m)) return 'sem ligação ao servidor; verifica a internet e recarrega a página';
+    return 'não foi possível; recarrega a página e tenta outra vez';
+  };
+
   async function captureMoments() { // o previs de cada momento: a câmara do plano no segundo do momento, com o elenco
     if (!moments.length || !el.dataset.previewHash) return;
     try { // num ecrã à parte (como os renders das vistas): a maquete à vista não salta enquanto se mexe na câmara
@@ -667,7 +677,7 @@ export function mount(el) {
         if (!resp.ok) throw new Error(`Erro ${resp.status}`);
       }
       say('');
-    } catch (err) { say(`Falhou o previs: ${err.message}`); }
+    } catch (err) { say(`O previs não ficou guardado: ${human(err)}.`); }
   }
 
   async function momentShot(at) { // o previs de um instante: a câmara do plano nesse segundo, com o elenco
@@ -702,7 +712,7 @@ export function mount(el) {
         await fetch(`${el.dataset.locBase}/${lv.id}/render`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf() } });
       }
       say('');
-    } catch (err) { say(`Falhou o render da vista: ${err.message}`); } finally {
+    } catch (err) { say(`O render da vista não ficou guardado: ${human(err)}.`); } finally {
       hidden.forEach((o, i) => { o.visible = keep[i]; });
       fit(); invalidate();
     }
@@ -756,7 +766,7 @@ export function mount(el) {
       say('A enviar o vídeo-guia…');
       await post(`${el.dataset.base}/maquete/guia`, blob, mime.includes('mp4') ? 'guia.mp4' : 'guia.webm');
       (window.estudioRefresh ? window.estudioRefresh() : location.reload());
-    } catch (err) { say(`Falhou: ${err.message}`); btn.disabled = false; }
+    } catch (err) { say(`Não foi possível: ${human(err)}.`); btn.disabled = false; }
   }
 
   if (walkOn) {
@@ -945,7 +955,7 @@ export function mount(el) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) throw new Error(j.error || `Erro ${r.status}`);
       (window.estudioRefresh ? window.estudioRefresh() : location.reload());
-    } catch (err) { say(`Falhou: ${err.message}`); btn.disabled = false; }
+    } catch (err) { say(`Não foi possível: ${human(err)}.`); btn.disabled = false; }
   }
   // Mapa de profundidade de uma vista (para os modelos de imagem que seguem a estrutura): distância real de cada
   // píxel à câmara, perto = branco, longe (até depthFar m) = preto, céu preto. Linear, sem nevoeiro nem nomes.
@@ -1014,7 +1024,7 @@ export function mount(el) {
         await fetch(`${el.dataset.viewsBase}/${lv.id}/render`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf() } });
       }
       (window.estudioRefresh ? window.estudioRefresh() : location.reload());
-    } catch (err) { say(`Falhou o render das vistas: ${err.message}`); } finally { fit(); }
+    } catch (err) { say(`Os renders das vistas não ficaram guardados: ${human(err)}.`); } finally { fit(); }
   }
 
   // Vistas para o Assistente ver o que construiu: de cima (com o caminho da câmara e as divisões) e, nas maquetes dos

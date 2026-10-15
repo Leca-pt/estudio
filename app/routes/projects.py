@@ -90,11 +90,15 @@ def _cover(session: Session, project: Project):
 
 def _list_page(request: Request, session: Session, error=None, form=None, status_code=200):
     filter_ = request.query_params.get("tipo")
-    if filter_ not in PROJECT_TYPES:
+    if filter_ not in PROJECT_TYPES and filter_ != "arquivados":
         filter_ = None
     stmt = select(Project).order_by(Project.updated_at.desc())
-    if filter_:
-        stmt = stmt.where(Project.type == filter_)
+    if filter_ == "arquivados":
+        stmt = stmt.where(Project.archived_at.is_not(None))
+    else:
+        stmt = stmt.where(Project.archived_at.is_(None))
+        if filter_:
+            stmt = stmt.where(Project.type == filter_)
     cards = []
     for p in session.exec(stmt).all():
         states = stage_states(session, p)
@@ -109,7 +113,9 @@ def _list_page(request: Request, session: Session, error=None, form=None, status
         {
             "cards": cards,
             "filter": filter_,
-            "total": session.exec(select(func.count()).select_from(Project)).one(),
+            "total": session.exec(select(func.count()).select_from(Project).where(Project.archived_at.is_(None))).one(),
+            "archived_n": session.exec(select(func.count()).select_from(Project).where(Project.archived_at.is_not(None))).one(),
+            "notice": request.session.pop("flash_info", None),
             "project_types": project_type_labels(session),
             "error": error,
             "form": form or {},
@@ -150,11 +156,13 @@ def project_create(
 
 
 @router.get("/projetos/{project_id}")
-def project_detail(project_id: int, session: Session = Depends(get_session)):
+def project_detail(request: Request, project_id: int, session: Session = Depends(get_session)):
     project = get_project(session, project_id)
+    last = (request.session.get("places") or {}).get(str(project.id))
+    if last and last.startswith(f"/projetos/{project.id}/"):  # volta à página onde estavas neste projeto
+        return RedirectResponse(last, status_code=303)
     stage, _ = current_stage(stage_states(session, project), project)
-    # Abre na bíblia, no mundo (séries e filmes) ou na história; as etapas seguintes abrem-se no stepper.
-    target = stage if stage in (1, 4) and project.type in ("series", "film") else min(stage, 2)
+    target = stage  # a etapa em que o projeto está (a que o cartão mostra)
     return RedirectResponse(f"/projetos/{project_id}/etapa/{target}", status_code=303)
 
 
@@ -228,6 +236,24 @@ async def project_update(request: Request, project_id: int, session: Session = D
 
 
 # ── Reciclagem (cenas e planos apagados pelo conector MCP) ──
+
+@router.post("/projetos/{project_id}/arquivar")
+def project_archive(request: Request, project_id: int, session: Session = Depends(get_session)):
+    """Arquivar (sai da lista e do seletor; nada se apaga) ou voltar a pôr na lista."""
+    from app.models import utcnow
+
+    project = get_project(session, project_id)
+    project.archived_at = None if project.archived_at else utcnow()
+    session.add(project)
+    session.commit()
+    request.session["flash_info"] = (f"«{project.name}» foi arquivado: está em Projetos › Arquivados, de onde o podes "
+                                     "voltar a pôr na lista." if project.archived_at else f"«{project.name}» voltou à lista.")
+    if project.archived_at:
+        if request.session.get("last_project") == project.id:
+            request.session.pop("last_project", None)
+        return RedirectResponse("/projetos", status_code=303)
+    return RedirectResponse(f"/projetos/{project.id}/etapa/1", status_code=303)
+
 
 @router.get("/projetos/{project_id}/reciclagem")
 def trash_page(request: Request, project_id: int, session: Session = Depends(get_session)):

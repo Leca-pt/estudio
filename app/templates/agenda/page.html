@@ -18,7 +18,8 @@
     <div class="ag-acts">
       {% if it.link %}<a class="btn sm ghost" href="{{ it.link }}">Abrir</a>{% endif %}
       <span class="sp"></span>
-      {% if it.status == "todo" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="doing"><button class="btn sm" type="submit">Começar</button></form>{% endif %}
+      {% if it.status == "todo" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="doing"><button class="btn sm" type="submit">Começar</button></form>
+      {% elif it.status == "doing" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="todo"><button class="btn sm ghost" type="submit" title="Volta a «Por fazer»">Parar</button></form>{% endif %}
       {% if it.status != "done" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="done"><button class="btn sm ok" type="submit">{{ i.icon("check", 12) }}Feito</button></form>
       {% else %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="todo"><button class="btn sm ghost" type="submit">Reabrir</button></form>{% endif %}
     </div>
@@ -30,17 +31,21 @@
   <div class="content content-lg">
     <div class="phead" style="flex-wrap: wrap; row-gap: 8px">
       <div><h1 class="h1">Agenda</h1></div>
-      <nav class="seg">{% for k, lbl in VIEWS.items() %}<a href="/agenda{{ '' if k == 'hoje' else '/' ~ k }}{% if pid and k != 'geral' %}?p={{ pid }}{% endif %}" class="{% if view == k %}on{% endif %}">{{ lbl }}</a>{% endfor %}</nav>
+      <nav class="seg">{% for k, lbl in VIEWS.items() %}<a href="/agenda{{ '' if k == 'hoje' else '/' ~ k }}{% if keep and k != 'geral' %}?{{ keep }}{% endif %}" class="{% if view == k %}on{% endif %}">{{ lbl }}</a>{% endfor %}</nav>
       <span class="sp"></span>
-      {% if view != "geral" %}
-      <select class="in ag-filter" aria-label="Projeto" onchange="location.href = location.pathname + (this.value ? '?p=' + this.value : '')">
-        <option value="">Todos os projetos</option>
-        {% for p in projects %}<option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}
-      </select>
-      {% endif %}
       <button class="btn" type="button" data-open-dialog="ag-rec">{{ i.icon("calendar", 14) }}Publicações recorrentes</button>
       <button class="btn pri" type="button" data-open-dialog="ag-new">{{ i.icon("plus", 14) }}Novo</button>
     </div>
+    {% if view != "geral" %}
+    <form class="ag-filters" method="get" data-no-guard>
+      {% for k, v in request.query_params.items() if k not in ("p", "k", "q") %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      <select class="in" name="p" aria-label="Projeto" onchange="this.form.requestSubmit()"><option value="">Todos os projetos</option>{% for p in projects %}<option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}</select>
+      <select class="in" name="k" aria-label="Tipo" onchange="this.form.requestSubmit()"><option value="">Todos os tipos</option>{% for k, lbl in KINDS.items() %}<option value="{{ k }}" {% if flt.kind == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+      <input class="in" type="search" name="q" value="{{ flt.q or '' }}" placeholder="Procurar no título e nas notas" aria-label="Procurar">
+      <button class="btn" type="submit">Procurar</button>
+      {% if flt %}<a class="btn ghost" href="{{ request.url.path }}">Limpar filtros</a>{% endif %}
+    </form>
+    {% endif %}
     {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
 
@@ -70,6 +75,36 @@
       </section>
       {% endfor %}
     </div>
+
+    {% elif view == "lista" %}
+    <div class="row ag-tl-nav">
+      <nav class="seg">{% for k, lbl in (("abertos", "Por fazer e em curso"), ("todo", "Por fazer"), ("doing", "Em curso"), ("done", "Feitos"), ("todos", "Todos")) %}<a href="?estado={{ k }}{% if keep %}&{{ keep }}{% endif %}" class="{% if estado == k %}on{% endif %}">{{ lbl }}</a>{% endfor %}</nav>
+      <span class="sp"></span><span class="dim">{{ rows|length }} item(ns)</span>
+    </div>
+    <form method="post" action="/agenda/em-massa" class="ag-list-form" data-no-guard>
+      {{ m.csrf() }}
+      <div class="ag-bulk">
+        <label class="row"><input type="checkbox" data-check-all aria-label="Escolher todos"> Todos</label>
+        <span class="dim" data-checked-n>0 escolhidos</span><span class="sp"></span>
+        <button class="btn sm ok" type="submit" name="action" value="done">{{ i.icon("check", 12) }}Feitos</button>
+        <button class="btn sm" type="submit" name="action" value="doing">Em curso</button>
+        <button class="btn sm" type="submit" name="action" value="todo">Por fazer</button>
+        <span class="row" style="gap: 4px"><input class="in" type="number" name="days" placeholder="dias" style="width: 76px" aria-label="Dias"><button class="btn sm" type="submit" name="action" value="shift" title="Mudar as datas: 7 adia uma semana, -2 antecipa dois dias">Mudar datas</button></span>
+        <button class="btn sm no" type="submit" name="action" value="delete" data-confirm="Apagar os itens escolhidos da agenda?" data-confirm-text="Não se desfaz (só os itens da agenda; nada nos projetos)." data-confirm-ok="Apagar">{{ i.icon("trash", 12) }}Apagar</button>
+      </div>
+      <div class="ag-list">
+        {% for it in rows %}{% set x = info(it) %}{% set pr = pmap.get(it.project_id) %}
+        <label class="ag-li k-{{ it.kind }}{% if x.overdue %} late{% endif %}{% if it.status == 'done' %} done{% endif %}">
+          <input type="checkbox" name="ids" value="{{ it.id }}" data-check-one>
+          <span class="ag-li-t"><a href="/agenda/itens/{{ it.id }}">{{ it.title }}</a>{% if it.notes %}<span class="dim"> · {{ it.notes|truncate(60) }}</span>{% endif %}</span>
+          {% if pr %}<span class="pfx">{{ pr.prefix }}</span>{% endif %}<span class="ag-kind">{{ KINDS[it.kind] }}</span>
+          <span class="dim ag-li-d">{{ x.when }}</span>
+          <span class="st {{ 'ok' if it.status == 'done' else 'wip' if it.status == 'doing' else '' }}">{{ STATUS[it.status] }}</span>
+          {% if x.overdue %}<span class="st no">atrasado</span>{% endif %}
+        </label>
+        {% else %}<p class="hint" style="padding: 10px 12px">Nada com estes filtros.</p>{% endfor %}
+      </div>
+    </form>
 
     {% elif view == "calendario" %}
     {% set q = "&p=%d" % pid if pid else "" %}
@@ -171,7 +206,15 @@
       {% for r in recurrences %}{% set pr = pmap.get(r.project_id) %}
       <div class="row" style="flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px">
         {% if pr %}<span class="pfx">{{ pr.prefix }}</span>{% endif %}<span>{{ r.title }}</span><span class="dim">{{ weekdays_label(r.weekdays) }} · {{ fmt(r.start) }} → {{ fmt(r.end) }}</span><span class="sp"></span>
-        <form method="post" action="/agenda/recorrencias/{{ r.id }}/apagar" class="inline-form" onsubmit="return confirm('Apagar esta recorrência? As publicações por fazer saem da agenda; as feitas ficam.')">{{ m.csrf() }}<button class="btn sm no" type="submit">Apagar</button></form>
+        <details class="rm-reply"><summary class="btn sm">Editar</summary>
+          <form method="post" action="/agenda/recorrencias/{{ r.id }}" class="col" style="gap: 6px; margin-top: 6px">{{ m.csrf() }}
+            <input class="in" name="title" value="{{ r.title }}" aria-label="Título">
+            <div class="row" style="flex-wrap: wrap">{% for d in WEEKDAYS %}<label class="ck-row" style="border: 0; padding: 0 6px 0 0"><input type="checkbox" name="weekdays" value="{{ loop.index0 }}" {% if loop.index0 in r.weekdays %}checked{% endif %}><span>{{ d }}</span></label>{% endfor %}</div>
+            <label class="row">Até <input class="in" type="date" name="end" value="{{ r.end.isoformat() }}" style="max-width: 170px"></label>
+            <span class="hint">As publicações de hoje em diante por fazer são refeitas; as feitas e as atrasadas ficam.</span>
+            <button class="btn sm pri" type="submit" style="align-self: flex-start">Guardar</button>
+          </form></details>
+        <form method="post" action="/agenda/recorrencias/{{ r.id }}/apagar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Apagar esta recorrência?" data-confirm-text="As publicações por fazer saem da agenda; as feitas ficam." data-confirm-ok="Apagar">Apagar</button></form>
       </div>
       {% endfor %}
     </div>

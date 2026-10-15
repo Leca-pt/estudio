@@ -37,6 +37,33 @@ async def _slow_pages(request, call_next):
         logging.getLogger("estudio.lento").warning("página lenta: %s %.0f ms", path, ms)
     return response
 
+_PLACE = __import__("re").compile(r"^/projetos/(\d+)/(etapa|historia|assets|storyboard|video|montagem|sala)(/|$)")
+_NOT_PLACE = ("/assistente", "/trabalhos", "/escritor", "/custo", "/pdf", "/descarregar", "/rever", ".zip")
+
+
+@app.middleware("http")
+async def _remember_place(request, call_next):
+    """Lembra o projeto e a última página de cada projeto (o cartão do projeto, o seletor do topo e as páginas globais —
+    Agenda, Configuração — voltam lá)."""
+    response = await call_next(request)
+    path = request.url.path
+    m = _PLACE.match(path)
+    if (m and request.method == "GET" and response.status_code == 200 and not path.endswith(_NOT_PLACE)
+            and (not request.headers.get("hx-request") or request.headers.get("hx-boosted"))):
+        url = path + (f"?{request.url.query}" if request.url.query else "")
+        places = dict(request.session.get("places") or {})
+        if m.group(2) != "sala":  # a última página fora da sala (o «Voltar» da sala vai lá)
+            before = dict(request.session.get("places_before_room") or {})
+            before.pop(m.group(1), None)
+            before[m.group(1)] = url[:200]
+            request.session["places_before_room"] = dict(list(before.items())[-5:])
+        places.pop(m.group(1), None)
+        places[m.group(1)] = url[:200]
+        request.session["places"] = dict(list(places.items())[-5:])  # os últimos 5 projetos
+        request.session["last_project"] = int(m.group(1))
+    return response
+
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,

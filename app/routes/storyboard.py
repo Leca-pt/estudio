@@ -177,9 +177,12 @@ def _renumber(session: Session, items: list) -> None:
 
 
 def delete_shot(session: Session, shot: Shot) -> None:
-    for m in media_list(session, shot_id=shot.id):
-        reject_media(session, m)
-    session.delete(shot)
+    """Apaga o plano para a Reciclagem (com a câmara, os takes e os ficheiros; recupera-se durante 30 dias)."""
+    from app import trash
+    from app.models import Project
+
+    scene = session.get(Scene, shot.scene_id)
+    trash.trash_shot(session, session.get(Project, scene.project_id), shot)
 
 
 @router.post("/storyboard/cenas/{scene_id}")
@@ -243,6 +246,7 @@ async def scene_save(request: Request, project_id: int, scene_id: int, session: 
             raise HTTPException(status_code=404)
         delete_shot(session, target)  # os outros renumeram-se ao gravar, pela ordem na encenação (models._renumber_shots)
         session.commit()
+        flash_info(request, "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias.")
         return RedirectResponse(url + "#planos", status_code=303)
     session.commit()
     if looks_changed:
@@ -523,11 +527,9 @@ async def shot_save(request: Request, project_id: int, shot_id: int, session: Se
     url = f"/projetos/{project.id}/storyboard/planos/{shot.id}"
 
     if verb == "delete_shot":
-        siblings = [s for s in scene_shots(session, scene) if s.id != shot.id]
         delete_shot(session, shot)
-        session.flush()
-        _renumber(session, siblings)
         session.commit()
+        flash_info(request, "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias.")
         return RedirectResponse(f"/projetos/{project.id}/storyboard/cenas/{scene.id}#planos", status_code=303)
 
     for field in ("title", "description", "shot_type", "camera_angle", "camera_movement"):

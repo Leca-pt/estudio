@@ -31,7 +31,9 @@ lock = threading.Lock()  # as gravações da sala, uma de cada vez (MCP em paral
 
 
 class WritingError(Exception):
-    pass
+    def __init__(self, msg: str = "", conflict: bool = False):
+        super().__init__(msg)
+        self.conflict = conflict  # a gravação chocou com mudanças de outro participante
 
 
 SCRIPT_FORMAT = """FORMATO DO GUIÃO (ficheiros com destino «cenas»):
@@ -262,6 +264,11 @@ def write(session: Session, project: Project, path: str, content: str, author: s
         base = version_text(session, f, int(base_version))
         merged, conflicts = merge3(base, f.content, content)
         if conflicts:
+            if author == USER:
+                raise WritingError(
+                    f"Enquanto editavas, {author_label(f.last_author)} mudou este ficheiro (vai na versão {f.version}) "
+                    "nos mesmos sítios que tu, por isso não guardei. O teu texto continua no editor; em baixo vês o que "
+                    "mudou. Junta à mão o que quiseres e guarda outra vez (fica por cima da versão atual).", conflict=True)
             raise WritingError(
                 f"«{f.path}» mudou entretanto (estás na versão {base_version}, já vai na {f.version}, de "
                 f"{author_label(f.last_author)}) e as mudanças chocam com as tuas em: " + "; ".join(conflicts[:6])

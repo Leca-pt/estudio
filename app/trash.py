@@ -1,4 +1,5 @@
-"""Reciclagem: cenas, planos e assets apagados pelo conector MCP ficam recuperáveis durante 30 dias.
+"""Reciclagem: tudo o que se apaga (na app ou pelo conector MCP) — temporadas, episódios, atos, cenas, planos e assets —
+fica recuperável durante 30 dias.
 
 Apagar guarda uma fotografia completa (a cena com as linhas do guião, os assets ligados e os planos; cada plano com as
 verificações, as linhas que cobre e os ficheiros) e muda os ficheiros para media/_reciclagem/<id>/ em vez de os apagar.
@@ -56,9 +57,8 @@ def _shot_snapshot(session: Session, shot: Shot, line_order: dict[int, int]) -> 
     }
 
 
-def trash_scene(session: Session, project: Project, scene: Scene) -> TrashItem:
-    from app.routes.story import _renumber
-
+def _scene_snapshot(session: Session, scene: Scene) -> tuple[dict, list[MediaFile]]:
+    """A fotografia completa de uma cena (guião, assets ligados, ficheiros e planos) e os ficheiros a guardar."""
     lines = session.exec(select(SceneLine).where(SceneLine.scene_id == scene.id).order_by(SceneLine.order)).all()
     order = {ln.id: ln.order for ln in lines}
     shots = session.exec(select(Shot).where(Shot.scene_id == scene.id).order_by(Shot.number)).all()
@@ -70,15 +70,73 @@ def trash_scene(session: Session, project: Project, scene: Scene) -> TrashItem:
         "media": [{"id": m.id, **_row(m)} for m in media],
         "shots": [_shot_snapshot(session, sh, order) for sh in shots],
     }
+    all_media = list(media) + [m for sh in shots for m in session.exec(select(MediaFile).where(MediaFile.shot_id == sh.id)).all()]
+    return data, all_media
+
+
+def trash_scene(session: Session, project: Project, scene: Scene) -> TrashItem:
+    from app.routes.story import _renumber
+
+    data, all_media = _scene_snapshot(session, scene)
     item = TrashItem(project_id=project.id, kind="scene", label=f"Cena {scene.number} «{scene.title or '—'}»", data=data,
                      expires_at=time.time() + KEEP_DAYS * 86400)
     session.add(item)
     session.flush()
-    all_media = list(media) + [m for sh in shots for m in session.exec(select(MediaFile).where(MediaFile.shot_id == sh.id)).all()]
     _move_files(all_media, _folder(item.id))
     siblings = session.exec(select(Scene).where(Scene.project_id == scene.project_id, Scene.episode_id == scene.episode_id,
                                                 Scene.act_id == scene.act_id, Scene.id != scene.id).order_by(Scene.number)).all()
     session.delete(scene)
+    session.flush()
+    _renumber(session, list(siblings))
+    return item
+
+
+def trash_container(session: Session, project: Project, obj) -> TrashItem:
+    """Temporada, episódio ou ato, com as cenas (e os episódios da temporada) — tudo recuperável."""
+    from app.models import Act, Episode, Season
+    from app.routes.story import _renumber
+
+    def scenes_of(where) -> list[Scene]:
+        return list(session.exec(select(Scene).where(where).order_by(Scene.number)).all())
+
+    media: list[MediaFile] = []
+
+    def snap_scenes(scenes: list[Scene]) -> list[dict]:
+        out = []
+        for sc in scenes:
+            d, m = _scene_snapshot(session, sc)
+            out.append(d)
+            media.extend(m)
+        return out
+
+    if isinstance(obj, Season):
+        eps = list(session.exec(select(Episode).where(Episode.season_id == obj.id).order_by(Episode.number)).all())
+        data = {"type": "season", "row": _row(obj), "old_id": obj.id,
+                "episodes": [{"row": _row(e), "old_id": e.id, "scenes": snap_scenes(scenes_of(Scene.episode_id == e.id))}
+                             for e in eps]}
+        label = f"Temporada {obj.number}" + (f" «{obj.title}»" if obj.title else "") + f" ({len(eps)} episódio(s))"
+        siblings = session.exec(select(Season).where(Season.project_id == obj.project_id, Season.id != obj.id)
+                                .order_by(Season.number)).all()
+    elif isinstance(obj, Episode):
+        season = session.get(Season, obj.season_id)
+        data = {"type": "episode", "row": _row(obj), "old_id": obj.id,
+                "scenes": snap_scenes(scenes_of(Scene.episode_id == obj.id))}
+        label = f"T{season.number if season else '?'} E{obj.number:02d}" + (f" «{obj.title}»" if obj.title else "")
+        siblings = session.exec(select(Episode).where(Episode.season_id == obj.season_id, Episode.id != obj.id)
+                                .order_by(Episode.number)).all()
+    elif isinstance(obj, Act):
+        data = {"type": "act", "row": _row(obj), "old_id": obj.id, "scenes": snap_scenes(scenes_of(Scene.act_id == obj.id))}
+        label = f"Ato {obj.number}" + (f" «{obj.title}»" if obj.title else "")
+        siblings = session.exec(select(Act).where(Act.project_id == obj.project_id, Act.id != obj.id)
+                                .order_by(Act.number)).all()
+    else:
+        raise ValueError("Não se pode mandar isto para a Reciclagem.")
+    item = TrashItem(project_id=project.id, kind=data["type"], label=label, data=data,
+                     expires_at=time.time() + KEEP_DAYS * 86400)
+    session.add(item)
+    session.flush()
+    _move_files(media, _folder(item.id))
+    session.delete(obj)  # a cascata leva as cenas (já fotografadas e com os ficheiros guardados)
     session.flush()
     _renumber(session, list(siblings))
     return item
@@ -267,6 +325,80 @@ def _restore_shot(session: Session, project_id: int, scene: Scene, snap: dict, l
     return shot
 
 
+def _restore_scene(session: Session, project_id: int, d: dict, folder: PurePosixPath, reorder: bool = True,
+                   **parent) -> Scene:
+    from app.routes.story import _renumber
+
+    scene = Scene(**{**d["scene"], **parent})
+    session.add(scene)
+    session.flush()
+    by_order = {}
+    for ln in d["lines"]:
+        new = SceneLine(**dict(ln, scene_id=scene.id))
+        session.add(new)
+        session.flush()
+        by_order[ln["order"]] = new.id
+    for aid in d["assets"]:
+        if session.get(Asset, aid):
+            session.add(AssetSceneLink(asset_id=aid, scene_id=scene.id))
+    _restore_media(session, d["media"], scene_id=scene.id, shot_id=None)
+    _move_files([MediaFile(path=r["path"]) for r in d["media"]], folder, back=True)
+    for snap in d["shots"]:
+        _restore_shot(session, project_id, scene, snap, by_order, folder)
+    _remap_versions(session, project_id, "scene", d["old_id"], scene.id)
+    if reorder:  # volta ao lugar que tinha (as seguintes andam uma para a frente)
+        siblings = session.exec(select(Scene).where(Scene.project_id == scene.project_id, Scene.episode_id == scene.episode_id,
+                                                    Scene.act_id == scene.act_id, Scene.id != scene.id).order_by(Scene.number)).all()
+        ordered = list(siblings)
+        ordered.insert(min(max(0, (d["scene"]["number"] or 1) - 1), len(ordered)), scene)
+        _renumber(session, ordered)
+    return scene
+
+
+def _restore_container(session: Session, item: TrashItem, folder: PurePosixPath) -> str:
+    from app.models import Act, Episode, Season
+    from app.routes.story import _renumber
+
+    d = item.data
+
+    def put_back(obj, siblings, number):
+        ordered = list(siblings)
+        ordered.insert(min(max(0, (number or 1) - 1), len(ordered)), obj)
+        _renumber(session, ordered)
+
+    if d["type"] == "season":
+        season = Season(**d["row"])
+        session.add(season)
+        session.flush()
+        for e in d["episodes"]:
+            ep = Episode(**dict(e["row"], season_id=season.id))
+            session.add(ep)
+            session.flush()
+            for sd in e["scenes"]:
+                _restore_scene(session, item.project_id, sd, folder, reorder=False, episode_id=ep.id)
+        put_back(season, session.exec(select(Season).where(Season.project_id == season.project_id, Season.id != season.id)
+                                      .order_by(Season.number)).all(), d["row"].get("number"))
+    elif d["type"] == "episode":
+        if session.get(Season, d["row"]["season_id"]) is None:
+            raise ValueError("A temporada deste episódio já não existe: recupera primeiro a temporada.")
+        ep = Episode(**d["row"])
+        session.add(ep)
+        session.flush()
+        for sd in d["scenes"]:
+            _restore_scene(session, item.project_id, sd, folder, reorder=False, episode_id=ep.id)
+        put_back(ep, session.exec(select(Episode).where(Episode.season_id == ep.season_id, Episode.id != ep.id)
+                                  .order_by(Episode.number)).all(), d["row"].get("number"))
+    else:
+        act = Act(**d["row"])
+        session.add(act)
+        session.flush()
+        for sd in d["scenes"]:
+            _restore_scene(session, item.project_id, sd, folder, reorder=False, act_id=act.id)
+        put_back(act, session.exec(select(Act).where(Act.project_id == act.project_id, Act.id != act.id)
+                                   .order_by(Act.number)).all(), d["row"].get("number"))
+    return item.label
+
+
 def restore(session: Session, item: TrashItem) -> str:
     from app.routes.story import _renumber
 
@@ -276,30 +408,10 @@ def restore(session: Session, item: TrashItem) -> str:
         shutil.rmtree(media_root() / folder, ignore_errors=True)
         session.delete(item)
         return label
-    if item.kind == "scene":
-        d = item.data
-        scene = Scene(**d["scene"])
-        session.add(scene)
-        session.flush()
-        by_order = {}
-        for ln in d["lines"]:
-            new = SceneLine(**dict(ln, scene_id=scene.id))
-            session.add(new)
-            session.flush()
-            by_order[ln["order"]] = new.id
-        for aid in d["assets"]:
-            session.add(AssetSceneLink(asset_id=aid, scene_id=scene.id))
-        _restore_media(session, d["media"], scene_id=scene.id, shot_id=None)
-        _move_files([MediaFile(path=r["path"]) for r in d["media"]], folder, back=True)
-        for snap in d["shots"]:
-            _restore_shot(session, item.project_id, scene, snap, by_order, folder)
-        _remap_versions(session, item.project_id, "scene", d["old_id"], scene.id)
-        # volta ao lugar que tinha (as seguintes andam uma para a frente)
-        siblings = session.exec(select(Scene).where(Scene.project_id == scene.project_id, Scene.episode_id == scene.episode_id,
-                                                    Scene.act_id == scene.act_id, Scene.id != scene.id).order_by(Scene.number)).all()
-        ordered = list(siblings)
-        ordered.insert(min(max(0, (d["scene"]["number"] or 1) - 1), len(ordered)), scene)
-        _renumber(session, ordered)
+    if item.kind in ("season", "episode", "act"):
+        label = _restore_container(session, item, folder)
+    elif item.kind == "scene":
+        _restore_scene(session, item.project_id, item.data, folder)
         label = item.label
     else:
         scene = session.get(Scene, item.data["scene_id"])

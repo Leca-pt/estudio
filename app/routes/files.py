@@ -89,8 +89,8 @@ def media_available(media: MediaFile | None) -> bool:
 
 
 def kept_take(media: MediaFile | None) -> bool:
-    """Um take rejeitado que ainda tem o ficheiro (os takes rejeitados ficam guardados)."""
-    return media is not None and media.role == "clip" and (media_root() / media.path).is_file()
+    """Um rejeitado que ainda tem o ficheiro (takes, imagens, vozes e fotos rejeitados ficam guardados)."""
+    return media is not None and (media_root() / media.path).is_file()
 
 
 def _return_to(request: Request, project: Project, media: MediaFile) -> str:

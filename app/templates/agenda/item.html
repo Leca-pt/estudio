@@ -6,25 +6,25 @@
 {% block body %}
 <main class="main">
   <div class="content">
-    <div class="phead"><div><div class="crumbs"><a href="/agenda">Agenda</a></div><h1 class="h1">{{ item.title }}</h1></div></div>
+    <div class="phead"><div><div class="crumbs"><a href="{{ back }}">Agenda</a></div><h1 class="h1">{{ item.title }}</h1></div></div>
     {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/agenda/itens/{{ item.id }}" class="pn" style="gap: 12px">
-      {{ m.csrf() }}<input type="hidden" name="back" value="/agenda">
-      <div class="f"><label for="ai-title">O quê</label><input id="ai-title" name="title" class="in" required value="{{ item.title }}"></div>
+      {{ m.csrf() }}<input type="hidden" name="back" value="{{ back }}">
+      <div class="f"><label for="ai-title">O quê</label><input id="ai-title" name="title" class="in" required value="{{ fv.title if fv.title is defined else item.title }}"></div>
       <div class="ag-form2">
         <div class="f"><label for="ai-project">Projeto</label><select id="ai-project" name="project_id" class="in"><option value="">Nenhum</option>{% for p in projects %}<option value="{{ p.id }}" {% if item.project_id == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}</select></div>
-        <div class="f"><label for="ai-kind">Tipo</label><select id="ai-kind" name="kind" class="in">{% for k, lbl in KINDS.items() %}<option value="{{ k }}" {% if k == item.kind %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select></div>
-        <div class="f"><label for="ai-start">Começa <span class="dim" style="font-weight: 400">(opcional)</span></label><input id="ai-start" name="start" type="date" class="in" value="{{ item.start.isoformat() if item.start else '' }}"></div>
-        <div class="f"><label for="ai-due">Prazo / dia</label><input id="ai-due" name="due" type="date" class="in" required value="{{ item.due.isoformat() }}"></div>
+        <div class="f"><label for="ai-kind">Tipo</label><select id="ai-kind" name="kind" class="in">{% for k, lbl in KINDS.items() %}<option value="{{ k }}" {% if k == (fv.kind or item.kind) %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select></div>
+        <div class="f"><label for="ai-start">Começa <span class="dim" style="font-weight: 400">(opcional)</span></label><input id="ai-start" name="start" type="date" class="in" value="{{ fv.start if fv.start is defined else (item.start.isoformat() if item.start else '') }}"></div>
+        <div class="f"><label for="ai-due">Prazo / dia</label><input id="ai-due" name="due" type="date" class="in" required value="{{ fv.due if fv.due is defined else item.due.isoformat() }}"></div>
         <div class="f"><label for="ai-status">Estado</label><select id="ai-status" name="status" class="in">{% for k, lbl in STATUS.items() %}<option value="{{ k }}" {% if k == item.status %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select></div>
       </div>
-      <div class="f"><label for="ai-notes">Notas</label><textarea id="ai-notes" name="notes" class="in" rows="3">{{ item.notes or "" }}</textarea></div>
-      <div class="f"><label for="ai-link">Ligação na app</label><input id="ai-link" name="link" class="in mono" value="{{ item.link or '' }}" placeholder="/projetos/2/sala?f=5"></div>
+      <div class="f"><label for="ai-notes">Notas</label><textarea id="ai-notes" name="notes" class="in" rows="3">{{ fv.notes if fv.notes is defined else (item.notes or "") }}</textarea></div>
+      <div class="f"><label for="ai-link">Ligação na app</label><input id="ai-link" name="link" class="in mono" value="{{ fv.link if fv.link is defined else (item.link or '') }}" placeholder="cola o endereço de uma página da app"></div>
       {% if rec %}<span class="hint">Faz parte das publicações recorrentes «{{ rec.title }}» ({{ weekdays_label(rec.weekdays) }}).</span>{% endif %}
-      <div class="row"><button class="btn pri" type="submit">Gravar</button>{% if item.link %}<a class="btn" href="{{ item.link }}">Abrir na app</a>{% endif %}<a class="btn ghost" href="/agenda">Voltar</a><span class="sp"></span></div>
+      <div class="row"><button class="btn pri" type="submit">Guardar</button>{% if item.link %}<a class="btn" href="{{ item.link }}">Abrir na app</a>{% endif %}<a class="btn ghost" href="{{ back }}">Voltar</a><span class="sp"></span></div>
     </form>
-    <form method="post" action="/agenda/itens/{{ item.id }}/apagar" class="row" style="margin-top: 12px" onsubmit="return confirm('Apagar da agenda?')">{{ m.csrf() }}<button class="btn sm no" type="submit">{{ i.icon("trash", 13) }}Apagar</button></form>
+    <form method="post" action="/agenda/itens/{{ item.id }}/apagar" class="row" style="margin-top: 12px">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Apagar «{{ item.title }}» da agenda?" data-confirm-text="Só sai da agenda; nada muda no projeto." data-confirm-ok="Apagar">{{ i.icon("trash", 13) }}Apagar</button></form>
   </div>
 </main>
 {% endblock %}

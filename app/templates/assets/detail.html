@@ -46,7 +46,7 @@
       </div>
       <form method="post" action="/projetos/{{ project.id }}/media/{{ approved.id }}/rejeitar" class="row" style="padding: 0 14px 12px">{{ m.csrf() }}
         {% if gpt_enabled %}<button class="btn sm" type="button" data-edit-image="{{ approved.id }}" data-edit-role="sheet" data-edit-src="{{ approved.path|thumb }}" data-edit-name="{{ asset.name }}_sheet">Editar imagem</button>{% endif %}
-        <button class="btn sm no" type="submit" data-confirm="Rejeitar a imagem aprovada?" data-confirm-text="O ficheiro é apagado e deixa de seguir para os vídeos e para as outras folhas. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button>
+        <button class="btn sm no" type="submit" data-confirm="Rejeitar a imagem aprovada?" data-confirm-text="Deixa de seguir para os vídeos e para as outras folhas. Fica em «Rejeitados», com o ficheiro guardado: podes repô-la." data-confirm-ok="Rejeitar">Rejeitar</button>
       </form>
       {% else %}
       <div class="slot r43" style="border-radius: 0; border-width: 0; margin: 0">{{ i.icon("image", 20) }}Ainda sem imagem aprovada</div>
@@ -67,7 +67,7 @@
       </div>
       <form method="post" action="/projetos/{{ project.id }}/media/{{ portrait_approved.id }}/rejeitar" class="row" style="padding: 0 14px 12px">{{ m.csrf() }}
         {% if gpt_enabled %}<button class="btn sm" type="button" data-edit-image="{{ portrait_approved.id }}" data-edit-role="portrait" data-edit-src="{{ portrait_approved.path|thumb }}" data-edit-name="{{ asset.name }}_portrait">Editar imagem</button>{% endif %}
-        <button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato aprovado?" data-confirm-text="O ficheiro é apagado e deixa de seguir para os vídeos. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button>
+        <button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato aprovado?" data-confirm-text="Deixa de seguir para os vídeos. Fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button>
       </form>
       {% else %}
       <div class="slot r11" style="border-radius: 0; border-width: 0; margin: 0">{{ i.icon("image", 20) }}Ainda sem retrato aprovado</div>
@@ -90,7 +90,7 @@
             {% if asset.voice_timbre and asset.voice_timbre not in options.timbre %}<option selected>{{ asset.voice_timbre }}</option>{% endif %}
             {% for v in options.timbre %}<option {% if v == asset.voice_timbre %}selected{% endif %}>{{ v }}</option>{% endfor %}
           </select></div>
-        <div class="f"><label for="key_features">Features-chave para o vídeo</label><textarea id="key_features" name="key_features" class="in in-line mono" lang="en" form="asset-form" placeholder="short copper-red hair, scar on the left eyebrow, leather jacket" rows="1">{{ asset.key_features or '' }}</textarea><span class="hint">Uma frase curta, em inglês: o que o Assistente põe no prompt de vídeo para a personagem se manter igual.</span></div>
+        <div class="f"><label for="key_features">Traços marcantes para o vídeo</label><textarea id="key_features" name="key_features" class="in in-line mono" lang="en" form="asset-form" placeholder="short copper-red hair, scar on the left eyebrow, leather jacket" rows="1">{{ asset.key_features or '' }}</textarea><span class="hint">Uma frase curta, em inglês: o que o Assistente põe no prompt de vídeo para a personagem se manter igual.</span></div>
         <div class="f"><label for="voice">Descrição para o prompt</label><textarea id="voice" name="voice" class="in in-line mono" lang="en" form="asset-form" placeholder="warm, confident adult female voice, calm and clear" rows="1">{{ asset.voice or '' }}</textarea></div>
         <div class="f"><label for="voice_note">Como fala nas falas</label><textarea id="voice_note" name="voice_note" class="in in-line mono" lang="en" form="asset-form" placeholder="speaking English with a clear Spanish accent" rows="1" data-only-if-changed>{{ asset.voice_note or '' }}</textarea><span class="hint">Em inglês. A app junta-o sozinha a cada fala desta personagem no prompt de vídeo, a seguir à voz de referência.</span></div>
       </div>
@@ -164,7 +164,7 @@
         <div class="res">
           <a class="ph r43 img-ph" href="/media/{{ ph.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ ph.path|thumb }}" alt="Foto {{ loop.index }}" loading="lazy"><span class="lb">Foto {{ loop.index }}</span></a>
           <div class="acts">
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ ph.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit" data-confirm="Tirar a foto {{ loop.index }}?" data-confirm-text="A foto é apagada e deixa de ir como referência." data-confirm-ok="Tirar e apagar">Tirar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ ph.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit" data-confirm="Tirar a foto {{ loop.index }}?" data-confirm-text="Deixa de ir como referência (fica guardada em «Rejeitados»)." data-confirm-ok="Tirar">Tirar</button></form>
           </div>
         </div>
         {% endfor %}
@@ -174,7 +174,7 @@
 
     {% if asset.kind != "location" %}
     <section class="sec" id="resultados">
-      <div class="sec-h"><h2 class="h2">{{ "Resultados da folha" if portrait else "Resultados" }}</h2><span class="sp"></span><span class="hint">Aprovar substitui a imagem aprovada atual. Rejeitar apaga o ficheiro.</span></div>
+      <div class="sec-h"><h2 class="h2">{{ "Resultados da folha" if portrait else "Resultados" }}</h2><span class="sp"></span><span class="hint">Aprovar substitui a imagem aprovada atual. Rejeitar tira-a daqui e guarda-a em «Rejeitados» (podes repô-la).</span></div>
       <div class="results">
         <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/resultados" enctype="multipart/form-data" class="drop drop-compact {% if results %}drop-sm{% endif %}" data-dropzone>
           {{ m.csrf() }}
@@ -191,12 +191,12 @@
           {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="sheet" data-edit-src="{{ r.path|thumb }}" data-edit-name="{{ fname }}">Editar imagem</button>{% endif %}
           <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
             <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
           </div>
         </div>
         {% endfor %}
       </div>
-      {% if rejected_n %}<div class="sec-f"><span class="hint">{{ rejected_n }} resultado(s) rejeitado(s) e apagado(s).</span></div>{% endif %}
+      {{ m.rejected_block(rejected_files(project.id, ("sheet", ""), asset_id=asset.id, look_id=None), "r43") }}
     </section>
     {% endif %}
 
@@ -308,11 +308,12 @@
               {{ m.job_tiles(r.jobs) }}
               {% for res in r.results %}<div class="res"><a class="ph img-ph" href="/media/{{ res.path }}" hx-boost="false"><img src="{{ res.path|thumb }}" alt="Resultado" loading="lazy"></a>
                 <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ res.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a><form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-                <form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form></div></div>{% endfor %}
+                <form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar esta imagem?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form></div></div>{% endfor %}
             </div>{% endif %}
+            {{ m.rejected_block(rejected_files(project.id, "locview", locview_id=v.id), "r169", 100) }}
             <button type="button" class="lv-prompt-btn" data-open-dialog="prompt-{{ v.id }}" title="Ler e editar o prompt desta vista, e gerar">
               <span class="hint">Prompt · <span class="{{ 'warn-t' if r.state == 'stale' else '' }}">{{ r.panel.state_label }}</span></span>
-              <span class="lv-prompt-peek">{{ (r.panel.text or "O Assistente escreve-o ao gerar.")|truncate(140, True, "…") }}</span></button>
+              <span class="lv-prompt-peek">{{ (r.panel.text or "O escritor de prompts escreve-o ao gerar.")|truncate(140, True, "…") }}</span></button>
             <dialog class="dlg prompt-dlg" id="prompt-{{ v.id }}" data-keep-open aria-label="Prompt da vista {{ v.label }}">
               <div class="zone-dlg-h"><h2 class="h2">{{ zone or "espaço todo" }} · {{ v.label }}</h2><span class="sp"></span>
                 <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
@@ -329,7 +330,7 @@
             {% elif r.panel.busy %}<span class="hint">A escrever o prompt…</span>
             {% elif gens.options %}<span class="gen-split">
               <select name="gen:vista:{{ v.id }}" form="views3d-form" class="gen-select" aria-label="Modelo para gerar">{% for val, l in gens.options %}<option value="{{ val }}" data-res="{{ gens.res.get(val, '') }}"{% if val == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % v.id, "views3d-form") }}
-              <button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgen:vista:{{ v.id }}" {% if not r.render %}disabled title="Falta o render (abre a maquete acima)"{% else %}title="{{ 'Gera com este prompt' if r.state in ('manual', 'assistant') else 'O Assistente escreve o prompt e a imagem gera-se logo a seguir' }}"{% endif %}>{{ i.icon("image", 13) }}Gerar</button>
+              <button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgen:vista:{{ v.id }}" {% if not r.render %}disabled title="Falta o render (abre a maquete acima)"{% else %}title="{{ 'Gera com este prompt' if r.state in ('manual', 'assistant') else 'O escritor de prompts escreve o prompt e a imagem gera-se logo a seguir' }}"{% endif %}>{{ i.icon("image", 13) }}Gerar</button>
             </span>{% endif %}
           </div>
           {% else %}<span class="hint">Ainda sem vistas nesta zona: usa «Propor vistas automáticas» ou guarda uma vista na maquete.</span>{% endfor %}
@@ -369,12 +370,12 @@
             {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="portrait" data-edit-src="{{ r.path|thumb }}" data-edit-name="retrato {{ fname }}">Editar imagem</button>{% endif %}
             <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
               <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato {{ fname }}?" data-confirm-text="O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
             </div>
           </div>
           {% endfor %}
         </div>
-        {% if portrait_rejected_n %}<div class="sec-f"><span class="hint">{{ portrait_rejected_n }} retrato(s) rejeitado(s) e apagado(s).</span></div>{% endif %}
+        {{ m.rejected_block(rejected_files(project.id, "portrait", asset_id=asset.id), "r11") }}
       </section>
     </div>
     {% endif %}
@@ -421,7 +422,7 @@
               <div class="col" style="gap: 6px; min-width: 0">
                 <span class="cap">Folha aprovada</span>
                 {% if r.approved %}<a class="ph r169 img-ph" href="/media/{{ r.approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.approved.path|thumb }}" alt="Folha do look {{ lk.name }}"></a>
-                <form method="post" action="/projetos/{{ project.id }}/media/{{ r.approved.id }}/rejeitar" class="row">{{ m.csrf() }}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.approved.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a><span class="sp"></span><button class="btn sm no" type="submit" data-confirm="Rejeitar a folha deste look?" data-confirm-text="O ficheiro é apagado; nas cenas com este look volta a seguir a Base até aprovares outra." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+                <form method="post" action="/projetos/{{ project.id }}/media/{{ r.approved.id }}/rejeitar" class="row">{{ m.csrf() }}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.approved.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a><span class="sp"></span><button class="btn sm no" type="submit" data-confirm="Rejeitar a folha deste look?" data-confirm-text="Nas cenas com este look volta a seguir a Base até aprovares outra. A folha fica em «Rejeitados»: podes repô-la." data-confirm-ok="Rejeitar">Rejeitar</button></form>
                 {% else %}<div class="slot r169">{{ i.icon("image", 18) }}Ainda sem folha aprovada</div>{% endif %}
               </div>
             </div>
@@ -440,12 +441,12 @@
                   <a class="ph r169 img-ph" href="/media/{{ x.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ x.path|thumb }}" alt="Look {{ lk.name }} {{ fname }}" loading="lazy"><span class="lb">{{ lk.name }} {{ fname }}</span></a>
                   <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ x.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
                     <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="O ficheiro é apagado." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
                   </div>
                 </div>
                 {% endfor %}
               </div>
-              {% if r.rejected_n %}<span class="hint">{{ r.rejected_n }} rejeitada(s) e apagada(s).</span>{% endif %}
+              {{ m.rejected_block(rejected_files(project.id, "look", look_id=lk.id), "r169") }}
             </div>
             {{ m.prompt_panel(r.panel, "asset-form", height=120, gen=gpt_enabled, jobs=r.jobs, gen_label="Gerar folha do look", gen_disabled=(none if approved else "Aprova primeiro a folha: o look parte dela")) }}
           </div>
@@ -484,7 +485,7 @@
           <div class="row" style="gap: 6px">
             <a class="btn sm" href="/projetos/{{ project.id }}/media/{{ voice_ref.id }}/descarregar" hx-boost="false">{{ i.icon("download", 13) }}Descarregar</a>
             {{ m.voice_trim(project, asset, voice_ref, true, voice_budget) }}
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ voice_ref.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar a voz aprovada?" data-confirm-text="O ficheiro é apagado e deixa de seguir nos vídeos." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ voice_ref.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar a voz aprovada?" data-confirm-text="Deixa de seguir nos vídeos. Fica em «Rejeitados», com o ficheiro guardado: podes repô-la." data-confirm-ok="Rejeitar">Rejeitar</button></form>
           </div>
           {% else %}<span class="hint">Ainda sem voz aprovada: os vídeos inventam uma voz a partir da descrição (muda de take para take).</span>{% endif %}
         </div>
@@ -498,11 +499,12 @@
             {% if r.duration_ms %}<span class="hint">{{ "%.1f"|format(r.duration_ms / 1000)|replace(".", ",") }} s</span>{% endif %}
             <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
             {{ m.voice_trim(project, asset, r, false, voice_budget) }}
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar esta voz?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
           </div>
           {% endfor %}
         </div>
         {% endif %}
+        {{ m.rejected_block(rejected_files(project.id, "voice", asset_id=asset.id)) }}
       </div>
       <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/voz" class="sec-b voice-form" data-voice-form>
         {{ m.csrf() }}
@@ -583,7 +585,7 @@
     {% endif %}
 
     <div class="danger-row">
-      <button class="btn ghost sm" type="submit" form="asset-form" name="op" value="delete" data-confirm="Apagar {{ asset.name }}?" data-confirm-text="O asset, os resultados carregados e as ligações às cenas são apagados. Esta ação não se desfaz.">{{ i.icon("trash", 13) }}Apagar asset</button>
+      <button class="btn ghost sm" type="submit" form="asset-form" name="op" value="delete" data-confirm="Apagar {{ asset.name }}?" data-confirm-text="Vai para a Reciclagem (no topo da página) com as folhas, os looks, as vistas e as ligações às cenas: podes recuperá-lo durante 30 dias." data-confirm-ok="Apagar">{{ i.icon("trash", 13) }}Apagar asset</button>
     </div>
   </div>
 </div>
@@ -595,7 +597,7 @@
       <h3 class="h2">Mudar o código de {{ asset.name }}</h3>
       <div class="f"><label for="new_code">Novo código</label>
         <input id="new_code" name="new_code" class="in mono" value="{{ suggested_code }}" required pattern="{{ project.prefix }}_[A-Za-z0-9_]+" style="text-transform: uppercase"></div>
-      <span class="hint">A app muda o código em todo o lado: a pasta e os nomes dos ficheiros, os prompts editados, estados, blocking, descrições e notas do projeto. As versões antigas dos prompts e o histórico do chat ficam como estavam. Imagens já geradas ou descarregadas para o Artlist com o nome antigo não mudam.</span>
+      <span class="hint">A app muda o código em todo o lado: a pasta e os nomes dos ficheiros, os prompts editados, estados, notas de encenação, descrições e notas do projeto. As versões antigas dos prompts e o histórico do chat ficam como estavam. Imagens já geradas ou descarregadas para o Artlist com o nome antigo não mudam.</span>
     </div>
     <div class="dlg-f"><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Mudar código</button></div>
   </form>

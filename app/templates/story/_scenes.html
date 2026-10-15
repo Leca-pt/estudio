@@ -22,12 +22,12 @@
     <span class="hint">{{ line_counts.get(s.id, 0) }} linha(s) · {{ shot_counts.get(s.id, 0) }} plano(s)</span>
     <div class="seg seg-sm" role="group" aria-label="Ir para esta cena noutro passo">
       <a href="/projetos/{{ project.id }}/storyboard/cenas/{{ s.id }}" title="A encenação 3D e os planos da cena">Storyboard</a>
-      <a href="/projetos/{{ project.id }}/etapa/6#cena-{{ s.id }}" title="Os vídeos dos planos da cena">Vídeo</a>
+      <a href="/projetos/{{ project.id }}/etapa/6?ambito=cena-{{ s.id }}" title="Os vídeos dos planos da cena">Vídeo</a>
     </div>
     <div class="acts">
       {{ m.op_button("scene_up:%d" % s.id, "chev-up", "Subir cena", disabled=loop.first) }}
       {{ m.op_button("scene_down:%d" % s.id, "chev-down", "Descer cena", disabled=loop.last) }}
-      {{ m.op_button("del_scene:%d" % s.id, "trash", "Apagar cena", confirm="Apagar a cena C%02d?" % s.number, confirm_text="A cena e o guião são apagados. Esta ação não se desfaz.") }}
+      {{ m.op_button("del_scene:%d" % s.id, "trash", "Apagar cena", confirm="Apagar a cena C%02d?" % s.number, confirm_text="Vai para a Reciclagem (no topo da página) com o guião, os planos e os takes: podes recuperá-la durante 30 dias.") }}
     </div>
   </div>
   {% if not open and s.description %}<div class="scene-desc">{{ s.description }}</div>{% endif %}
@@ -43,7 +43,7 @@
       </select>
     </div>
     {{ m.select("scene_time_of_day", "Hora do dia", options.time_of_day, s.time_of_day) }}
-    <div class="f span3"><span class="l">Quem e o que aparece <span class="dim" style="font-weight: 400">· personagens, outros locais e adereços desta cena; são os que os painéis do storyboard podem usar</span></span>
+    <div class="f span3"><span class="l">Quem e o que aparece <span class="dim" style="font-weight: 400">· personagens, outros locais e adereços desta cena; são os que os planos do storyboard e os vídeos podem usar</span></span>
       <div class="row" style="gap: 8px; flex-wrap: wrap; align-items: center">
         {{ m.picked("pick-scene-cast", cast_picked, "Escolher", empty="Ninguém marcado ainda.") }}
         {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Marca quem e o que aparece na cena C{{ '%02d' % s.number }} a partir da descrição e do guião: personagens, locais e adereços. Se faltar algum asset no projeto, propõe criá-lo." data-ask-from="scene_description">Tirar do guião</button>{% endif %}

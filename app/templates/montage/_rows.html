@@ -8,7 +8,7 @@
   <div class="scn" id="cena-{{ r.scene.id }}">
     <div class="col" style="gap: 4px">
       <span class="mono dim" style="font-size: 11px">{{ r.code }}</span>
-      <a class="h3" href="/projetos/{{ project.id }}/storyboard/cenas/{{ r.scene.id }}" style="text-decoration: none">{{ r.scene.title or 'Sem título' }}</a>
+      <a class="h3" href="/projetos/{{ project.id }}/etapa/{{ stage }}?ambito=cena-{{ r.scene.id }}" style="text-decoration: none" title="Só esta cena">{{ r.scene.title or 'Sem título' }}</a>
       <span class="hint">{{ r.durations.approved }} de {{ r.durations.shots }}{% if r.durations.approved_ms %} · {{ (r.durations.approved_ms / 1000)|clock }}{% endif %}</span>
     </div>
     <div class="clips">

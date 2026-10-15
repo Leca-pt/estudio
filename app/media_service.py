@@ -50,7 +50,7 @@ def approval_target(session: Session, media: MediaFile):
 
 
 def restore_media(session: Session, media: MediaFile) -> None:
-    """Um take rejeitado volta a «por decidir» (o ficheiro ficou guardado)."""
+    """Um rejeitado (take, imagem, voz…) volta a «por decidir» (o ficheiro ficou guardado)."""
     media.status = "pending"
     session.add(media)
 
@@ -72,15 +72,20 @@ def approve_media(session: Session, media: MediaFile) -> None:
     session.add(target)
 
 
+# O que o utilizador gerou ou carregou fica guardado ao rejeitar (em «Rejeitados», de onde se repõe); os ficheiros que a
+# app refaz sozinha (vídeo-guia, renders da maquete, profundidade) apagam-se.
+KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame"}
+
+
 def reject_media(session: Session, media: MediaFile) -> None:
-    """Rejeitar: retira-o de onde estava aprovado e apaga o ficheiro — menos os takes de vídeo, que ficam guardados
-    (em «Rejeitados» na página do plano, de onde se podem repor).
+    """Rejeitar: retira-o de onde estava aprovado. Takes, imagens, vozes e fotos ficam guardados em «Rejeitados» (podem
+    ser repostos); os ficheiros técnicos que a app refaz apagam-se.
 
     As ligações como referência de planos ficam, para o plano mostrar o aviso
     de que uma referência escolhida foi rejeitada."""
     from app.media import delete_file
 
-    if media.role != "clip":
+    if media.role not in KEEP_ON_REJECT:
         delete_file(media.path)
     media.status = "rejected"
     session.add(media)

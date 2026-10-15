@@ -1,4 +1,5 @@
-{% set cur_project = project if project is defined else none %}
+{% set in_project = project is defined and project %}
+{% set cur_project = project if in_project else last_project(request) %}
 <header class="top">
   {% if has_side is defined and has_side %}
   <button class="ib menu-btn" type="button" data-toggle-side aria-label="Abrir estrutura">{{ i.icon("menu", 20) }}</button>
@@ -20,10 +21,12 @@
       <a href="/projetos" class="menu-all">Todos os projetos</a>
     </div>
   </details>
+  {% if cur_project and not in_project %}<a class="tlink back-proj" href="/projetos/{{ cur_project.id }}" title="Voltar à página onde estavas em {{ cur_project.name }}">{{ i.icon("chev-left", 14) }}<span class="lbl">Voltar a {{ cur_project.prefix }}</span></a>{% endif %}
   <span class="sp"></span>
   {% if asst is defined %}<button class="btn asst-top" type="button" data-toggle-asst>{{ i.icon("chat", 15) }}Assistente</button>{% endif %}
   {% if cur_project %}<a class="tlink {% if in_room is defined and in_room %}on{% endif %}" href="/projetos/{{ cur_project.id }}/sala" aria-label="Sala de argumentistas">{{ i.icon("doc") }}<span class="lbl">Sala</span>{% set ru = room_unread(cur_project.id) %}{% if ru %}<span class="badge-n">{{ ru }}</span>{% endif %}</a>{% endif %}
-  {% if cur_project and trash_count(cur_project.id) %}<a class="tlink" href="/projetos/{{ cur_project.id }}/reciclagem" aria-label="Reciclagem">{{ i.icon("trash") }}<span class="lbl">Reciclagem ({{ trash_count(cur_project.id) }})</span></a>{% endif %}
+  {% if cur_project %}{% set tc = trash_count(cur_project.id) %}<a class="tlink" href="/projetos/{{ cur_project.id }}/reciclagem" aria-label="Reciclagem" title="O que apagaste fica aqui 30 dias">{{ i.icon("trash") }}<span class="lbl">Reciclagem{% if tc %} ({{ tc }}){% endif %}</span></a>{% endif %}
+  {% if in_project %}<a class="tlink" href="/agenda?novo=1&p={{ cur_project.id }}&link={{ (request.url.path ~ ('?' ~ request.url.query if request.url.query else ''))|urlencode }}" title="Pôr na agenda (com ligação a esta página)" aria-label="Agendar">{{ i.icon("plus", 14) }}<span class="lbl">Agendar</span></a>{% endif %}
   {% set ag = agenda_today() %}<a class="tlink {% if in_agenda is defined and in_agenda %}on{% endif %}" href="/agenda" aria-label="Agenda" title="{{ ag.tip or 'Agenda: nada atrasado nem a acabar hoje' }}">{{ i.icon("calendar") }}<span class="lbl">Agenda</span>{% if ag.n %}<span class="badge-n{% if not ag.late %} warn{% endif %}">{{ ag.n }}</span>{% endif %}</a>
   <a class="tlink {% if in_config is defined and in_config %}on{% endif %}" href="/configuracao" aria-label="Configuração">{{ i.icon("settings") }}<span class="lbl">Configuração</span></a>
   <form method="post" action="/logout" class="inline-form">

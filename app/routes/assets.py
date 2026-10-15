@@ -308,7 +308,10 @@ async def asset_create(request: Request, project_id: int, session: Session = Dep
                   group_name=text(form, "group_name"))
     session.add(asset)
     session.commit()
-    return RedirectResponse(back, status_code=303)
+    if text(form, "next"):  # criado a partir de outra página (ex.: a cena): volta lá
+        return RedirectResponse(back, status_code=303)
+    flash_info(request, f"«{asset.label}» criado. Escreve a descrição e gera ou carrega a folha.")
+    return RedirectResponse(f"/projetos/{project.id}/assets/{asset.id}", status_code=303)  # abre a ficha nova
 
 
 # ── Etapa 4: grelha e ficha ──────────────────────────────────
@@ -1014,15 +1017,14 @@ async def asset_save(request: Request, project_id: int, asset_id: int, session: 
     op = text(form, "op")
 
     if op == "delete":
-        from app import looks as L
+        from app import trash
 
-        for lk in L.looks_of(session, asset):
-            delete_look(session, lk)
-        for m in session.exec(select(MediaFile).where(MediaFile.asset_id == asset.id)).all():
-            reject_media(session, m)
-        session.delete(asset)
+        trash.trash_asset(session, project, asset)  # recuperável na Reciclagem, com folhas, looks, vistas e maquete
         session.commit()
-        return RedirectResponse(f"/projetos/{project.id}/etapa/4", status_code=303)
+        flash_info(request, f"«{asset.label or asset.name}» foi para a Reciclagem (no topo da página): podes recuperá-lo "
+                            "durante 30 dias.")
+        back = text(form, "back_list") or ""
+        return RedirectResponse(f"/projetos/{project.id}/etapa/4" + (back if back.startswith("?") else ""), status_code=303)
 
     label = text(form, "label")
     if not label:

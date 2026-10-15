@@ -461,8 +461,8 @@ def approve_image(candidate_id: int) -> str:
 
 @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=False),
              title="Rejeitar imagem",
-             description="Rejeita uma candidata, como o botão Rejeitar da app: o ficheiro é apagado e nunca mais é usado "
-                         "como referência.")
+             description="Rejeita uma candidata, como o botão Rejeitar da app: sai dos resultados e deixa de ser usada como "
+                         "referência; o ficheiro fica guardado em «Rejeitados», de onde o utilizador a pode repor.")
 def reject_image(candidate_id: int) -> str:
     from app.media_service import reject_media
 
@@ -471,4 +471,4 @@ def reject_image(candidate_id: int) -> str:
         reject_media(s, m)
         s.commit()
         log.info("mcp: imagem %s rejeitada", candidate_id)
-        return f"Rejeitada e apagada: imagem {candidate_id}."
+        return f"Rejeitada: imagem {candidate_id} (fica em «Rejeitados»; o utilizador pode repô-la)."

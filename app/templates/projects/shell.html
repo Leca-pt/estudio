@@ -20,7 +20,7 @@
         {% endif %}
         {% if n.code %}<span class="c">{{ n.code }}</span>{% endif %}
         <span class="t">{{ n.title }}</span>
-        {% if n.dot %}<span class="dot {{ n.dot }}"></span>{% endif %}
+        {% if n.dot %}<span class="dot {{ n.dot }}" title="{{ {'ok': 'Feito', 'wip': 'Em curso', 'pend': 'Por fazer', 'no': 'Com problemas'}.get(n.dot, '') }}"></span>{% endif %}
       </a>
       {% endif %}
     {% endfor %}
@@ -60,8 +60,13 @@
     <div class="bar7" style="grid-template-columns: repeat({{ steps|length }}, minmax(0, 1fr))">{% for st in steps %}<i class="{{ st.state if st.state != 'pend' else '' }}"></i>{% endfor %}</div>
   </div>
   <div class="content" id="content">
-    {% if notice %}<div class="alert info notice-gpt" role="status"><span class="dots"><i></i><i></i><i></i></span>{{ notice }}</div>{% endif %}
+    {% if notice %}{% set working = "a escrever" in notice or "a gerar" in notice or notice.endswith("…") %}<div class="alert {{ 'info notice-gpt' if working else 'ok' }}" role="status">{% if working %}<span class="dots"><i></i><i></i><i></i></span>{% endif %}{{ notice }}</div>{% endif %}
     {% include content_template %}
+    {% set ns = namespace(cur=none, nxt=none) %}{% for st in steps %}{% if ns.cur is not none and ns.nxt is none %}{% set ns.nxt = st %}{% endif %}{% if st.on %}{% set ns.cur = st %}{% endif %}{% endfor %}
+    {% if ns.nxt %}<div class="next-step{% if ns.cur and ns.cur.state == 'ok' %} ready{% endif %}">
+      {% if ns.cur and ns.cur.state == 'ok' %}<span class="ok-t">{{ i.icon("check", 14) }} Esta etapa está feita.</span>{% else %}<span class="dim">Quando acabares esta etapa:</span>{% endif %}
+      <span class="sp"></span><a class="btn{% if ns.cur and ns.cur.state == 'ok' %} pri{% endif %}" href="{{ ns.nxt.href }}">Seguinte: {{ ns.nxt.name }} {{ i.icon("chev-right", 14) }}</a>
+    </div>{% endif %}
   </div>
   <div class="m-bar">
     <button class="btn m-btn" type="button" data-toggle-asst>{{ i.icon("chat", 15) }}Assistente</button>
