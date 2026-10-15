@@ -60,6 +60,7 @@ def _rows(session: Session, project: Project, groups) -> list[dict]:
         for s in scenes:
             shots = scene_shots(session, s)
             clips = approved_media(session, [sh.approved_clip_id for sh in shots])
+            keys = approved_media(session, [sh.key_image_id for sh in shots])
             tiles = []
             for sh in shots:
                 roles = pending.get(sh.id, set())
@@ -72,7 +73,9 @@ def _rows(session: Session, project: Project, groups) -> list[dict]:
                     gap = "Sem takes"
                 else:
                     gap = "Storyboard por fazer"
-                tiles.append({"shot": sh, "clip": clip, "gap": gap, "state": shot_clip_state(sh, roles),
+                # sem take, o frame-chave aprovado faz de imagem do plano (animatic: «Ver seguido» mostra-o o tempo do plano)
+                tiles.append({"shot": sh, "clip": clip, "key": None if clip else keys.get(sh.key_image_id),
+                              "gap": gap, "state": shot_clip_state(sh, roles),
                               "wip_gap": gap in ("Take por escolher", "Sem takes")})
             d = durations(session, [s.id])
             rows.append({"group": label, "scene": s, "code": scene_code(session, s), "tiles": tiles, "durations": d})
@@ -95,6 +98,7 @@ def montage_page(request: Request, session: Session, project: Project, stage: in
     d = durations(session, [r["scene"].id for r in rows])
     ctx = {
         "rows": rows, "scope": scope, "scopes": valid, "target": target,
+        "stills": sum(1 for r in rows for t in r["tiles"] if t["key"]),
         "summary": {"approved": d.approved, "shots": d.shots, "approved_clock": clock(d.approved_ms / 1000),
                     "planned_clock": clock(d.planned_s), "gaps": d.shots - d.approved,
                     "target_clock": clock(target) if target else None,

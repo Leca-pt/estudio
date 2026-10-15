@@ -616,7 +616,15 @@ details.sec > summary::-webkit-details-marker { display: none; }
 .vb-h { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
 .vb-c { font-size: 11.5px; line-height: 1.35; color: var(--tx2); }
 .board-arrow { align-self: center; color: var(--tx3); margin-top: -30px; }
-/* frame-chave do plano (página Vídeo) */
+/* storyboard final (Storyboard da cena): os frames-chave aprovados, só para ver */
+.key-strip { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--s1); }
+.ks-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.ks-card { flex: 0 0 auto; height: 120px; aspect-ratio: var(--ar, 16 / 9); border-radius: 6px; font-size: 11px; }
+.ks-card.slot { display: grid; place-items: center; text-align: center; color: var(--tx3); text-decoration: none; padding: 6px; }
+/* Montagem: plano sem take mostrado pelo frame-chave */
+.clip .clip-still { outline: 1px dashed var(--line2); outline-offset: -1px; }
+.clip-still .still-tag { position: absolute; top: 6px; left: 6px; right: 6px; z-index: 2; width: fit-content; max-width: calc(100% - 12px); padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,.65); color: #eee; font-size: 10px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* frame-chave do plano (Storyboard do plano) */
 .sec-b.key-b { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; padding-bottom: 0; }
 .key-now { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; }
 .key-now .ph, .key-now .slot { display: grid; place-items: center; width: 100%; border-radius: 6px; font-size: 11px; overflow: hidden; }

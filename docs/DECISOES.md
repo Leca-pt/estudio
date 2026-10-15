@@ -479,24 +479,31 @@ serve de base à fusão a três quando o ficheiro mudou entre a proposta e o «A
 - Ficha do asset: os resultados da folha, do retrato e dos looks usam os blocos comuns (m.results, m.upload_zone).
 - Saldo do Artlist junto aos botões de gerar (guardado 5 min no servidor; uma chamada de cada vez).
 
-## 2026-10-15 — Frame-chave do plano
+## 2026-10-15 — Frame-chave do plano (o storyboard final)
 Teste do utilizador: gerar primeiro uma imagem do take (personagens no sítio, a partir das folhas e do local) e mandá-la
 como referência ao modelo de vídeo, com as folhas, deu bons takes com menos tentativas. Sem vídeo-guia (o Seedance 2.0 e
 outros seguem-no mal), só com referências o modelo não sabia onde estava cada personagem.
+Fluxo, sem voltas atrás (pedido do utilizador): o frame-chave é o ÚLTIMO PASSO DO PLANO NO STORYBOARD («5 · Frame-chave»,
+depois da câmara, das vistas e do vídeo-guia) — gera-se e aprova-se só aí. As etapas seguintes só o usam: a página Vídeo
+mostra-o em «Do Storyboard» (com «Mudar no Storyboard») e segue no pedido; a Montagem mostra-o nos planos sem take.
 - Shot.key_prompt + Shot.key_image_id (migração 0060); app/keyframe.py; alvo de prompt «chave» (prompt_targets), guia
-  «key» (Configuração → Prompts → Frame-chave de um plano). Bloco «Frame-chave» na página Vídeo do plano.
+  «key» (Configuração → Prompts → Frame-chave de um plano).
 - Com cena 3D: parte do previs do 1.º momento (render cinzento, a geometria; ImageJob.params base + hash da cena), a
   vista do local desse momento e as folhas (do look da cena) de quem a câmara vê — o mesmo caminho das vistas da maquete
   (jobs._locview). O escritor recebe a cor da cápsula de cada personagem e o que o previs mostra nesse instante. Sem cena
   3D: compõe pela descrição do plano, com as folhas das personagens da cena e a imagem do local.
 - O frame-chave aprovado do plano anterior da cena só o escritor vê (luz, roupa, sítio); não vai para o gerador (copiava
   a composição, como as fotos reais).
-- Aprovado, segue como 1.ª referência (@P<nn>.key) na escolha automática; a vista do 1.º momento deixa de seguir (com
-  vídeo-guia fica só a do fim). Sem cena 3D seguem também as folhas das personagens da cena. O vídeo-guia continua a ser
-  escolha do plano. Nos modelos só com frames, o frame-chave é a imagem inicial. O escritor do vídeo é avisado e
+- No vídeo: aprovado, segue como 1.ª referência (@P<nn>.key) na escolha automática; a vista do 1.º momento deixa de
+  seguir (com vídeo-guia fica só a do fim). Sem cena 3D seguem também as folhas das personagens da cena. O vídeo-guia
+  continua a ser escolha do plano. Nos modelos só com frames, o frame-chave é a imagem inicial. O escritor do vídeo
   descreve a ação a partir das posições dele.
-- Mudar a câmara ou a encenação depois marca o frame-chave como desatualizado na página. Rejeitar guarda-o; as
-  candidatas podem ser editadas. MCP: generate_image/write_prompt/list_candidates com kind keyframe e screen
-  video_shot:N; campo shot:N.key_prompt.
+- Storyboard da cena: «Storyboard final» = a tira dos frames-chave aprovados pela ordem dos planos (só aparece quando há
+  algum; os que faltam levam ao passo 5 do plano).
+- Montagem: plano sem take com frame-chave mostra-o («sem take»); «Ver seguido» mostra-o durante a duração do plano —
+  um animatic até haver takes. O zip continua só com takes.
+- Mudar a câmara ou a encenação depois marca o frame-chave como desatualizado (Storyboard e Vídeo). Rejeitar guarda-o;
+  as candidatas podem ser editadas. MCP: write_prompt/generate_image/list_candidates com kind keyframe e screen
+  sb_shot:N; campo shot:N.key_prompt no ecrã sb_shot.
 - Telemóvel: a barra do topo alargava a página em todas as vistas (.shell sem coluna limitada); agora cabe (só o código
   do projeto no seletor, sem o logótipo ao lado do menu).

@@ -150,9 +150,20 @@
     {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com a parte da encenação e a câmara (plano geral, campo/contracampo por cima do ombro de quem ouve, grandes planos), do mesmo lado do eixo.">Propor a cobertura</button>{% endif %}
     <button class="btn sm" type="submit" form="scene-form" name="op" value="add_shot">{{ i.icon("plus", 13) }}Novo plano</button>
   </div>
-  <span class="hint">Cada plano é uma câmara sobre a encenação, numa parte do tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.</span>
+  <span class="hint">Cada plano é uma câmara sobre a encenação, numa parte do tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.{% if shots and not shots|selectattr("key")|list %} Quando aprovares o frame-chave de um plano (o último passo do plano), aparecem aqui em cima como o storyboard final.{% endif %}</span>
   {% if shots %}
   {% set ar = (project.aspect_ratio or "16:9").split(" ")[0] %}
+  {% if shots|selectattr("key")|list %}
+  <div class="key-strip" style="--ar: {{ ar|replace(':', ' / ') }}" aria-label="Storyboard final">
+    <div class="row" style="gap: 8px"><span class="cap">Storyboard final</span><span class="hint">os frames-chave aprovados, pela ordem dos planos (o último passo de cada plano)</span></div>
+    <div class="ks-row">
+      {% for s in shots %}{% set sh = s.shot %}
+      {% if s.key %}<a class="ks-card ph img-ph" href="/media/{{ s.key.path }}" hx-boost="false" title="P{{ '%02d' % sh.number }} · frame-chave"><img src="{{ s.key.path|thumb }}" alt="P{{ '%02d' % sh.number }}" loading="lazy"><span class="lb">P{{ '%02d' % sh.number }}{% if sh.duration_s %} · {{ sh.duration_s }} s{% endif %}</span></a>
+      {% else %}<a class="ks-card slot" href="/projetos/{{ project.id }}/storyboard/planos/{{ sh.id }}#frame-chave" title="Gerar o frame-chave do P{{ '%02d' % sh.number }}">P{{ '%02d' % sh.number }} · sem frame-chave</a>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <div class="shot-rows" style="--ar: {{ ar|replace(':', ' / ') }}">
     {% for s in shots %}
     {% set sh = s.shot %}

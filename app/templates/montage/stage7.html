@@ -5,22 +5,24 @@
     {% for key, label in scopes %}<option value="/projetos/{{ project.id }}/etapa/7?ambito={{ key }}" {% if key == scope %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
   <span class="sp"></span>
+  {% if summary.approved or stills %}
+  <button class="btn" type="button" data-play-all title="Os takes escolhidos por ordem{% if stills %}; os planos sem take mostram o frame-chave durante o tempo do plano{% endif %}">{{ i.icon("play", 14) }}Ver seguido</button>
+  {% endif %}
   {% if summary.approved %}
-  <button class="btn" type="button" data-play-all>{{ i.icon("play", 14) }}Ver seguido</button>
   <a class="btn pri" href="/projetos/{{ project.id }}/montagem/exportar.zip?ambito={{ scope }}" hx-boost="false">{{ i.icon("download", 15) }}Exportar takes (zip)</a>
   {% else %}
   <button class="btn pri" type="button" disabled>{{ i.icon("download", 15) }}Exportar takes (zip)</button>
   {% endif %}
 </div>
 {{ m.alerts(error) }}
-{% if rows and summary.shots %}
+{% if rows and summary.shots and (summary.approved or stills) %}
 <div class="dur-row">
   <span><b>{{ summary.approved }}</b> <span class="muted">de {{ summary.shots }} takes escolhidos</span></span>
   <span><b class="mono">{{ summary.approved_clock }}</b> <span class="muted">aprovados de ~{{ summary.planned_clock }} previstos</span></span>
   {% if summary.target_clock %}<span class="{{ 'c-wip' if summary.over else '' }}"><span class="muted">alvo</span> <b class="mono">{{ summary.target_clock }}</b>{% if summary.over %} · previsto acima do alvo{% endif %}</span>{% endif %}
   {% if summary.gaps %}<span class="row" style="gap: 6px"><span class="dot wip"></span><b>{{ summary.gaps }}</b> <span class="muted">lacuna(s)</span></span>{% endif %}
   <span class="sp"></span>
-  <span class="hint">O zip leva só os takes escolhidos, numerados pela ordem: <span class="mono">01_{{ project.prefix }}_{{ rows[0].code }}_P01.mp4</span>…</span>
+  <span class="hint">{% if stills %}{{ stills }} plano(s) sem take mostram o frame-chave (no «Ver seguido», durante o tempo do plano). {% endif %}O zip leva só os takes escolhidos, numerados pela ordem: <span class="mono">01_{{ project.prefix }}_{{ rows[0].code }}_P01.mp4</span>…</span>
 </div>
 {% set play_tiles = True %}
 {% include "montage/_rows.html" %}

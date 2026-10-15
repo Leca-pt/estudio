@@ -87,6 +87,8 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
     from app.shot_script import script_coverage
 
     assets = scene_assets(session, scene)
+    from app import keyframe
+
     shots = scene_shots(session, scene)
     script = script_coverage(session, scene)
     lines_of = {sh.id: [r["n"] for r in script if sh in r["shots"]] for sh in shots}
@@ -94,7 +96,8 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
     rows = []
     for sh in shots:
         ms = moments.rows(session, sh)
-        rows.append({"shot": sh, "state": shot_board_state(session, sh), "moments": ms, "lines": lines_of.get(sh.id, [])})
+        rows.append({"shot": sh, "state": shot_board_state(session, sh), "moments": ms, "lines": lines_of.get(sh.id, []),
+                     "key": keyframe.approved(session, sh)})
     from app import looks as L
 
     wardrobe = {}
@@ -313,6 +316,9 @@ def _shot_view(request: Request, session: Session, project: Project, shot: Shot,
     } | _maquete_ctx(session, project, shot) | _moments_ctx(session, project, shot)
     from app import scene_nav
 
+    from app import keyframe
+
+    ctx["key"] = keyframe.block(session, project, shot)
     ctx["nav"] = scene_nav.build(session, project, scene, "storyboard", shot)
     return render_stage(request, session, project, STAGE, "storyboard/shot.html", ctx, current=("shot", shot.id))
 
@@ -586,7 +592,7 @@ async def shot_save(request: Request, project_id: int, shot_id: int, session: Se
     session.commit()
     if prompt_ops.run(request, session, project, form, op):
         session.commit()
-        return RedirectResponse(url + "#momentos", status_code=303)
+        return RedirectResponse(url + ("#frame-chave" if ":chave:" in op else "#momentos"), status_code=303)
     anchor = {"add_check": "#continuidade", "del_check": "#continuidade", "mview_new": "#momentos"}.get(verb, "")
     return RedirectResponse(url + ("" if op else "?guardado=1") + anchor, status_code=303)
 

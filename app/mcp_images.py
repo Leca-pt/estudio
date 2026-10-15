@@ -27,8 +27,8 @@ KINDS = {"sheet": "folha", "portrait": "retrato", "look": "look", "view": "vista
 KIND_HELP = ("kind: sheet (folha de um asset), portrait (retrato de uma personagem), look (folha de um look, com look_id), "
              "view (vista de um local, screen asset:N com view_id), previs (vista do local num momento de um plano, "
              "screen sb_shot:N com view_id), keyframe (frame-chave de um plano: o início do take com as personagens no "
-             "sítio, a partir do previs do 1.º momento; screen video_shot:N ou sb_shot:N; aprovado, segue como referência "
-             "no pedido de vídeo), cover (capa, screen bible ou story)")
+             "sítio, a partir do previs do 1.º momento — o último passo do plano no Storyboard; screen sb_shot:N; "
+             "aprovado, segue como referência no pedido de vídeo), cover (capa, screen bible ou story)")
 MAX_BYTES = 20 * 1024 * 1024
 PAID = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True)
 
@@ -71,7 +71,7 @@ def _target(s: Session, p: Project, screen: str, kind: str, look_id: int | None,
             return PT.get(s, p, "vista", str(v.id))
         if kind == "keyframe":
             if head not in ("video_shot", "sb_shot") or num is None:
-                raise ToolError("Para keyframe, o screen é video_shot:N (ou sb_shot:N).")
+                raise ToolError("Para keyframe, o screen é sb_shot:N (o frame-chave é o último passo do plano no Storyboard).")
             return PT.get(s, p, "chave", str(num))
         if head not in ("bible", "story", "project"):
             raise ToolError("Para cover, o screen é bible ou story.")

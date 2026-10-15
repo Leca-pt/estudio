@@ -803,8 +803,7 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
                             f"aprovado ({ref_tokens.token_for(session, _key)[0]})"
                             + (" — DESATUALIZADO: a câmara ou a encenação mudou depois" if _KF.stale(session, shot) else "")
                             if _key is not None else "nenhum aprovado")
-                        + f". Prompt: {_v(shot.key_prompt)}. Gera-se no bloco «Frame-chave» da página (ou pelo conector: "
-                        f"generate_image com kind keyframe e screen video_shot:{shot.id}).")
+                        + ". Gera-se no Storyboard do plano (último passo), não aqui.")
             rows.append(_timing_line(session, scene, shot))
             ctx = Context(key, f"Cena {scene.number} · Plano {shot.number} · vídeo", 6, "\n\n".join(rows))
             _duration_field(ctx, session, scene, shot)
@@ -822,7 +821,7 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
                                   + (f", até {_acc['max_audios']} vozes" if _acc["audio"] else ", sem vozes")
                                   + ", frame inicial" + (" e final" if _acc["end_frame"] else "")
                                   + ". Com uma frame inicial o pedido é imagem-para-vídeo: seguem só as frames e o prompt.")))
-            for attr in ("sound_effects", "ambience", "music", "video_prompt", "key_prompt"):
+            for attr in ("sound_effects", "ambience", "music", "video_prompt"):
                 ctx.add(spec(session, project, f"shot:{shot.id}.{attr}", _shot_path(scene, shot)))
             ctx.suggestions = ["Propõe o som deste plano", "Revê o prompt de vídeo"]
             ms = moments.rows(session, shot)
@@ -834,8 +833,19 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
             ctx.images = guide_imgs + ctx.images  # o próprio vídeo-guia em imagens, antes dos previs
         else:
             rows.append(_timing_line(session, scene, shot))
+            from app import keyframe as _KF
+
+            _key = _KF.approved(session, shot)
+            rows.append("FRAME-CHAVE (último passo do plano: imagem do início do take com as personagens no sítio, a partir "
+                        "do previs do 1.º momento; aprovada, segue como referência no pedido de vídeo): "
+                        + ((f"aprovado ({ref_tokens.token_for(session, _key)[0]})"
+                            + (" — DESATUALIZADO: a câmara ou a encenação mudou depois" if _KF.stale(session, shot) else ""))
+                           if _key is not None else "nenhum aprovado")
+                        + f". Prompt: {_v(shot.key_prompt)}. O prompt é do escritor de prompts (botões Gerar e Escrever do "
+                        "bloco «Frame-chave»); propõe alterações só quando o utilizador pedir.")
             ctx = Context(key, f"Cena {scene.number} · Plano {shot.number}", 5, "\n\n".join(rows))
             _duration_field(ctx, session, scene, shot)
+            ctx.add(spec(session, project, f"shot:{shot.id}.key_prompt", _shot_path(scene, shot)))
             for attr in ("title", "description", "shot_type", "camera_angle", "camera_movement"):
                 ctx.add(spec(session, project, f"shot:{shot.id}.{attr}", _shot_path(scene, shot)))
             from app.shot_script import script_coverage, shot_line_ids

@@ -20,6 +20,10 @@
         <a class="ph img-ph clip-play" href="/media/{{ t.clip.path }}" hx-boost="false" title="Ver o take em grande"><video src="/media/{{ t.clip.path }}#t=0.1" poster="/media/capa/{{ t.clip.path }}" preload="none" muted playsinline></video><span class="play">{{ i.icon("play", 16) }}</span><span class="lb">{{ r.code }} · P{{ '%02d' % sh.number }} · {{ ((t.clip.duration_ms or 0) / 1000)|clock }}</span></a>
         {% elif t.clip %}
         <div class="ph img-ph clip-open"><a class="clip-link" href="{{ shot_url }}" title="Abrir a geração de vídeo do P{{ '%02d' % sh.number }}"><video src="/media/{{ t.clip.path }}#t=0.1" poster="/media/capa/{{ t.clip.path }}" preload="none" muted playsinline></video></a><a class="zoom" href="/media/{{ t.clip.path }}" hx-boost="false" title="Ver o take em grande" aria-label="Ver o take em grande">{{ i.icon("play", 12) }}</a><span class="lb">{{ ((t.clip.duration_ms or 0) / 1000)|clock }}</span></div>
+        {% elif t.key and play_tiles is defined and play_tiles %}
+        <a class="ph img-ph clip-play clip-still" href="/media/{{ t.key.path }}" hx-boost="false" data-hold="{{ sh.duration_s or 4 }}" title="Sem take: o frame-chave do P{{ '%02d' % sh.number }} ({{ t.gap }})"><img src="{{ t.key.path|thumb }}" alt="" loading="lazy"><span class="still-tag">sem take</span><span class="lb">{{ r.code }} · P{{ '%02d' % sh.number }} · frame-chave · {{ sh.duration_s or 4 }} s</span></a>
+        {% elif t.key %}
+        <a class="ph img-ph clip-open clip-still" href="{{ shot_url }}" title="Sem take: o frame-chave do P{{ '%02d' % sh.number }} ({{ t.gap }})"><img src="{{ t.key.path|thumb }}" alt="" loading="lazy"><span class="still-tag">sem take</span></a>
         {% else %}
         <a class="gap{% if not t.wip_gap %} pend{% endif %}" href="{{ shot_url }}"><span class="{{ 'c-wip' if t.wip_gap else '' }}" style="font-weight: 600">Lacuna</span>{{ t.gap }}</a>
         {% endif %}

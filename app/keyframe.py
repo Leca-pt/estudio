@@ -4,8 +4,9 @@ Com a cena 3D, parte do previs do primeiro momento (a câmara do plano, com o el
 de imagem recebe esse render como geometria, a vista do local desse momento (o aspeto do sítio) e as folhas de quem a
 câmara vê. Sem cena 3D, o escritor compõe a imagem pela descrição do plano, com as mesmas folhas e a imagem do local.
 
-Aprovado, segue no pedido de vídeo como referência (a primeira imagem): o modelo vê logo quem está onde, sem o texto ter
-de o explicar. Não substitui o vídeo-guia (que continua a ser escolha do plano, em «O que segue no pedido») nem é a
+É o último passo do Storyboard do plano (gera-se e aprova-se lá; a página Vídeo e a Montagem só o mostram). Aprovado,
+segue no pedido de vídeo como referência (a primeira imagem): o modelo vê logo quem está onde, sem o texto ter de o
+explicar. Não substitui o vídeo-guia (que continua a ser escolha do plano, em «O que segue no pedido») nem é a
 frame inicial (só se o utilizador a escolher assim).
 """
 
@@ -116,3 +117,28 @@ def cast_colours(session: Session, shot: Shot) -> list[str]:
             out.append(f"@{code} ({a.label or code}) = a cápsula {scene3d.CAST_NAMES.get(cast[code], cast[code])} "
                        f"(\"the {scene3d.CAST_EN.get(cast[code], cast[code])} figure\")")
     return out
+
+
+def block(session: Session, project, shot: Shot) -> dict:
+    """O bloco «Frame-chave» do plano no Storyboard: o aprovado (e se envelheceu), o prompt, os pedidos e as candidatas."""
+    from app import prompt_targets as PT
+    from app.media import media_root
+    from app.media_service import media_list
+    from app.routes import prompt_ops
+    from app.routes.gpt import jobs_ctx
+    from app.routes.video import request_plan, shot_model
+
+    t = PT.get(session, project, "chave", str(shot.id))
+    key = approved(session, shot)
+    sent = {m.id for m in request_plan(session, shot, shot_model(session, shot))["images"]}
+    from app import ref_tokens
+
+    label = " · ".join(ref_tokens.token_for(session, key)) if key is not None else None
+    return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key, "label": label,
+            "stale": stale(session, shot),
+            "sent": key is not None and key.id in sent, "missing": missing(session, shot),
+            "render": render(session, shot), "previous": previous(session, shot),
+            "jobs": jobs_ctx(session, project, ROLE, shot_id=shot.id),
+            "results": media_list(session, shot_id=shot.id, role=ROLE, status="pending"),
+            "rejected": [m for m in reversed(media_list(session, shot_id=shot.id, role=ROLE, status="rejected"))
+                         if (media_root() / m.path).is_file()]}

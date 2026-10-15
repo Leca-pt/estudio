@@ -114,7 +114,7 @@ def back_url(project: Project, media: MediaFile) -> str:
     if media.role == "cover":
         return f"/projetos/{project.id}/etapa/1#capa"
     if media.role == "key":
-        return f"/projetos/{project.id}/video/planos/{media.shot_id}#frame-chave"
+        return f"/projetos/{project.id}/storyboard/planos/{media.shot_id}#frame-chave"
     if media.role in ("guide", "render"):
         return f"/projetos/{project.id}/storyboard/planos/{media.shot_id}#maquete"
     return f"/projetos/{project.id}/storyboard/planos/{media.shot_id}"

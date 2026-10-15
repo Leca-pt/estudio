@@ -150,27 +150,37 @@
   document.addEventListener('change', e => { const d = e.target.closest('dialog[data-picker]'); if (d) pickerCount(d); });
   document.addEventListener('cancel', e => { if (e.target.matches && e.target.matches('dialog[data-picker]')) resetPicker(e.target); }, true);
 
-  // "Ver seguido" (Montagem): toca os takes escolhidos por ordem, um atrás do outro.
-  let lbPlayAll = false;
+  // "Ver seguido" (Montagem): toca os takes escolhidos por ordem, um atrás do outro; um plano sem take mas com
+  // frame-chave (data-hold) fica no ecrã os segundos do plano — um animatic até haver takes.
+  let lbPlayAll = false, lbHold = null;
   function playAll() {
-    lbLinks = lightboxLinks().filter(a => a.closest('.clips') && /\.(mp4|mov)$/i.test(a.getAttribute('href')));
+    lbLinks = lightboxLinks().filter(a => a.closest('.clips') && (/\.(mp4|mov)$/i.test(a.getAttribute('href')) || a.dataset.hold));
     if (!lbLinks.length) return;
     lbIndex = 0; lbPlayAll = true;
-    showLightbox();
+    showPlaying();
     const d = document.getElementById('lightbox');
     if (!d.open) d.showModal();
   }
+  function showPlaying() {
+    clearTimeout(lbHold);
+    showLightbox();
+    const a = lbLinks[lbIndex];
+    if (lbPlayAll && a && a.dataset.hold) lbHold = setTimeout(nextPlaying, (+a.dataset.hold || 4) * 1000);
+  }
+  function nextPlaying() {
+    if (lbIndex < lbLinks.length - 1) { lbIndex += 1; showPlaying(); } else lbPlayAll = false;
+  }
   document.addEventListener('ended', e => {
     if (!lbPlayAll || !e.target.matches('[data-lb-video]')) return;
-    if (lbIndex < lbLinks.length - 1) { lbIndex += 1; showLightbox(); } else lbPlayAll = false;
+    nextPlaying();
   }, true);
   function stepLightbox(delta) {
     if (lbLinks.length < 2) return;
     lbIndex = (lbIndex + delta + lbLinks.length) % lbLinks.length;
-    showLightbox();
+    showPlaying();
   }
   document.addEventListener('close', e => {
-    if (e.target.id === 'lightbox') { lbPlayAll = false; const v = e.target.querySelector('[data-lb-video]'); if (v) v.pause(); }
+    if (e.target.id === 'lightbox') { lbPlayAll = false; clearTimeout(lbHold); const v = e.target.querySelector('[data-lb-video]'); if (v) v.pause(); }
   }, true);
   document.addEventListener('keydown', e => {
     const d = document.getElementById('lightbox');

@@ -739,30 +739,13 @@ def _view(request: Request, session: Session, project: Project, shot: Shot, scen
         "max_upload_mb": MAX_VIDEO_BYTES // (1024 * 1024), "main_form": "video-form",
         "assistant_key": f"video_shot:{shot.id}",
     }
-    ctx["key"] = _key_view(session, project, shot)
+    from app import keyframe
+
+    ctx["key"] = {"media": keyframe.approved(session, shot), "stale": keyframe.stale(session, shot)}
     from app import scene_nav
 
     ctx["nav"] = scene_nav.build(session, project, scene, "video", shot)
     return render_stage(request, session, project, STAGE, "video/shot.html", ctx, current=("shot", shot.id))
-
-
-def _key_view(session: Session, project: Project, shot: Shot) -> dict:
-    """O bloco «Frame-chave» da página: o aprovado (e se envelheceu), o prompt, os pedidos e as candidatas."""
-    from app import keyframe
-    from app.routes.gpt import jobs_ctx
-
-    t = PT.get(session, project, "chave", str(shot.id))
-    key = keyframe.approved(session, shot)
-    model = shot_model(session, shot)
-    sent = {m.id for m in request_plan(session, shot, model)["images"]}
-    return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key,
-            "label": PT_label(session, key) if key else None, "stale": keyframe.stale(session, shot),
-            "sent": key is not None and key.id in sent, "missing": keyframe.missing(session, shot),
-            "render": keyframe.render(session, shot), "previous": keyframe.previous(session, shot),
-            "jobs": jobs_ctx(session, project, "key", shot_id=shot.id),
-            "results": media_list(session, shot_id=shot.id, role="key", status="pending"),
-            "rejected": [m for m in reversed(media_list(session, shot_id=shot.id, role="key", status="rejected"))
-                         if (media_root() / m.path).is_file()]}
 
 
 def PT_label(session: Session, media: MediaFile) -> str:  # noqa: N802
@@ -862,9 +845,8 @@ async def video_save(request: Request, project_id: int, shot_id: int, session: S
     session.commit()
     if prompt_ops.run(request, session, project, form, op):
         session.commit()
-        return RedirectResponse(url + ("#frame-chave" if ":chave:" in op else "#resultados"), status_code=303)
-    return RedirectResponse(url + ("" if op else "?guardado=1") + ("#frame-chave" if ":chave:" in op else ""),
-                            status_code=303)
+        return RedirectResponse(url + "#resultados", status_code=303)
+    return RedirectResponse(url + ("" if op else "?guardado=1"), status_code=303)
 
 
 def _video_jobs(session: Session, project: Project, shot: Shot) -> list[dict]:
