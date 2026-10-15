@@ -247,3 +247,18 @@ Alibaba, DeepSeek, MiniMax, xAI, BytePlus, Black Forest Labs, Kling, Azure, Meta
 Replicate). Ficam cifradas (Fernet) na base de dados com uma chave derivada de `SECRET_KEY`: o backup não as expõe,
 mas mudar o `SECRET_KEY` torna-as ilegíveis (a página pede para as introduzir de novo). Nunca são mostradas depois de
 gravadas. Ter uma chave guardada não liga o fornecedor à app: cada integração (Assistente, imagens, vídeo) é à parte.
+
+## Licença
+
+Copyright (C) 2026 Leca-pt
+
+Este programa é software livre: podes redistribuí-lo e/ou modificá-lo nos termos da **GNU Affero General Public
+License**, tal como publicada pela Free Software Foundation, versão 3 da licença ou (à tua escolha) qualquer versão
+posterior. É distribuído na esperança de ser útil, mas **sem qualquer garantia**, nem mesmo a garantia implícita de
+comerciabilidade ou de adequação a um fim específico. O texto completo está em [`LICENSE`](LICENSE).
+
+Em resumo: podes usar, estudar, alterar e partilhar a app. Se a alterares e a puseres a funcionar para outras pessoas
+(por exemplo, num servidor acessível pela internet), tens de lhes dar acesso ao código-fonte da tua versão, também
+sob a AGPL-3.0.
+
+Componentes de terceiros mantêm as suas próprias licenças (ex.: three.js, MIT, em `app/static/vendor/three/`).
