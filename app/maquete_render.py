@@ -34,7 +34,7 @@ def still_page(request: Request, token: str):
     return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8"><style>body{{margin:0}}</style></head><body>
 <script type="application/json" id="job">{payload}</script>
 <script type="module">
-import {{ renderStills }} from '/static/js/maquete_still.js?v=3';
+import {{ renderStills }} from '/static/js/maquete_still.js?v=4';
 const job = JSON.parse(document.getElementById('job').textContent);
 try {{ window.__result = await renderStills(job.spec, job.opts); }} catch (e) {{ window.__error = String(e && e.stack || e); }}
 </script></body></html>""")

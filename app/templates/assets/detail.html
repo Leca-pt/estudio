@@ -302,7 +302,7 @@
               <div class="zone-dlg-h"><h2 class="h2">{{ zone or "espaço todo" }} · {{ v.label }}</h2><span class="sp"></span>
                 <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
               <div class="prompt-dlg-b">
-                {{ m.prompt_panel(r.panel, "views3d-form", height=220, jobs=r.jobs, gen_disabled=(none if r.render else "Falta o render: abre a maquete")) }}
+                {{ m.prompt_panel(r.panel, "views3d-form", height=220, jobs=r.jobs, gen_disabled=(none if r.render else "Falta o render: abre a maquete"), open=True) }}
               </div>
               <div class="dlg-f"><span class="sp"></span>
                 <button class="btn" type="button" data-close-dialog>Fechar</button>
@@ -403,7 +403,7 @@
               </div>
               {{ m.rejected_block(rejected_files(project.id, "look", look_id=lk.id), "r169") }}
             </div>
-            {{ m.prompt_panel(r.panel, "asset-form", height=120, gen=gpt_enabled, jobs=r.jobs, gen_label="Gerar folha do look", gen_disabled=(none if approved else "Aprova primeiro a folha: o look parte dela")) }}
+            {{ m.prompt_panel(r.panel, "asset-form", height=120, gen=gpt_enabled, jobs=r.jobs, gen_label="Gerar folha do look", gen_disabled=(none if approved else "Aprova primeiro a folha: o look parte dela"), open=True) }}
           </div>
           <div class="dlg-f">
             <button class="btn sm no" type="submit" form="asset-form" name="op" value="delete_look:{{ lk.id }}" data-confirm="Apagar o look «{{ lk.name }}»?" data-confirm-text="As folhas dele são apagadas e as cenas onde estava voltam à Base." data-confirm-ok="Apagar">Apagar look</button>

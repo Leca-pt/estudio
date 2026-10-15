@@ -229,6 +229,7 @@ const fmt = (s) => s.toFixed(1).replace('.', ',') + ' s';
 // mudança do Assistente) a maquete é desenhada de novo e continua onde estava, em vez de voltar ao início.
 const camMemory = new Map();
 const editMemory = new Map(); // a posição da câmara do plano em edição (sobrevive a uma atualização da página)
+const listOpen = new Map(); // a lista das posições da câmara aberta ou fechada (idem)
 
 export function mount(el) {
   for (const v of live) if (!v.el.isConnected) { v.dispose(); live.delete(v); }
@@ -861,8 +862,17 @@ export function mount(el) {
       ed.innerHTML = `<div class="ce-h"><b>Câmara do plano</b><span class="hint">posições-chave: a câmara passa por elas, pela ordem do tempo</span><span class="sp"></span>
         <button class="btn sm" type="button" data-ce="add">Juntar posição aqui</button>
         ${el.dataset.cameraUndo ? '<button class="btn sm" type="button" data-ce="undo" title="Volta à câmara antes da última gravação">Desfazer</button>' : ''}</div>
-        ${editBar}<div class="ce-rows">${rows}</div>`;
+        ${editBar}<details class="ce-list"${ceListOpen() ? ' open' : ''}><summary class="hint">Posições da câmara (${keysW.length})</summary><div class="ce-rows">${rows}</div></details>`;
     }
+    // com muitas posições a lista fica fechada (abre-se para editar); o que o utilizador escolhe fica
+    function ceListOpen() {
+      if (editing !== null) return true;
+      const k = memKey || 'cam';
+      return listOpen.has(k) ? listOpen.get(k) : keysW.length <= 4;
+    }
+    ed.addEventListener('toggle', (e) => {
+      if (e.target.matches && e.target.matches('details.ce-list')) listOpen.set(memKey || 'cam', e.target.open);
+    }, true);
     async function saveCam(body, msg) {
       try {
         const r = await fetch(el.dataset.cameraUrl, { method: 'POST', credentials: 'same-origin',

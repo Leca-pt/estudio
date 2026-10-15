@@ -507,3 +507,20 @@ mostra-o em «Do Storyboard» (com «Mudar no Storyboard») e segue no pedido; a
   sb_shot:N; campo shot:N.key_prompt no ecrã sb_shot.
 - Telemóvel: a barra do topo alargava a página em todas as vistas (.shell sem coluna limitada); agora cabe (só o código
   do projeto no seletor, sem o logótipo ao lado do menu).
+
+## 2026-10-15 — Menos estímulo visual (regras de desenho das páginas)
+Pedido do utilizador: as páginas tinham demasiada informação visível ao mesmo tempo (imagens, vídeos, prompts, avisos,
+explicações). Regras (revelação progressiva, carga cognitiva, uma ação principal por bloco):
+- Secções que se fecham (macro m.fold, details[data-fold]): título + resumo numa linha. Abertas por omissão só quando há
+  coisa a fazer — no plano do Storyboard, só o primeiro passo por fazer (e a câmara quando é preciso gravar o
+  vídeo-guia); o que o utilizador abre ou fecha fica nessa página até fechar o separador (sessionStorage); um link
+  para dentro (#frame-chave, os passos no topo) abre a secção. O morph não mexe no «open».
+- Prompts recolhidos (m.prompt_panel): uma linha com o estado, o início do texto e os avisos; o Escrever e o Gerar
+  ficam sempre à vista. Abrem-se para ler ou editar. Nos modais de prompt («Ver o prompt») ficam abertos (open=True).
+- Ajuda a pedido: as explicações longas passam a um «?» (m.tip_btn) com balão; fica no máximo uma frase visível.
+- Avisos num só sítio: na página Vídeo, «Antes de gerar» junta os avisos do plano (erros primeiro) junto ao Gerar take.
+- Listas longas recolhidas: as posições da câmara (com mais de 4) e as passagens de movimento brusco abrem-se a pedido.
+- Os takes (o resultado) ficam sempre à vista; o espaço de «nenhum take escolhido» já não ocupa meio ecrã.
+Resultado (projeto de teste, P01): página Vídeo de 4746 px para 1750 px; plano no Storyboard de 4179 px para 1726 px.
+Por fazer: as outras páginas com as mesmas regras (ficha do asset, cena do Storyboard, etapas 1–4, Configuração).
+Estáticos: ao mudar app.css/app.js/scene3d.js sobe-se o ?v= (base.html e o import em app.js).

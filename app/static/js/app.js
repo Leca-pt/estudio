@@ -439,6 +439,60 @@
   applyTree();
   document.addEventListener('htmx:afterSettle', applyTree);
 
+  // Secções que se fecham (details[data-fold]): abertas por omissão só quando há coisa a fazer (data-default-open, do
+  // servidor). O que o utilizador abre ou fecha fica nesta página até fechar o separador; um link para dentro de uma
+  // secção fechada (#frame-chave, #resultados…) abre-a. O morph não mexe no «open» delas.
+  const foldKey = () => 'estudio-fold:' + location.pathname;
+  const foldState = () => { try { return JSON.parse(sessionStorage.getItem(foldKey()) || '{}'); } catch (e) { return {}; } };
+  const setOpen = (d, want) => { if (d.open !== want) { d._applying = true; d.open = want; } };
+  function openTo(el) { for (let d = el && el.closest('details[data-fold]'); d; d = d.parentElement && d.parentElement.closest('details[data-fold]')) setOpen(d, true); }
+  function applyFolds() {
+    const st = foldState();
+    document.querySelectorAll('details[data-fold]').forEach((d) => {
+      setOpen(d, d.id in st ? st[d.id] : d.dataset.defaultOpen === '1');
+    });
+    if (location.hash.length > 1) { try { openTo(document.querySelector(location.hash)); } catch (e) { /* hash que não é um seletor */ } }
+  }
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.matches || !d.matches('details[data-fold]')) return;
+    if (d._applying) { d._applying = false; return; }
+    if (!d.id) return;
+    const st = foldState(); st[d.id] = d.open;
+    try { sessionStorage.setItem(foldKey(), JSON.stringify(st)); } catch (err) { /* sem armazenamento: só não se lembra */ }
+  }, true);
+  window.addEventListener('hashchange', () => { try { openTo(document.querySelector(location.hash)); } catch (e) { /* nada */ } });
+  document.addEventListener('click', (e) => {  // ligações para uma secção desta página (ex.: os passos do plano)
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || a.getAttribute('href').length < 2) return;
+    try { openTo(document.querySelector(a.getAttribute('href'))); } catch (err) { /* nada */ }
+  });
+  applyFolds();
+  document.addEventListener('htmx:afterSettle', applyFolds);
+
+  // Ajuda a pedido: o «?» mostra a explicação num balão (fecha ao clicar fora ou com Esc).
+  let tipPop = null;
+  const closeTip = () => { if (tipPop) { tipPop.remove(); tipPop = null; } };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('.tip-btn');
+    if (!b) { if (tipPop && !tipPop.contains(e.target)) closeTip(); return; }
+    e.preventDefault(); e.stopPropagation();  // dentro de um <summary>: não abre nem fecha a secção
+    const same = tipPop && tipPop._for === b;
+    closeTip();
+    if (same) return;
+    tipPop = document.createElement('div');
+    tipPop.className = 'tip-pop'; tipPop.setAttribute('role', 'tooltip'); tipPop.textContent = b.dataset.tip; tipPop._for = b;
+    document.body.appendChild(tipPop);
+    const r = b.getBoundingClientRect(), w = Math.min(340, window.innerWidth - 16);
+    tipPop.style.width = w + 'px';
+    tipPop.style.left = Math.max(8, Math.min(r.left - 12, window.innerWidth - w - 8)) + 'px';
+    const below = r.bottom + 8 + tipPop.offsetHeight < window.innerHeight;
+    tipPop.style.top = (below ? r.bottom + 6 : r.top - tipPop.offsetHeight - 6) + 'px';
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTip(); });
+  document.addEventListener('scroll', closeTip, true);
+  document.addEventListener('htmx:beforeSwap', closeTip);
+
   // Alterações por gravar: qualquer formulário onde se escreveu e que ainda não foi submetido. Antes de sair da página
   // (ligações, seletores de navegação, fechar o separador) pergunta-se; Ctrl/Cmd+S grava o formulário principal.
   // Fora: o Assistente (mensagens) e formulários marcados data-no-guard.
@@ -550,7 +604,7 @@
     (root || document).querySelectorAll('textarea[data-count]').forEach(updateCounter);
     // Maquete 3D: o three.js só se carrega nas páginas que têm uma
     const models = document.querySelectorAll('[data-scene3d]:not([data-mounted])');
-    if (models.length) import('/static/js/scene3d.js?v=40').then(m => models.forEach(el => m.mount(el)))
+    if (models.length) import('/static/js/scene3d.js?v=41').then(m => models.forEach(el => m.mount(el)))
       .catch(err => models.forEach(el => { const s = el.querySelector('.m3d-status'); if (s) s.textContent = 'Não foi possível abrir o 3D: ' + err.message; }));
   }
 
@@ -647,7 +701,7 @@
   const touched = (el) => el && (el._touched || (el.tagName === 'OPTION' && el.parentElement && el.parentElement._touched));
   if (window.Idiomorph) {
     Idiomorph.defaults.callbacks.beforeAttributeUpdated = (attr, el) =>
-      !(attr === 'open' && (el.tagName === 'DIALOG' || (el.matches && el.matches('details.rm-dir'))))
+      !(attr === 'open' && (el.tagName === 'DIALOG' || (el.matches && el.matches('details.rm-dir, details[data-fold]'))))
       && !(touched(el) && ['value', 'selected', 'checked'].includes(attr));
     Idiomorph.defaults.callbacks.beforeNodeMorphed = (oldNode, newNode) => {
       if (oldNode.nodeType === 1 && touched(oldNode)) return false;  // mexido e por gravar: fica como está

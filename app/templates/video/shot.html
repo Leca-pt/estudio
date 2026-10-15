@@ -16,9 +16,12 @@
 {{ m.alerts(error, saved) }}
 
 <div class="vid-page">
-  <div class="col" style="gap: 14px">
-    <section class="sec" id="momentos">
-      <div class="sec-h"><h2 class="h2">Do Storyboard</h2><span class="sp"></span><a class="btn sm" href="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}#momentos">{{ i.icon("image", 13) }}Mudar no Storyboard</a></div>
+  <div class="col" style="gap: 12px">
+    {# 1. O que vem do Storyboard (só para ver) #}
+    {% set sb_sum %}{% if key.media or moments %}<span class="fold-thumbs">{% if key.media %}<img src="{{ key.media.path|thumb }}" alt="">{% endif %}{% for r in moments[:4] %}{% set im = r.image or r.render %}{% if im %}<img src="{{ im.path|thumb }}" alt="">{% endif %}{% endfor %}</span>{% endif %}
+      <span>{% if key.media %}frame-chave{% if key.stale %} <span class="warn-t">desatualizado</span>{% else %} ✓{% endif %} · {% endif %}{{ moments|length }} momento{{ "s" if moments|length != 1 else "" }} da câmara</span>{% endset %}
+    {% call m.fold("momentos", "Do Storyboard", sb_sum, open=not (moments or key.media), tip="O frame-chave e os momentos da câmara vêm do Storyboard do plano: aqui só se veem. Para os mudar, «Mudar no Storyboard».") %}
+      <div class="sec-b" style="display: flex; padding-bottom: 0"><span class="sp"></span><a class="btn sm" href="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}#momentos">{{ i.icon("image", 13) }}Mudar no Storyboard</a></div>
       {% if moments or key.media %}
       <div class="vid-board">
         {% if key.media %}
@@ -43,9 +46,11 @@
       {% else %}
       <div class="sec-b"><span class="hint">Este plano ainda não tem a cena 3D. Monta-a no <a href="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}">Storyboard</a>: dá a câmara, os momentos e o vídeo-guia.</span></div>
       {% endif %}
-    </section>
-    <section class="sec">
-      <div class="sec-h"><h2 class="h2">Modelo</h2></div>
+    {% endcall %}
+
+    {# 2. Modelo #}
+    {% set model_sum %}{% if model %}{{ model.name }} · {{ shot_res }}{% if shot.duration_s %} · {{ shot.duration_s }} s{% endif %} · <span class="dim">{{ "escolhido neste plano" if shot.model else "o padrão do projeto" }}</span>{% else %}<span class="warn-t">sem modelos de vídeo disponíveis</span>{% endif %}{% endset %}
+    {% call m.fold("modelo", "Modelo", model_sum, open=not models, tip="O modelo, a resolução e a duração deste plano. «Padrão do projeto» segue o que escolheste na etapa Vídeo; o que mudares aqui vale só para este plano. Modelos do segundo grupo só recebem a primeira (e a última) imagem, sem elenco nem vídeo-guia.") %}
       <div class="sec-b">
         {% if models %}
         <div class="f span2"><label for="model">Modelo de vídeo</label>
@@ -66,14 +71,17 @@
           <input id="duration_s" name="duration_s" type="number" min="1" max="60" class="in" form="{{ F }}" value="{{ shot.duration_s or '' }}" placeholder="segundos">
           {% endif %}
         </div>
-        <div class="span3 hint">{% if model %}{{ model.name }}{% if model.resolution %} · {{ model.resolution }}{% endif %} · gera a <b>{{ shot_res }}</b>{% if shot.model %} · escolhido neste plano{% else %} · o padrão do projeto{% endif %}. {% if mode == "references" %}Seguem as vistas do local de cada momento e as folhas do elenco{% if model.video_refs %}, e o vídeo-guia da cena 3D{% endif %}.{% else %}<b>Este modelo só recebe a imagem inicial (e final)</b>: vão as vistas do local do primeiro e do último momento, sem personagens. Para o elenco e a câmara da cena 3D, escolhe um modelo do primeiro grupo.{% endif %}{% endif %}</div>
+        {% if model and mode != "references" %}<div class="span3 hint warn-t"><b>Este modelo só recebe a imagem inicial (e final)</b>: {% if key.media %}vai o frame-chave{% else %}vão as vistas do local do primeiro e do último momento, sem personagens{% endif %}. Para o elenco e o vídeo-guia, escolhe um modelo do primeiro grupo.</div>{% endif %}
         {% else %}
         <div class="span3 hint">Não há modelos de vídeo disponíveis: liga o Artlist (Configuração → Ligações) ou guarda a chave da fal.ai (Configuração → Chaves de API).</div>
         {% endif %}
       </div>
-    </section>
-    <section class="sec">
-      <div class="sec-h"><h2 class="h2">Som</h2><span class="dim" style="font-size: 11.5px">em inglês</span></div>
+    {% endcall %}
+
+    {# 3. Som #}
+    {% set filled = [("efeitos", shot.sound_effects), ("ambiente", shot.ambience), ("música", shot.music)]|selectattr(1)|map(attribute=0)|list %}
+    {% set sound_sum %}{{ talk.rows|length }} fala{{ "s" if talk.rows|length != 1 else "" }}{% if filled %} · {{ filled|join(", ") }}{% endif %}{% set novoice = talk.rows|rejectattr("voice")|selectattr("who")|list %}{% if novoice %} · <span class="warn-t">{{ novoice|length }} sem voz aprovada</span>{% endif %}{% endset %}
+    {% call m.fold("som", "Som", sound_sum, tip="As falas são as linhas do guião marcadas para este plano (marcam-se na cena, no Storyboard). Efeitos, ambiente e música em inglês: vão para o prompt de vídeo.") %}
       <div class="sec-b">
         <div class="f span3"><label>Falas deste plano</label>
           {% if talk.rows %}
@@ -90,11 +98,13 @@
         <div class="f span2"><label for="ambience">Ambiente</label><textarea id="ambience" name="ambience" data-only-if-changed class="in in-line" form="{{ F }}" lang="en" placeholder="soft hangar ambience, distant wind" rows="1">{{ shot.ambience or '' }}</textarea></div>
         <div class="f"><label for="music">Música</label><textarea id="music" name="music" data-only-if-changed class="in in-line" form="{{ F }}" lang="en" placeholder="no music" rows="1">{{ shot.music or '' }}</textarea></div>
       </div>
-    </section>
-    <section class="sec" id="imagens">
-      <div class="sec-h"><h2 class="h2">O que segue no pedido</h2><span class="sp"></span>
-        <span class="hint">{% if vin.mode == "frames" %}vídeo a partir de imagens: seguem só essas imagens e o prompt{% else %}{{ vin.images|selectattr("on")|list|length }} de {{ vin.accepts.max_images }} imagens{% endif %}{% if vin.custom %} · escolha tua{% else %} · escolha automática{% endif %}</span>
-        {% if vin.custom %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="vref_auto">Repor automática</button>{% endif %}</div>
+    {% endcall %}
+
+    {# 4. O que segue no pedido #}
+    {% set n_img = vin.images|selectattr("sent")|list|length %}{% set n_voice = vin.voices|selectattr("on")|list|length %}
+    {% set vin_sum %}{% if vin.mode == "frames" %}vídeo a partir de imagens: {{ n_img }} imagem(ns) e o prompt{% else %}{{ n_img }} {{ "imagens" if n_img != 1 else "imagem" }}{% if vin.guide.on %} + vídeo-guia{% endif %}{% if n_voice %} + {{ n_voice }} voz{{ "es" if n_voice != 1 else "" }}{% endif %}{% endif %} · <span class="dim">{{ "escolha tua" if vin.custom else "escolha automática" }}</span>{% endset %}
+    {% call m.fold("imagens", "O que segue no pedido", vin_sum, tip="Liga ou desliga cada item e carrega em Guardar. Com uma imagem como «Primeira imagem» o pedido passa a vídeo a partir de imagens: seguem só essas imagens e o prompt (sem referências, vídeo-guia nem vozes). No prompt, cada item é referido pelo seu marcador.") %}
+      {% if vin.custom %}<div class="sec-b" style="display: flex; padding-bottom: 0"><span class="sp"></span><button class="btn sm" type="submit" form="{{ F }}" name="op" value="vref_auto">Repor a escolha automática</button></div>{% endif %}
       <input type="hidden" name="vin_present" value="1" form="{{ F }}" data-unless-touched="vin">
       <div class="vin-list">
         <label class="vin-row{% if not vin.guide.media %} off{% endif %}">
@@ -125,22 +135,36 @@
         </label>
         {% endfor %}
       </div>
-      {% if voice_note and voice_note.warn %}<div class="sec-f"><span class="hint warn-t">{{ voice_note.warn }}</span></div>{% endif %}
-      <div class="sec-f"><span class="hint">Liga ou desliga cada item e carrega em Guardar. Com uma imagem como «Primeira imagem» o pedido passa a vídeo a partir de imagens: seguem só essas imagens e o prompt (sem referências, vídeo-guia nem vozes). No prompt, cada item é referido pelo seu marcador.</span></div>
-    </section>
-    {% if prompt_other_model %}<div class="alert warn" style="display: flex; align-items: center; gap: 10px">{{ i.icon("warn", 14) }}<span>O prompt foi escrito para outro modelo (<b>{{ prompt_other_model }}</b>); este plano gera com o <b>{{ model.name }}</b>, que tem outro formato e outros limites.</span><span class="sp"></span><button class="btn sm" type="submit" form="{{ F }}" name="op" value="pwrite:video:{{ shot.id }}">Reescrever</button></div>{% endif %}
+    {% endcall %}
+
+    {# Antes de gerar: os avisos do plano num só sítio, os erros primeiro #}
+    {% set errs = [] %}{% set warns = [] %}
+    {% if left_out %}{% set _ = errs.append("A câmara vê " ~ left_out|join(", ") ~ ", mas " ~ ("a folha não segue" if left_out|length == 1 else "as folhas não seguem") ~ " no pedido: o modelo não sabe como " ~ ("é." if left_out|length == 1 else "são.")) %}{% endif %}
+    {% if crowd %}{% set _ = errs.append("Demasiadas figuras no vídeo-guia: " ~ crowd.n ~ " além das personagens principais (" ~ crowd.detail ~ "). Com mais de 3 o modelo gera mal: tira-as da encenação e grava o vídeo-guia de novo.") %}{% endif %}
+    {% for gi in guide_issues %}{% set _ = (errs if gi.level == "error" else warns).append(gi.text) %}{% endfor %}
+    {% if guide_note.warn and not guide_note.off %}{% set _ = warns.append(guide_note.warn) %}{% endif %}
+    {% if voice_note and voice_note.warn %}{% set _ = warns.append(voice_note.warn) %}{% endif %}
+    {% if prompt_other_model %}{% set _ = warns.append("O prompt foi escrito para outro modelo (" ~ prompt_other_model ~ "); este plano gera com o " ~ model.name ~ ", que tem outro formato e outros limites.") %}{% endif %}
+    {% if errs or warns %}
+    <div class="pre-gen" role="status">
+      <span class="pg-t">Antes de gerar</span>
+      <ul>{% for e in errs %}<li class="err">{{ e }}</li>{% endfor %}{% for w in warns %}<li class="warn">{{ w }}</li>{% endfor %}</ul>
+      <div class="row" style="gap: 6px; flex-wrap: wrap">
+        {% if guide_issues|selectattr("level", "equalto", "error")|list or prompt_other_model %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="pwrite:video:{{ shot.id }}">Reescrever o prompt</button>{% endif %}
+        {% if left_out and custom_refs %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="vref_auto">Repor a escolha automática</button>{% endif %}
+      </div>
+    </div>
+    {% elif guide_note.media %}
+    <div class="pre-gen ok hint">✓ Pronto: vai o vídeo-guia da cena 3D (o vídeo segue a câmara e o ritmo da animação){% if key.media %} e o frame-chave{% endif %}.</div>
+    {% endif %}
+
     {{ m.prompt_panel(prompt, F, height=262, jobs=video_jobs, gen_label="Gerar take", gen_disabled=(none if can_generate else "Faltam as imagens do pedido ou um modelo de vídeo"), cost_url="/projetos/%d/video/planos/%d/custo?k=%s" % (project.id, shot.id, cost_key|urlencode), cost_now=cost_now) }}
     {% if model and model.audio %}<label class="ck-row" style="border: 0; padding: 0 2px"><input type="checkbox" name="audio" value="1" form="{{ F }}" {% if video_audio %}checked{% endif %}><span>Com som (voz, efeitos, ambiente)</span></label>{% elif model and model.audio_always %}<span class="hint">Este modelo gera sempre som (voz e ambiente).</span>{% endif %}
+
+    {# 5. Takes: o resultado, sempre à vista #}
     <section class="sec" id="resultados">
-      <div class="sec-h"><h2 class="h2">Takes</h2><span class="sp"></span><span class="hint">Cada geração é um take deste plano. Escolher define o take que segue para a Montagem; Rejeitar guarda-o em «Rejeitados» (podes repô-lo).</span></div>
+      <div class="sec-h"><h2 class="h2">Takes</h2>{{ m.tip_btn("Cada geração é um take deste plano. Escolher define o take que segue para a Montagem; Rejeitar guarda-o em «Rejeitados» (podes repô-lo).") }}<span class="sp"></span></div>
       <div class="results">
-        <div class="row" style="gap: 10px; flex-wrap: wrap; flex: 1 1 100%">
-          {% if guide_note.media and guide_note.warn %}<span class="hint warn-t">{{ guide_note.warn }}</span>{% elif guide_note.media %}<span class="hint">✓ Vai o vídeo-guia da cena 3D: o vídeo segue a câmara e o ritmo da animação.</span>{% elif guide_note.warn %}<span class="hint warn-t">{{ guide_note.warn }}</span>{% endif %}
-          {% if left_out %}<span class="hint c-no">⚠ A câmara vê {{ left_out|join(", ") }}, mas {{ "a folha não segue" if left_out|length == 1 else "as folhas não seguem" }} no pedido{% if custom_refs %} (a lista de imagens está escolhida à mão){% endif %}: o modelo não sabe como {{ "é" if left_out|length == 1 else "são" }}.{% if custom_refs %} <button class="btn sm" type="submit" form="{{ F }}" name="op" value="vref_auto">Repor a escolha automática</button>{% endif %}</span>{% endif %}
-          {% if crowd %}<span class="hint c-no">⚠ Demasiadas figuras no vídeo-guia: {{ crowd.n }} além das personagens principais ({{ crowd.detail }}). Com mais de 3 o modelo gera mal (copia manequins e cores do previs, estica o take, repete a ação): tira-as da encenação e grava o vídeo-guia de novo.</span>{% endif %}
-          {% for gi in guide_issues %}<span class="hint {{ 'c-no' if gi.level == 'error' else 'warn-t' }}">{{ "⚠ " if gi.level == "error" else "" }}{{ gi.text }}</span>{% endfor %}
-          {% if guide_issues|selectattr("level", "equalto", "error")|list %}<span class="hint">O prompt não bate certo com o que segue no pedido. <button class="btn sm" type="submit" form="{{ F }}" name="op" value="pwrite:video:{{ shot.id }}">Reescrever</button></span>{% endif %}
-        </div>
         {% if preview %}
         <details class="send-preview" style="flex: 1 1 100%">
           <summary class="hint"><b>O que vai ser enviado</b> ao {{ model.name if model else "modelo" }}: {{ preview.images|length }} imagem(ns){% if preview.guide %} + o vídeo-guia{% endif %}{% if preview.voices %} + {{ preview.voices|length }} voz(es){% endif %} e o prompt</summary>

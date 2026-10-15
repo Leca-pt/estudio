@@ -93,33 +93,36 @@
    Assistente (escritor de prompts); pode ser editado à mão ou alterado com o mini chat. Gerar escreve primeiro quando
    o prompt falta ou está desatualizado, e gera a seguir. Os campos pertencem ao formulário `form` da página.
    jobs = pedidos de geração ativos deste alvo (o botão fica ocupado); gen = mostrar o Gerar com o seletor de modelos. #}
-{% macro prompt_panel(p, form, height=190, gen=True, jobs=None, gen_label="Gerar", gen_disabled=None, cost_url=None, cost_now=None) %}
+{% macro prompt_panel(p, form, height=190, gen=True, jobs=None, gen_label="Gerar", gen_disabled=None, cost_url=None, cost_now=None, open=False) %}
+{# Recolhido por omissão: uma linha com o estado, o início do texto e os avisos; o Gerar fica sempre à vista. #}
 {% set tid = "pt-" ~ p.kind ~ "-" ~ p.ref %}
 {% set busy = busy_label(jobs)|trim %}
 <div class="pb" id="prompt-{{ p.kind }}-{{ p.ref }}">
-  <div class="pb-h">
+  <details class="pb-fold" id="pf-{{ p.kind }}-{{ p.ref }}" data-fold data-default-open="{{ 1 if open else 0 }}"{% if open %} open{% endif %}>
+  <summary class="pb-h">
+    <span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 13) }}</span>
     <span class="t">{{ p.title }}</span>
     <span class="tag pstate {{ p.state }}" title="{{ {'missing': 'Ao Gerar, o escritor de prompts escreve-o primeiro', 'stale': 'Os dados mudaram depois de o escritor o escrever: ao Gerar, é reescrito primeiro', 'manual': 'Editado à mão: vai tal como está', 'assistant': 'Escrito pelo Assistente com os dados atuais'}[p.state] }}">{{ p.state_label }}</span>
-    <span class="sp"></span>
+    {% if p.warnings %}<span class="tag warn" title="{{ p.warnings|join(' · ') }}">{{ i.icon("warn", 11) }}{{ p.warnings|length }} aviso{{ "s" if p.warnings|length > 1 else "" }}</span>{% endif %}
+    <span class="pb-snip">{{ p.text|truncate(110) if p.text else "Ainda sem prompt: o " ~ gen_label ~ " escreve-o primeiro." }}</span>
     <span class="cnt" id="{{ tid }}-cnt" data-max="{{ p.max_chars }}">{{ p.text|length }} / {{ p.max_chars }} · {{ p.text|wordcount }} palavras</span>
-    <button class="btn sm" type="button" data-copy="{{ tid }}"{% if not p.text %} disabled{% endif %}>{{ i.icon("copy", 13) }}<span class="lbl">Copiar</span></button>
-  </div>
+  </summary>
   {% for w in p.warnings %}<div class="warnbar">{{ i.icon("warn", 12) }}{{ w }}</div>{% endfor %}
-  <div class="pb-ta"><textarea id="{{ tid }}" name="{{ p.name }}" data-only-if-changed aria-label="{{ p.title }}" lang="en" style="height: {{ height }}px" form="{{ form }}" data-count="{{ p.max_chars }}" data-mentions='{{ p.mentions|tojson }}' placeholder="Ainda sem prompt. Carrega em {{ gen_label }}: o escritor de prompts escreve-o e a geração segue logo a seguir. Ou em Escrever, para o veres antes.">{{ p.text }}</textarea>
+  <div class="pb-ta"><textarea id="{{ tid }}" name="{{ p.name }}" data-only-if-changed aria-label="{{ p.title }}" lang="en" style="height: {{ height }}px" form="{{ form }}" data-count="{{ p.max_chars }}" data-mentions='{{ p.mentions|tojson }}' placeholder="Ainda sem prompt. Carrega em {{ gen_label }}: o escritor de prompts escreve-o e a geração segue logo a seguir. Ou em Escrever, para o veres antes. Também o podes escrever tu (escreve @ para referir uma imagem).">{{ p.text }}</textarea>
   <div class="mention-list" hidden role="listbox" aria-label="Imagens de referência"></div></div>
   {% if p.legend %}<div class="ref-legend"><span class="dim">Imagens que seguem (cada marcador liga-se à sua imagem ao gerar):</span>{% for r in p.legend %}<span class="rl"><span class="mono">{{ r.token }}</span>{% if r.sent and r.sent != r.token[1:] %} → <span class="mono">{{ r.sent }}</span>{% endif %} <span class="dim">{{ r.label }}</span></span>{% endfor %}</div>{% endif %}
-  {% if p.text %}
-  <details class="pchat-wrap">
-    <summary class="btn ghost sm">{{ i.icon("sparkles", 12) }}Pedir uma alteração ao escritor</summary>
-    <div class="pchat" data-pchat="/projetos/{{ project.id }}/escritor/{{ p.kind }}/{{ p.ref }}/rever" data-pchat-poll="/projetos/{{ project.id }}/escritor-rever/" data-target="{{ tid }}">
-      <div class="pchat-log"></div>
-      <div class="pchat-row"><input class="in" type="text" placeholder="Ex.: tira os toldos; a rua está molhada; só dois carros…" aria-label="Pedido ao escritor de prompts">
-        <button class="btn sm" type="button" data-pchat-send>{{ i.icon("sparkles", 13) }}Pedir</button></div>
-      <span class="hint">O texto muda na caixa; fica gravado quando carregares em Guardar ou em {{ gen_label }}.</span>
-    </div>
-  </details>
-  {% endif %}
-  <div class="pb-f">
+  <div class="pb-tools">
+    {% if p.text %}
+    <details class="pchat-wrap">
+      <summary class="btn ghost sm">{{ i.icon("sparkles", 12) }}Pedir uma alteração ao escritor</summary>
+      <div class="pchat" data-pchat="/projetos/{{ project.id }}/escritor/{{ p.kind }}/{{ p.ref }}/rever" data-pchat-poll="/projetos/{{ project.id }}/escritor-rever/" data-target="{{ tid }}">
+        <div class="pchat-log"></div>
+        <div class="pchat-row"><input class="in" type="text" placeholder="Ex.: tira os toldos; a rua está molhada; só dois carros…" aria-label="Pedido ao escritor de prompts">
+          <button class="btn sm" type="button" data-pchat-send>{{ i.icon("sparkles", 13) }}Pedir</button></div>
+        <span class="hint">O texto muda na caixa; fica gravado quando carregares em Guardar ou em {{ gen_label }}.</span>
+      </div>
+    </details>
+    {% endif %}
     {% if p.versions %}
     <details class="versions">
       <summary class="btn ghost sm">Versões ({{ p.versions|length }})</summary>
@@ -133,6 +136,11 @@
       </div>
     </details>
     {% endif %}
+    <span class="sp"></span>
+    <button class="btn sm ghost" type="button" data-copy="{{ tid }}"{% if not p.text %} disabled{% endif %}>{{ i.icon("copy", 13) }}<span class="lbl">Copiar</span></button>
+  </div>
+  </details>
+  <div class="pb-f">
     <span class="sp"></span>
     {% if p.task %}{% with task=p.task, pid=project.id, kind=p.kind, ref=p.ref %}{% include "writer/_status.html" %}{% endwith %}
       {% if p.task.status == "failed" %}<button class="ib sm" type="submit" name="op" value="pdismiss:{{ p.kind }}:{{ p.ref }}" form="{{ form }}" aria-label="Fechar o aviso" title="Fechar">{{ i.icon("x", 12) }}</button>{% endif %}{% endif %}
@@ -151,8 +159,21 @@
     {% if artlist_connected() %}<span class="hint gen-cost gen-balance" data-lazy="/configuracao/artlist/saldo?curto=1"></span>{% endif %}
     {% endif %}{% endif %}
   </div>
+  {% if gen_disabled and gen %}<div class="pb-why hint">{{ gen_disabled }}</div>{% endif %}
 </div>
 {% endmacro %}
+
+{# Secção que se fecha: título, resumo numa linha e o conteúdo. Aberta por omissão só quando há coisa a fazer; o que o
+   utilizador abre ou fecha fica (nesta página, até fechar o separador). #}
+{% macro fold(id, title, summary="", open=False, tip=None, cls="") %}
+<details class="sec fold {{ cls }}" id="{{ id }}" data-fold data-default-open="{{ 1 if open else 0 }}"{% if open %} open{% endif %}>
+  <summary class="sec-h fold-h"><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 14) }}</span><h2 class="h2">{{ title }}</h2>{% if tip %}{{ tip_btn(tip) }}{% endif %}<span class="fold-sum">{{ summary }}</span></summary>
+  {{ caller() }}
+</details>
+{% endmacro %}
+
+{# Ajuda a pedido: um «?» que mostra a explicação num balão. #}
+{% macro tip_btn(text) %}<button type="button" class="tip-btn" data-tip="{{ text }}" aria-label="Ajuda: {{ text }}" title="Ajuda">?</button>{% endmacro %}
 
 {# Zona de upload (arrastar ou escolher); submete logo. #}
 {% macro upload_zone(action, accept, title, hint, compact=False, disabled=False, small=False) %}
