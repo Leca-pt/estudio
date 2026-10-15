@@ -36,6 +36,30 @@
       <div class="sec-b"><span class="hint">Este plano ainda não tem a cena 3D. Monta-a no <a href="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}">Storyboard</a>: dá a câmara, os momentos e o vídeo-guia.</span></div>
       {% endif %}
     </section>
+    {% set kratio = "r916" if (project.aspect_ratio or "").startswith("9:16") else ("r11" if (project.aspect_ratio or "").startswith("1:1") else "r169") %}
+    <section class="sec" id="frame-chave">
+      <div class="sec-h"><h2 class="h2">Frame-chave</h2><span class="dim" style="font-size: 11.5px">opcional</span><span class="sp"></span>
+        <span class="hint">{% if key.media and key.sent %}✓ segue no pedido como referência{% elif key.media %}aprovado, mas não segue no pedido (vê «O que segue no pedido»){% else %}nenhum aprovado{% endif %}</span></div>
+      <div class="sec-b key-b">
+        <div class="key-now">
+          {% if key.media %}<a class="ph img-ph {{ kratio }}" href="/media/{{ key.media.path }}" hx-boost="false" title="{{ key.label }}"><img src="{{ key.media.path|thumb }}" alt="Frame-chave aprovado" loading="lazy"></a>
+          <div class="row" style="gap: 6px"><span class="mono dim" style="font-size: 10.5px">{{ key.label.split(" · ")[0] }}</span><span class="sp"></span>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ key.media.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o frame-chave?" data-confirm-text="Deixa de seguir no pedido de vídeo e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form></div>
+          {% elif key.render %}<a class="ph img-ph {{ kratio }}" href="/media/{{ key.render.path }}" hx-boost="false" title="Previs do primeiro momento"><img src="{{ key.render.path|thumb }}" alt="Previs do primeiro momento" loading="lazy"></a><span class="hint">O previs de onde parte.</span>
+          {% else %}<span class="slot {{ kratio }}">Sem frame-chave</span>{% endif %}
+        </div>
+        <div class="col" style="gap: 8px; flex: 1; min-width: 0">
+          <span class="hint">Uma imagem do início do take com as personagens já no sítio certo{% if shot.scene3d %}, feita a partir do previs do primeiro momento (a câmara e as posições), da vista do local e das folhas do elenco{% else %}, composta pela descrição do plano, com as folhas do elenco e a imagem do local{% endif %}. Aprovada, segue no pedido de vídeo como a primeira referência: o modelo vê logo quem está onde. O vídeo-guia continua a ser escolha tua, em «O que segue no pedido».</span>
+          {% if key.stale %}<span class="hint warn-t">⚠ A câmara ou a encenação mudou depois de gerares este frame-chave: as posições podem já não bater certo. Gera outro.</span>{% endif %}
+          {% if key.previous %}<span class="hint">O escritor vê o frame-chave do plano anterior, para manter a luz, a roupa e o sítio.</span>{% endif %}
+        </div>
+      </div>
+      <div class="sec-b" style="display: block">
+        {{ m.prompt_panel(key.panel, F, height=150, jobs=key.jobs, gen_label="Gerar frame-chave", gen_disabled=key.missing) }}
+        {% if key.jobs or key.results %}<div class="results" style="margin-top: 10px">{{ m.job_tiles(key.jobs) }}{{ m.results(key.results, ratio=kratio, width=150 if kratio == "r169" else 110, edit=True, prefix="frame-chave ") }}</div>{% endif %}
+        {{ m.rejected_block(key.rejected, ratio=kratio, width=110) }}
+      </div>
+    </section>
     <section class="sec">
       <div class="sec-h"><h2 class="h2">Modelo</h2></div>
       <div class="sec-b">

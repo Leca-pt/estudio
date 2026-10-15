@@ -6,6 +6,7 @@ kind / ref:
   look / <look>       folha de um look do guarda-roupa (a folha e o retrato aprovados como referência; muda a roupa)
   vista / <vista>     imagem de uma vista da maquete de um local (render + referência da zona + folhas da zona)
   video / <plano>     take de um plano (vistas do local nos momentos, folhas do elenco, vídeo-guia)
+  chave / <plano>     frame-chave de um plano (previs do 1.º momento + vista do local + folhas do elenco; app/keyframe.py)
   capa / <projeto>    capa do projeto
 Cada alvo diz: onde fica o prompt, que imagens seguem para o gerador (por ordem), que imagens o escritor vê só para
 si (fotos reais, previs), o contexto, a guia (Configuração → Prompts) e como se pede a geração.
@@ -20,7 +21,7 @@ from app import prompt_context as C
 from app.models import Asset, CharacterLook, LocationView, MediaFile, Project, PromptVersion, Scene, Shot
 from app.options import get_config
 
-KINDS = ("folha", "retrato", "look", "vista", "video", "capa")
+KINDS = ("folha", "retrato", "look", "vista", "video", "chave", "capa")
 KIND_GUIDE = {"character": "character", "prop": "prop", "element": "element"}
 
 
@@ -77,11 +78,15 @@ def get(session: Session, project: Project, kind: str, ref: str) -> Target:
         return Target(kind, ref, project, v, "prompt", f"lvprompt:{v.id}", "locview",
                       f"vista «{v.label}» de {a.name}" + (f" · {v.zone}" if v.zone else ""), "view", "maquete",
                       target={"asset_id": a.id, "locview_id": v.id})
-    if kind == "video":
+    if kind in ("video", "chave"):
         sh = session.get(Shot, rid)
         sc = session.get(Scene, sh.scene_id) if sh else None
         if sc is None or sc.project_id != project.id:
             raise TargetError("Plano não encontrado.")
+        if kind == "chave":  # com a cena 3D parte do previs (como as vistas da maquete); sem ela, gera-se do texto
+            return Target(kind, ref, project, sh, "key_prompt", f"shot:{sh.id}.key_prompt", "key",
+                          f"frame-chave do P{sh.number:02d}", "key", "maquete" if sh.scene3d else "generate",
+                          target={"shot_id": sh.id})
         return Target(kind, ref, project, sh, "video_prompt", f"shot:{sh.id}.video_prompt", "clip",
                       f"vídeo do P{sh.number:02d}", "video", "video", target={"shot_id": sh.id})
     if rid != project.id:
@@ -129,6 +134,10 @@ def inputs(session: Session, t: Target) -> list[MediaFile]:
         from app.routes.video import shot_model, inputs_for
 
         return inputs_for(session, t.obj, shot_model(session, t.obj))
+    if t.kind == "chave":
+        from app import keyframe
+
+        return keyframe.inputs(session, t.obj)
     return cover_inputs(session, t.project)
 
 
@@ -158,6 +167,13 @@ def seen_only(session: Session, t: Target) -> list[tuple[MediaFile, str]]:
         return [(m, "FOTOGRAFIA REAL escolhida para esta zona (não vai para o gerador: descreve por palavras o aspeto "
                     "que mostra — fachadas, materiais, cores, letreiros — sem copiar a composição)")
                 for m in photos if m is not None and m.role == "photo" and m.status == "approved"][:6]
+    if t.kind == "chave":
+        from app import keyframe
+
+        prev = keyframe.previous(session, t.obj)
+        return [(prev, "o frame-chave aprovado do PLANO ANTERIOR desta cena (não vai para o gerador): mantém a mesma luz, "
+                       "a mesma roupa e o mesmo sítio, descritos por palavras; o enquadramento e as posições são os do "
+                       "previs deste plano")] if prev is not None else []
     if t.kind == "video":
         from app import moments
         from app.media import guide_sheet
@@ -262,10 +278,23 @@ def context(session: Session, t: Target) -> str:
                          + (f"; vista do local: {r['view'].label} ({r['fit']})" if r["view"] else "; sem vista do local")
                          for r in moments.rows(session, shot))
         guide = video_guide(session, t)
+        from app import keyframe, ref_tokens
+
+        key = keyframe.approved(session, shot)
+        key = key if key is not None and key in inputs(session, t) else None
+        key_tok = ref_tokens.token_for(session, key)[0] if key is not None else ""
         return C.join(C.scene_block(session, scene), C.shot_block(session, shot),
                       "MOMENTOS DA CÂMARA (cena 3D)\n" + moms if moms else "",
                       _frame_block(session, shot),
+                      (f"FRAME-CHAVE: segue {key_tok}, a imagem do início deste plano já com o sítio, a luz, a roupa de "
+                       "cada personagem e onde cada uma está e para onde olha. Nas References, numa frase: \""
+                       f"{key_tok} is the opening frame of this shot: start from exactly this composition — the same place, "
+                       "light, clothes and the same positions of everyone\". As posições iniciais vêm dela: não as "
+                       "descrevas em pormenor; descreve o que acontece a partir daí.") if key is not None else "",
                       "VÍDEO-GUIA: segue como @Video1 (previs cinzento com a câmara e as posições exatas)." if guide
+                      else (f"SEM VÍDEO-GUIA: descreve por palavras o movimento de câmara (de onde parte, para onde vai, "
+                            f"a lente) e o que cada pessoa faz a partir das posições do frame-chave {key_tok}; não refiras "
+                            "@Video1.") if key is not None
                       else ("SEM VÍDEO-GUIA (este modelo não o aceita ou ainda não está aprovado): descreve por palavras "
                             "o movimento de câmara (de onde parte, para onde vai, a lente) e onde está cada pessoa em relação "
                             "à câmara e ao cenário, pela ENCENAÇÃO acima; não refiras @Video1."),
@@ -275,9 +304,43 @@ def context(session: Session, t: Target) -> str:
                       f"vídeo-guia: {'aceita' if model.get('video_refs') else 'não aceita'}; vozes de referência: "
                       f"{'até %d' % (model.get('max_audios') or 3) if model.get('audio_refs') else 'não aceita'}; imagens: "
                       + (f"até {model.get('max_images') or 9} como referências" if model.get('refs') else "só a imagem inicial (e final)"))
+    if t.kind == "chave":
+        return _key_context(session, t)
     chars = session.exec(select(Asset).where(Asset.project_id == t.project.id, Asset.kind == "character")
                          .order_by(Asset.id)).all()[:4]
     return C.join(*[C.asset_block(a) for a in chars])
+
+
+def _key_context(session: Session, t: Target) -> str:
+    """Frame-chave: o plano, o primeiro momento (quem está onde, de frente ou de costas), a cor da cápsula de cada
+    personagem no previs e o aspeto de cada uma (folha e look da cena)."""
+    from app import keyframe, looks, scene3d
+    from app.routes.production import scene_assets
+
+    shot = t.obj
+    scene = session.get(Scene, shot.scene_id)
+    if shot.scene3d:
+        codes = scene3d.in_frame(session, shot)
+        cast = [a for a in (session.exec(select(Asset).where(Asset.project_id == t.project.id, Asset.name == c)).first()
+                            for c in codes) if a is not None and a.kind in ("character", "prop", "element")]
+        first = (scene3d.moment_notes(session, shot) or [None])[0]
+        n_extras, _extras = scene3d.extras_note(session, shot)
+        r = keyframe.first_moment(session, shot)
+        start = (f"PREVIS: o frame-chave é o instante do momento {r['n']} ({r['t']:g} s do plano) visto pela câmara do "
+                 f"plano ({r['cam']['lens']:g} mm). O render desse instante é a primeira imagem que segue: dá o "
+                 "enquadramento, a altura e o ângulo da câmara, onde está cada pessoa e para onde olha (viseira escura "
+                 "= o rosto) e onde está cada objeto." if r else "")
+        rows = [start,
+                "NO PREVIS, QUEM É QUEM: " + "; ".join(keyframe.cast_colours(session, shot)) if cast else "",
+                f"NESSE INSTANTE (calculado da encenação e da câmara): {first}" if first else "",
+                (f"FIGURANTES: {n_extras} — as figuras cinzento-claro do previs são pessoas comuns, com roupa do sítio e "
+                 "da época, variada e com cor (nunca manequins nem estátuas)." if n_extras else "")]
+    else:
+        cast = [a for a in scene_assets(session, scene) if a.kind == "character"]
+        rows = ["SEM CENA 3D: compõe a imagem pela descrição do plano (tipo de plano, ângulo, quem está onde, de frente ou "
+                "de costas) e pela ação da cena no início do plano."]
+    return C.join(C.scene_block(session, scene), C.shot_block(session, shot), "\n".join(x for x in rows if x),
+                  *[C.join(C.asset_block(a, f"ELENCO {a.name}"), looks.context_line(session, scene, a)) for a in cast])
 
 
 def t_project(session: Session, shot: Shot) -> int:
@@ -371,13 +434,22 @@ def enqueue(session: Session, t: Target, gen: dict | None) -> tuple[bool, str]:
 
     if t.kind == "vista" and not t.obj.render_id:
         return False, "Ainda não há render desta vista: abre a maquete do local para o tirar."
+    params = None
+    if t.kind == "chave":
+        from app import keyframe, moments
+
+        problem = keyframe.missing(session, t.obj)
+        if problem:
+            return False, problem
+        if t.obj.scene3d:  # parte do previs (a 1.ª imagem é a geometria); a versão da cena fica para saber se envelhece
+            params = {"base": True, "hash": moments.render_hash(session, t.obj)}
     if t.kind == "retrato" and not t.obj.approved_image_id:
         return False, "Aprova primeiro a folha: o retrato parte dela."
     if t.kind == "look" and not getattr(session.get(Asset, t.obj.asset_id), "approved_image_id", None):
         return False, "Aprova primeiro a folha da personagem: o look parte dela."
     provider, model = parse_generator(gen.get("gen") or default_generator(session, use=t.use))
     return queue_image(session, t.project, t.role, t.prompt or "", [m.id for m in inputs(session, t)], provider,
-                       model, use=t.use, resolution=gen.get("res") or None, **t.target)
+                       model, use=t.use, resolution=gen.get("res") or None, params=params, **t.target)
 
 
 def writer_status(session: Session, t: Target):

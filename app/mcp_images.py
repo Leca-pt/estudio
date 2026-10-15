@@ -22,10 +22,13 @@ from app.db import engine
 from app.mcp_server import PUBLIC, READ, WRITE, _project, log, server
 from app.models import Asset, CharacterLook, ImageJob, LocationView, MediaFile, Project, Scene, Shot
 
-KINDS = {"sheet": "folha", "portrait": "retrato", "look": "look", "view": "vista", "previs": "vista", "cover": "capa"}
+KINDS = {"sheet": "folha", "portrait": "retrato", "look": "look", "view": "vista", "previs": "vista", "keyframe": "chave",
+         "cover": "capa"}
 KIND_HELP = ("kind: sheet (folha de um asset), portrait (retrato de uma personagem), look (folha de um look, com look_id), "
              "view (vista de um local, screen asset:N com view_id), previs (vista do local num momento de um plano, "
-             "screen sb_shot:N com view_id), cover (capa, screen bible ou story)")
+             "screen sb_shot:N com view_id), keyframe (frame-chave de um plano: o início do take com as personagens no "
+             "sítio, a partir do previs do 1.º momento; screen video_shot:N ou sb_shot:N; aprovado, segue como referência "
+             "no pedido de vídeo), cover (capa, screen bible ou story)")
 MAX_BYTES = 20 * 1024 * 1024
 PAID = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True)
 
@@ -66,6 +69,10 @@ def _target(s: Session, p: Project, screen: str, kind: str, look_id: int | None,
                 if v.id not in {r["view"].id for r in moments.rows(s, shot) if r["view"] is not None}:
                     raise ToolError(f"A vista {view_id} não está nos momentos do plano {num}.")
             return PT.get(s, p, "vista", str(v.id))
+        if kind == "keyframe":
+            if head not in ("video_shot", "sb_shot") or num is None:
+                raise ToolError("Para keyframe, o screen é video_shot:N (ou sb_shot:N).")
+            return PT.get(s, p, "chave", str(num))
         if head not in ("bible", "story", "project"):
             raise ToolError("Para cover, o screen é bible ou story.")
         return PT.get(s, p, "capa", str(p.id))
@@ -179,7 +186,7 @@ def generate_image(project_id: int, screen: str, kind: str, look_id: int | None 
             made.append(jobs.enqueue(s, p, first.role, first.prompt, first.aspect_ratio, list(first.inputs or []),
                                      kind=first.kind, provider=first.provider,
                                      model_group_id=first.model_group_id if first.provider != "fal" else first.model,
-                                     **jobs.target_of(first)))
+                                     params=dict(first.params) if first.params else None, **jobs.target_of(first)))
         for j in made:
             j.confirm_cost = bool(confirm_cost)
             s.add(j)
@@ -192,7 +199,10 @@ def generate_image(project_id: int, screen: str, kind: str, look_id: int | None 
 
 def _render_ok(s: Session, p: Project, kind: str, view_id: int | None) -> None:
     """A imagem de uma vista parte do render dela: sem render (ou com a maquete mudada desde então) o resultado sai com
-    a geometria errada. Na app a página tira-o ao abrir; aqui é o render_maquete."""
+    a geometria errada. Na app a página tira-o ao abrir; aqui é o render_maquete. O frame-chave parte do previs do
+    primeiro momento do plano (o mesmo render_maquete, com sb_shot:N)."""
+    if kind == "keyframe":
+        return
     if kind not in ("view", "previs") or not view_id:
         return
     from app.mcp_maquete import stale_views
@@ -388,10 +398,12 @@ def _kinds_for(s: Session, screen: str) -> list[str]:
             return []
         return ["view"] if a.kind == "location" else ["sheet", "portrait", "look"] if a.kind == "character" else ["sheet"]
     if head == "sb_shot":
-        return ["previs"]
+        return ["previs", "keyframe"]
+    if head == "video_shot":
+        return ["keyframe"]
     if head in ("bible", "story"):
         return ["cover"]
-    raise ToolError("Este ecrã não tem imagens geradas (usa asset:N, sb_shot:N, bible ou story).")
+    raise ToolError("Este ecrã não tem imagens geradas (usa asset:N, sb_shot:N, video_shot:N, bible ou story).")
 
 
 def _subtargets(s: Session, screen: str, kind: str, look_id: int | None, view_id: int | None) -> list[tuple]:
@@ -436,8 +448,9 @@ def view_candidates(project_id: int, screen: str, kind: str | None = None, limit
 
 def _candidate(s: Session, candidate_id: int) -> MediaFile:
     m = s.get(MediaFile, candidate_id)
-    if m is None or m.kind != "image" or m.role not in ("sheet", "portrait", "look", "locview", "cover"):
-        raise ToolError(f"A candidata {candidate_id} não existe (ou não é uma imagem de folha, retrato, look, vista ou capa).")
+    if m is None or m.kind != "image" or m.role not in ("sheet", "portrait", "look", "locview", "key", "cover"):
+        raise ToolError(f"A candidata {candidate_id} não existe (ou não é uma imagem de folha, retrato, look, vista, "
+                        "frame-chave ou capa).")
     if m.status == "rejected":
         raise ToolError(f"A candidata {candidate_id} foi rejeitada e já não existe.")
     return m

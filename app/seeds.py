@@ -199,6 +199,28 @@ DEFAULT_PROMPT_GUIDES = {
         "ordem, e quem está de frente ou de costas — sem descrever lentes, distâncias nem movimentos de câmara passo a "
         "passo; Scene and look em 2 a 3 frases. Mais texto não ajuda: dá ao modelo motivos para inventar planos.\n"
         "Concreto e no presente; o essencial primeiro em cada secção. Respeita o limite de palavras do perfil."),
+    "key": (
+        "Frame-chave de um plano: UMA fotografia do primeiro instante do take, com as personagens já nos sítios certos. "
+        "Segue para o modelo de vídeo como referência (o vídeo começa desta composição): tem de parecer um fotograma "
+        "real do filme.\n"
+        "COM PREVIS (o render cinzento do momento, @P<nn>.m<n>, é a primeira imagem):\n"
+        "1. Linha 1, sempre: \"Turn <marcador do previs>, a rough grey 3D previs of the first frame of this shot, into a "
+        "real film still: exactly the same framing, camera height, angle and lens; every person stands exactly where "
+        "their capsule figure is, at the same size, facing the same way (the dark visor marks the face); every wall, "
+        "door, window, piece of furniture and object stays where it is and becomes the real, fully detailed thing.\"\n"
+        "2. Quem é quem, uma frase por personagem, pela cor da cápsula (NO PREVIS, QUEM É QUEM): \"The <cor> figure is "
+        "<marcador da folha>: exactly that face, hair, body and clothes\" (com o look da cena, a folha do look).\n"
+        "3. O sítio: \"<marcador da vista> shows how this place really looks: the same materials, colours, furniture "
+        "and light\" (se a vista seguir).\n"
+        "4. O instante: o que cada um faz nesse segundo (pose, gesto, expressão, para onde olha), pela ação da cena e "
+        "por NESSE INSTANTE; a luz da cena (fonte, direção, cor) e a hora.\n"
+        "5. Figurantes (figuras cinzento-claro), se houver: pessoas comuns do sítio e da época, roupa variada e com cor.\n"
+        "6. Bloco de estilo da bíblia; \"Exactly N people\" (o elenco em plano + figurantes); \"no capsules, no grey "
+        "figures, no mannequins, no statues, no text\"; exclusões.\n"
+        "SEM PREVIS: compõe a imagem pela descrição do plano (tipo de plano, ângulo, lente, quem está onde e de frente ou "
+        "de costas), cada personagem pelo marcador da folha, o sítio pelo marcador da imagem do local, e os pontos 4 a "
+        "6.\n"
+        "Cada frase sobre imagens numa linha própria. Um instante parado: sem movimento descrito como sequência."),
     "cover": (
         "Capa do projeto (16:9, para o cartão da lista de projetos): uma imagem-chave que resume a ideia — as "
         "personagens principais (pelas folhas, cada uma pelo marcador) no local principal, numa composição de cartaz, "
@@ -206,7 +228,7 @@ DEFAULT_PROMPT_GUIDES = {
 }
 GUIDE_LABELS = {"character": "Folha de personagem", "portrait": "Retrato", "look": "Folha de look (guarda-roupa)", "prop": "Folha de adereço",
                 "element": "Folha de elemento do mundo", "view": "Vistas da maquete (locais)",
-                "video": "Vídeo de um plano", "cover": "Capa do projeto"}
+                "video": "Vídeo de um plano", "key": "Frame-chave de um plano", "cover": "Capa do projeto"}
 
 
 # Validações (docs/PROMPT_RULES.md, secção 5). Só avisam; nunca bloqueiam.

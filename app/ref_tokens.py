@@ -64,6 +64,10 @@ def token_for(session: Session, media: MediaFile) -> tuple[str, str]:
         return (f"@SHOT{media.shot_id}.f{media.id}",
                 f"frame taken from a take of {what} at {when}: continue from it (same set, light, characters and "
                 "positions)" if src else "frame taken from a take: continue from it")
+    if media.role == "key":  # frame-chave do plano (app/keyframe.py): o início do take com toda a gente no sítio
+        return (f"@{code}.key",
+                f"key frame of shot {code}: the opening image of this shot — the place, the light, each character's look "
+                "and exactly where everyone stands and faces")
     if media.role == "frame":  # fotograma guardado de um take (continuidade entre planos)
         n = re.search(r"/v(\d+)", media.path)
         return (f"@{code}.frame{n.group(1) if n else ''}",
@@ -72,7 +76,8 @@ def token_for(session: Session, media: MediaFile) -> tuple[str, str]:
     if media.role == "render":  # render de um momento da cena 3D do plano (previs: só o escritor de prompts o vê)
         n = re.search(r"_m(\d+)", media.path)
         return (f"@{code}.m{n.group(1) if n else ''}",
-                f"grey 3D previs of shot {code}, moment {n.group(1) if n else ''} (cast as coloured mannequins)")
+                f"grey 3D previs of shot {code}, moment {n.group(1) if n else ''} (people as smooth capsule figures with a dark "
+                "visor on the face side; each cast member in a tint of their colour)")
     return f"@{code}.{media.role or 'frame'}", f"{media.role or 'frame'} frame of shot {code}"
 
 

@@ -795,6 +795,16 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
                         "de frente por de costas (nem o lado do ecrã) — o modelo segue o texto e não o vídeo-guia.")
             rows.append(f"Som: falas {_v(talk)} · efeitos {_v(shot.sound_effects)} · ambiente {_v(shot.ambience)} "
                         f"· música {_v(shot.music)}")
+            from app import keyframe as _KF
+
+            _key = _KF.approved(session, shot)
+            rows.append("FRAME-CHAVE (imagem do início do take com as personagens no sítio; aprovada, segue como "
+                        "referência no pedido de vídeo): " + (
+                            f"aprovado ({ref_tokens.token_for(session, _key)[0]})"
+                            + (" — DESATUALIZADO: a câmara ou a encenação mudou depois" if _KF.stale(session, shot) else "")
+                            if _key is not None else "nenhum aprovado")
+                        + f". Prompt: {_v(shot.key_prompt)}. Gera-se no bloco «Frame-chave» da página (ou pelo conector: "
+                        f"generate_image com kind keyframe e screen video_shot:{shot.id}).")
             rows.append(_timing_line(session, scene, shot))
             ctx = Context(key, f"Cena {scene.number} · Plano {shot.number} · vídeo", 6, "\n\n".join(rows))
             _duration_field(ctx, session, scene, shot)
@@ -812,7 +822,7 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
                                   + (f", até {_acc['max_audios']} vozes" if _acc["audio"] else ", sem vozes")
                                   + ", frame inicial" + (" e final" if _acc["end_frame"] else "")
                                   + ". Com uma frame inicial o pedido é imagem-para-vídeo: seguem só as frames e o prompt.")))
-            for attr in ("sound_effects", "ambience", "music", "video_prompt"):
+            for attr in ("sound_effects", "ambience", "music", "video_prompt", "key_prompt"):
                 ctx.add(spec(session, project, f"shot:{shot.id}.{attr}", _shot_path(scene, shot)))
             ctx.suggestions = ["Propõe o som deste plano", "Revê o prompt de vídeo"]
             ms = moments.rows(session, shot)

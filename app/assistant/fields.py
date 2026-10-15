@@ -55,6 +55,7 @@ ENTITIES = {
         "title": (TEXT, "Nome do plano", None), "description": (TEXT, "O que acontece no plano", None), "shot_type": (SELECT, "Tipo de plano", "shot_type"),
         "camera_angle": (SELECT, "Ângulo", "camera_angle"), "camera_movement": (SELECT, "Movimento de câmara", "camera_movement"),
         "sound_effects": (EN, "Efeitos sonoros", None), "ambience": (EN, "Ambiente", None), "music": (EN, "Música", None), "video_prompt": (PROMPT, "Prompt de vídeo", None),
+        "key_prompt": (PROMPT, "Prompt do frame-chave", None),
     }),
 }
 
@@ -158,6 +159,9 @@ def field_help(session: Session, obj, attr: str) -> str:
         return f"Capa do projeto (key art do cartão na lista de projetos, 16:9, sem texto). {PROMPT_NOTE}"
     if attr == "video_prompt":
         return f"Prompt de vídeo do plano (um take contínuo). {PROMPT_NOTE}"
+    if attr == "key_prompt":
+        return ("Frame-chave do plano: uma fotografia do primeiro instante do take com as personagens no sítio (a partir "
+                f"do previs do 1.º momento, se houver cena 3D). {PROMPT_NOTE}")
     if attr == "voice_note":
         return ("EN, curto: como a personagem fala nos vídeos, ex. \"speaking English with a clear Spanish accent\". A "
                 "app acrescenta-o sozinha a seguir à voz de referência em cada fala do prompt de vídeo (não o escrevas "

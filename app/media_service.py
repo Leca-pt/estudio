@@ -6,7 +6,7 @@ from sqlmodel import Session, select, update
 
 from app.models import Act, Asset, Episode, MediaFile, Project, Scene, Season, Shot
 
-SHOT_ROLE_FIELDS = {"clip": "approved_clip_id", "guide": "guide_video_id"}
+SHOT_ROLE_FIELDS = {"clip": "approved_clip_id", "guide": "guide_video_id", "key": "key_image_id"}
 
 
 def scene_code(session: Session, scene: Scene) -> str:
@@ -74,7 +74,7 @@ def approve_media(session: Session, media: MediaFile) -> None:
 
 # O que o utilizador gerou ou carregou fica guardado ao rejeitar (em «Rejeitados», de onde se repõe); os ficheiros que a
 # app refaz sozinha (vídeo-guia, renders da maquete, profundidade) apagam-se.
-KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame"}
+KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame", "key"}
 
 
 def reject_media(session: Session, media: MediaFile) -> None:
@@ -113,6 +113,8 @@ def back_url(project: Project, media: MediaFile) -> str:
         return f"/projetos/{project.id}/video/planos/{media.shot_id}#" + ("take-escolhido" if media.status == "approved" else "resultados")
     if media.role == "cover":
         return f"/projetos/{project.id}/etapa/1#capa"
+    if media.role == "key":
+        return f"/projetos/{project.id}/video/planos/{media.shot_id}#frame-chave"
     if media.role in ("guide", "render"):
         return f"/projetos/{project.id}/storyboard/planos/{media.shot_id}#maquete"
     return f"/projetos/{project.id}/storyboard/planos/{media.shot_id}"

@@ -231,6 +231,10 @@ class Shot(TimestampedModel, table=True):
     video_prompt_model: Optional[str] = None  # o modelo para que o escritor escreveu o prompt de vídeo
     duration_s: Optional[int] = None
     approved_clip_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
+    # Frame-chave (app/keyframe.py): a imagem do início do take com as personagens no sítio, gerada a partir do previs
+    # do primeiro momento; aprovada, segue como referência no pedido de vídeo
+    key_prompt: Optional[str] = None  # EN; escrito pelo escritor de prompts (ou editado à mão)
+    key_image_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
 
 
 class CharacterLook(TimestampedModel, table=True):
@@ -352,7 +356,7 @@ class PromptTask(TimestampedModel, table=True):
     error: Optional[str] = None
 
 
-IMAGE_JOB_ROLES = ("sheet", "portrait", "look", "locview", "cover", "clip", "voice")
+IMAGE_JOB_ROLES = ("sheet", "portrait", "look", "locview", "key", "cover", "clip", "voice")
 
 
 class ImageJob(TimestampedModel, table=True):

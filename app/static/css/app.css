@@ -103,6 +103,10 @@ dialog.dlg.wide { width: 440px; }
 .ck-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--tx); flex-shrink: 0; }
 .ck-row .in { height: 30px; }
 
+/* a coluna da página nunca passa da largura do ecrã (sem isto, a barra do topo alargava tudo no telemóvel) */
+.shell { grid-template-columns: minmax(0, 1fr); }
+.top { min-width: 0; }
+
 /* ── Tablet (< 1024px) ─────────────────────────────────── */
 @media (max-width: 1023px) {
   .top { height: 56px; }
@@ -127,11 +131,14 @@ dialog.dlg.wide { width: 440px; }
 
 /* ── Telemóvel (< 600px) ───────────────────────────────── */
 @media (max-width: 599px) {
-  .top { gap: 6px; padding: 0 8px; }
+  .top { gap: 4px; padding: 0 8px; }
+  .top:has(.menu-btn) .logo { display: none; }  /* nas páginas do projeto o menu já leva aos projetos */
   .logo-t, .vsep, .tlink .lbl, .psw-type { display: none; }
-  .tlink { width: 44px; height: 44px; justify-content: center; padding: 0; }
-  .psw { height: 40px; max-width: 200px; }
-  .psw-name { max-width: 120px; }
+  .tlink { width: 36px; height: 44px; justify-content: center; padding: 0; flex-shrink: 0; }
+  .top > .ib, .top > .logo { flex-shrink: 0; }
+  .psw-menu { flex-shrink: 0; }
+  .psw { height: 40px; max-width: 100%; }
+  .psw-name { display: none; }  /* o código do projeto chega; o nome está no menu e no caminho da página */
   .psw-menu .menu { position: fixed; left: 8px; right: 8px; top: 60px; min-width: 0; }
   .stepper { display: none; }
   .m-step { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 12px; border-bottom: 1px solid var(--line); background: var(--s1); }
@@ -609,6 +616,15 @@ details.sec > summary::-webkit-details-marker { display: none; }
 .vb-h { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
 .vb-c { font-size: 11.5px; line-height: 1.35; color: var(--tx2); }
 .board-arrow { align-self: center; color: var(--tx3); margin-top: -30px; }
+/* frame-chave do plano (página Vídeo) */
+.sec-b.key-b { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; padding-bottom: 0; }
+.key-now { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; }
+.key-now .ph, .key-now .slot { display: grid; place-items: center; width: 100%; border-radius: 6px; font-size: 11px; overflow: hidden; }
+.key-now .ph.r916, .key-now .slot.r916 { aspect-ratio: 9 / 16; width: 130px; }
+.key-now .ph.r169, .key-now .slot.r169 { aspect-ratio: 16 / 9; }
+.key-now .ph.r11, .key-now .slot.r11 { aspect-ratio: 1; width: 160px; }
+.key-now .ph img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 560px) { .key-now { flex-basis: 100%; } }
 @container content (max-width: 820px) { .vid-page { grid-template-columns: minmax(0, 1fr); } }
 
 /* Storyboard da cena: os planos, cada um com os seus painéis em sequência */

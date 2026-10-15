@@ -310,26 +310,43 @@ MAX_VIEWS_WITH_GUIDE = 2
 
 @memo
 def auto_refs(session: Session, shot: Shot, cap: int = MAX_VIDEO_REFS) -> list[MediaFile]:
-    """A escolha automática: as vistas do local nos momentos (sem repetir) e as folhas do elenco. Se passam do limite,
-    o elenco fica e cortam-se as vistas do meio."""
+    """A escolha automática: o frame-chave (se aprovado), as vistas do local nos momentos (sem repetir) e as folhas do
+    elenco. Se passam do limite, o frame-chave e o elenco ficam e cortam-se as vistas do meio. O frame-chave já mostra o
+    sítio do primeiro momento: a vista desse momento deixa de seguir."""
+    from app import keyframe
+
     views, cast = moments.view_images(session, shot), moments.cast_images(session, shot)
-    if shot.scene3d and shot.guide_video_id and len(views) > MAX_VIEWS_WITH_GUIDE:
+    key = keyframe.approved(session, shot)
+    lead = [key] if key is not None else []
+    if key is not None:
+        first = (moments.rows(session, shot)[:1] or [{}])[0].get("image")
+        views = [v for v in views if v != first]
+        # sem cena 3D, as folhas que foram para o frame-chave (as personagens da cena) seguem com ele
+        cast = [m for m in (cast if shot.scene3d else keyframe.cast(session, shot)) if m != key]
+    if shot.scene3d and shot.guide_video_id:
         # com o vídeo-guia, a câmara e o caminho vêm dele: bastam as vistas do início e do fim (várias imagens de sítios
-        # diferentes levam o modelo a cortar de uma para a outra, como se fossem planos)
-        views = [views[0], views[-1]][:MAX_VIEWS_WITH_GUIDE]
-    room = max(0, cap - len(cast))
+        # diferentes levam o modelo a cortar de uma para a outra, como se fossem planos); com o frame-chave, o início
+        # já vem nele
+        keep = 1 if key is not None else MAX_VIEWS_WITH_GUIDE
+        if len(views) > keep:
+            views = views[-1:] if keep == 1 else [views[0], views[-1]]
+    room = max(0, cap - len(cast) - len(lead))
     if len(views) > room:
         views = (views[:1] + views[len(views) - room + 1:]) if room > 1 else views[:room]
-    return (views + cast)[:cap]
+    return (lead + views + cast)[:cap]
 
 
 @memo
 def video_candidates(session: Session, shot: Shot) -> list[tuple[str, list[MediaFile]]]:
-    """Tudo o que pode seguir no pedido, por grupos: as vistas dos momentos, o elenco, as outras vistas do local, os
-    outros assets da cena e os fotogramas guardados dos outros planos da cena."""
+    """Tudo o que pode seguir no pedido, por grupos: o frame-chave, as vistas dos momentos, o elenco, as outras vistas
+    do local, os outros assets da cena e os fotogramas guardados dos outros planos da cena."""
+    from app import keyframe
+
     scene = session.get(Scene, shot.scene_id)
     views, cast = moments.view_images(session, shot), moments.cast_images(session, shot)
-    seen = {m.id for m in views + cast}
+    key = keyframe.approved(session, shot)
+    keys = [key] if key is not None else []
+    seen = {m.id for m in views + cast + keys}
     loc = moments.location(session, shot)
     other_views = []
     if loc is not None:
@@ -351,7 +368,8 @@ def video_candidates(session: Session, shot: Shot) -> list[tuple[str, list[Media
                                .order_by(MediaFile.id)).all())
     refs = list(session.exec(select(MediaFile).where(MediaFile.shot_id == shot.id, MediaFile.role == "shotref",
                                                      MediaFile.status == "approved").order_by(MediaFile.id)).all())
-    return [("Referências do plano (frames de takes)", refs), ("Vistas do local nos momentos", views), ("Elenco", cast),
+    return [("Frame-chave do plano", keys), ("Referências do plano (frames de takes)", refs),
+            ("Vistas do local nos momentos", views), ("Elenco", cast),
             ("Outras vistas do local", other_views), ("Outros da cena", others), ("Fotogramas guardados", frames)]
 
 
@@ -365,8 +383,15 @@ def send_refs(session: Session, shot: Shot, cap: int = MAX_VIDEO_REFS) -> list[M
 
 
 def frame_inputs(session: Session, shot: Shot, model: dict | None) -> list[MediaFile]:
-    """Modelos só com imagem inicial (e final): a vista do local do 1.º momento e, se o modelo aceitar, a do último."""
+    """Modelos só com imagem inicial (e final): o frame-chave (ou, sem ele, a vista do local do 1.º momento) e, se o
+    modelo aceitar, a vista do último."""
+    from app import keyframe
+
     views = moments.view_images(session, shot)
+    key = keyframe.approved(session, shot)
+    if key is not None:
+        end = views[-1] if len(views) > 1 and (model is None or model.get("end_frame", True)) else None
+        return [key] + ([end] if end is not None else [])
     if not views:
         return []
     end = views[-1] if len(views) > 1 and (model is None or model.get("end_frame", True)) else None
@@ -714,10 +739,30 @@ def _view(request: Request, session: Session, project: Project, shot: Shot, scen
         "max_upload_mb": MAX_VIDEO_BYTES // (1024 * 1024), "main_form": "video-form",
         "assistant_key": f"video_shot:{shot.id}",
     }
+    ctx["key"] = _key_view(session, project, shot)
     from app import scene_nav
 
     ctx["nav"] = scene_nav.build(session, project, scene, "video", shot)
     return render_stage(request, session, project, STAGE, "video/shot.html", ctx, current=("shot", shot.id))
+
+
+def _key_view(session: Session, project: Project, shot: Shot) -> dict:
+    """O bloco «Frame-chave» da página: o aprovado (e se envelheceu), o prompt, os pedidos e as candidatas."""
+    from app import keyframe
+    from app.routes.gpt import jobs_ctx
+
+    t = PT.get(session, project, "chave", str(shot.id))
+    key = keyframe.approved(session, shot)
+    model = shot_model(session, shot)
+    sent = {m.id for m in request_plan(session, shot, model)["images"]}
+    return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key,
+            "label": PT_label(session, key) if key else None, "stale": keyframe.stale(session, shot),
+            "sent": key is not None and key.id in sent, "missing": keyframe.missing(session, shot),
+            "render": keyframe.render(session, shot), "previous": keyframe.previous(session, shot),
+            "jobs": jobs_ctx(session, project, "key", shot_id=shot.id),
+            "results": media_list(session, shot_id=shot.id, role="key", status="pending"),
+            "rejected": [m for m in reversed(media_list(session, shot_id=shot.id, role="key", status="rejected"))
+                         if (media_root() / m.path).is_file()]}
 
 
 def PT_label(session: Session, media: MediaFile) -> str:  # noqa: N802
@@ -817,8 +862,9 @@ async def video_save(request: Request, project_id: int, shot_id: int, session: S
     session.commit()
     if prompt_ops.run(request, session, project, form, op):
         session.commit()
-        return RedirectResponse(url + "#resultados", status_code=303)
-    return RedirectResponse(url + ("" if op else "?guardado=1"), status_code=303)
+        return RedirectResponse(url + ("#frame-chave" if ":chave:" in op else "#resultados"), status_code=303)
+    return RedirectResponse(url + ("" if op else "?guardado=1") + ("#frame-chave" if ":chave:" in op else ""),
+                            status_code=303)
 
 
 def _video_jobs(session: Session, project: Project, shot: Shot) -> list[dict]:

@@ -39,6 +39,8 @@ def folder_for(session: Session, job: ImageJob) -> str:
     if job.role == "locview":
         asset = session.get(Asset, job.asset_id)
         return f"assets/{asset.name}/maquete/vista{job.locview_id}"
+    if job.role == "key":
+        return f"planos/{job.shot_id}/frame-chave"
     return "capa"
 
 
@@ -364,6 +366,9 @@ async def _run_one(job_id: int) -> None:
                               for g, mid in zip(gone, missing))
             raise RuntimeError(f"Já não existe {names} (foi rejeitado ou apagado depois do pedido): o take não foi "
                                "gerado. Volta a pedir.")
+        if role == "key" and missing and (ctx.get("params") or {}).get("base"):  # o previs mudou entretanto
+            raise RuntimeError("O previs ou uma imagem do pedido mudou depois do pedido (a cena 3D foi alterada): a "
+                               "imagem não foi gerada. Volta a pedir.")
         if edit and not inputs and role != "clip":
             raise gpt_image.GPTImageError("A imagem a editar já não existe.")
         if role == "clip" and provider == "fal":
@@ -417,8 +422,8 @@ async def _run_one(job_id: int) -> None:
                                                 params.get("description"))
                 data = await fal.run(ctx["fal_key"], ctx.get("model"), args, timeout, output="audio",
                                      on_status=lambda t: _stage(ctx.get("job_id"), t))
-        elif role == "locview" and not edit:
-            # vistas da maquete: partem do render; o caminho depende do que o modelo sabe fazer
+        elif (role == "locview" or (role == "key" and (ctx.get("params") or {}).get("base"))) and not edit:
+            # vistas da maquete e frames-chave com previs: partem do render; o caminho depende do que o modelo sabe fazer
             data = await _locview(provider, ctx, prompt, aspect, inputs, timeout)
         else:
             data = await _image(provider, ctx, prompt, aspect, inputs, "edit" if edit else "generate", timeout)

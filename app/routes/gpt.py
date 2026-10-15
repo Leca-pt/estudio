@@ -182,7 +182,8 @@ def provider_problem(session: Session, provider: str) -> str | None:
 
 
 def queue_image(session: Session, project: Project, role: str, prompt: str, inputs: list[int], provider: str,
-                model, use: str = "generate", resolution: str | None = None, **target) -> tuple[bool, str]:
+                model, use: str = "generate", resolution: str | None = None, params: dict | None = None,
+                **target) -> tuple[bool, str]:
     """Pede uma imagem (sem pedido HTTP: serve também ao escritor de prompts, que gera logo a seguir a escrever).
     Devolve (pedido feito, mensagem para o utilizador)."""
     from app import image_models
@@ -203,8 +204,9 @@ def queue_image(session: Session, project: Project, role: str, prompt: str, inpu
     if resolution and allowed and resolution not in allowed:
         return False, f"Esse modelo não gera a {resolution}: aceita {', '.join(allowed)}."
     res = image_models.fit_resolution(resolution or project.image_resolution, allowed)
+    params = {**(params or {}), **({"resolution": res} if res else {})}
     jobs.enqueue(session, project, role, prompt, aspect_for(session, project, role), inputs, provider=provider,
-                 model_group_id=model, params={"resolution": res} if res else None, **target)
+                 model_group_id=model, params=params or None, **target)
     session.flush()
     name = artlist.model(model)["name"] + " (Artlist)" if provider == "artlist" and model else PROVIDER_NAMES[provider]
     if provider == "fal" and model:
