@@ -325,6 +325,39 @@
   tlToday();
   document.addEventListener('htmx:afterSettle', tlToday);
 
+  // Guião da cena (História): acrescentar, mover e tirar linhas no próprio browser, sem pedidos ao servidor.
+  // Guardar grava tudo pela ordem que se vê (as linhas que já existiam levam o id e não perdem os planos).
+  function scriptDirty(el) { const f = el.closest('form'); if (f && guarded(f)) { dirtyForms.add(f); f.classList.add('dirty'); } }
+  document.addEventListener('click', (e) => {
+    const add = e.target.closest && e.target.closest('[data-line-add]');
+    if (add) {
+      const box = add.closest('.f').querySelector('[data-script]');
+      const tpl = add.closest('.f').querySelector('template[data-line-tpl]');
+      if (!box || !tpl) return;
+      const row = tpl.content.firstElementChild.cloneNode(true);
+      const kind = add.dataset.lineAdd;
+      row.querySelector('[name=line_kind]').value = kind;
+      row.classList.toggle('k-action', kind === 'action'); row.classList.toggle('k-dialogue', kind === 'dialogue');
+      const empty = box.querySelector('.script-empty'); if (empty) empty.remove();
+      box.appendChild(row);
+      const ta = row.querySelector('textarea'); ta.focus();
+      scriptDirty(box);
+      return;
+    }
+    const mv = e.target.closest && e.target.closest('[data-line-move]');
+    if (mv) {
+      const row = mv.closest('.ln'); const step = +mv.dataset.lineMove;
+      const other = step < 0 ? row.previousElementSibling : row.nextElementSibling;
+      if (other && other.classList.contains('ln')) {
+        if (step < 0) row.parentNode.insertBefore(row, other); else row.parentNode.insertBefore(other, row);
+        scriptDirty(row);
+      }
+      return;
+    }
+    const del = e.target.closest && e.target.closest('[data-line-del]');
+    if (del) { const row = del.closest('.ln'); const box = row.parentNode; scriptDirty(box); row.remove(); }
+  });
+
   // Procurar numa grelha de cartões (ex.: a lista de projetos), sem ir ao servidor.
   document.addEventListener('input', (e) => {
     const t = e.target; if (!t.matches || !t.matches('[data-filter-cards]')) return;

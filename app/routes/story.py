@@ -324,11 +324,15 @@ def _save_scene(session: Session, project: Project, form, scene_ids: list[int], 
     kinds = form.getlist("line_kind")
     chars = form.getlist("line_character")
     texts = form.getlist("line_text")
+    line_ids = form.getlist("line_id")
+    if len(line_ids) != len(kinds):  # formulário antigo (sem ids): as linhas novas
+        line_ids = [""] * len(kinds)
     lines = []
-    for kind, char, txt in zip(kinds, chars, texts):
+    for lid, kind, char, txt in zip(line_ids, kinds, chars, texts):
         kind = kind if kind in SCENE_LINE_KINDS else "action"
         char_id = _asset_of(session, project, int(char), "character") if char.isdigit() and kind == "dialogue" else None
-        lines.append({"kind": kind, "character_id": char_id, "text": txt.strip().replace("\r\n", "\n")})
+        lines.append({"id": int(lid) if str(lid).isdigit() else None, "kind": kind, "character_id": char_id,
+                      "text": txt.strip().replace("\r\n", "\n")})
 
     verb, _, arg = (op or "").partition(":")
     if verb in ("line_del", "line_up", "line_down") and arg.isdigit() and int(arg) < len(lines):
@@ -344,9 +348,21 @@ def _save_scene(session: Session, project: Project, form, scene_ids: list[int], 
     if verb in ("line_action", "line_dialogue"):
         lines.append({"kind": verb.removeprefix("line_"), "character_id": None, "text": ""})
 
-    session.exec(delete(SceneLine).where(SceneLine.scene_id == scene.id))
-    for n, ln in enumerate(lines):
-        session.add(SceneLine(scene_id=scene.id, order=n, **ln))
+    # As linhas que já existiam continuam a ser as mesmas (os planos que as cobrem e os tempos na encenação ficam);
+    # as novas criam-se e as que saíram apagam-se — como quando o Assistente ou o MCP mudam o guião.
+    from app.assistant.fields import set_script
+
+    mine = {ln.id for ln in session.exec(select(SceneLine).where(SceneLine.scene_id == scene.id)).all()}
+    codes = {a.id: a.name for a in session.exec(select(Asset).where(Asset.project_id == project.id)).all()}
+    seen: set[int] = set()
+    items = []
+    for ln in lines:
+        keep = ln.get("id") if ln.get("id") in mine and ln.get("id") not in seen else None
+        if keep:
+            seen.add(keep)
+        items.append({"id": keep, "kind": ln["kind"], "text": ln["text"],
+                      "character": codes.get(ln["character_id"], "") if ln["kind"] == "dialogue" else None})
+    set_script(session, project, scene, items)
     # Quem fala na cena aparece na cena.
     for char_id in {ln["character_id"] for ln in lines if ln["character_id"]}:
         if not session.get(AssetSceneLink, (char_id, scene.id)):

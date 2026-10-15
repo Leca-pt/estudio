@@ -148,17 +148,18 @@
       <button class="btn sm gpt-btn{% if p.video %} pri{% endif %}" type="submit" name="op" value="pgen:{{ p.kind }}:{{ p.ref }}" form="{{ form }}" {% if p.video %}data-confirm="Gerar um take novo?" data-confirm-text="{% if cost_now %}Custa ≈ {{ cost_now.text }}.{% else %}O custo é o que aparece ao lado do botão (se ainda diz «por cotar…», espera um momento).{% endif %} O pedido segue para o fornecedor e é pago." data-confirm-ok="Gerar"{% endif %} {% if p.busy or gen_disabled or (not p.video and not gens.options) %}disabled title="{{ gen_disabled or ('Sem modelos de imagem disponíveis: liga um fornecedor na Configuração' if not p.video and not gens.options else 'O escritor está a escrever') }}"{% else %}title="{{ 'Grava e gera' if p.state in ('manual', 'assistant') else 'O escritor de prompts escreve o prompt e a geração segue logo a seguir' }}"{% endif %} data-busy-label="A enviar…">{{ i.icon("film" if p.video else "image", 13) }}{{ gen_label }}</button>
     </span>
     {% if cost_url %}<span class="hint gen-cost" title="Custo estimado do take, pedido ao fornecedor"{% if not cost_now %} data-lazy="{{ cost_url }}"{% endif %}>{% if cost_now %}≈ {{ cost_now.text }}{% else %}a calcular o custo…{% endif %}</span>{% endif %}
+    {% if artlist_connected() %}<span class="hint gen-cost gen-balance" data-lazy="/configuracao/artlist/saldo?curto=1"></span>{% endif %}
     {% endif %}{% endif %}
   </div>
 </div>
 {% endmacro %}
 
 {# Zona de upload (arrastar ou escolher); submete logo. #}
-{% macro upload_zone(action, accept, title, hint, compact=False, disabled=False) %}
-<form method="post" action="{{ action }}" enctype="multipart/form-data" class="drop{% if compact %} drop-compact{% endif %}"{% if not disabled %} data-dropzone{% else %} style="opacity: .55"{% endif %}>
+{% macro upload_zone(action, accept, title, hint, compact=False, disabled=False, small=False) %}
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="drop{% if compact %} drop-compact{% endif %}{% if small %} drop-sm{% endif %}"{% if not disabled %} data-dropzone{% else %} style="opacity: .55"{% endif %}>
   {{ csrf() }}
   <div class="ico">{{ i.icon("upload", 18) }}</div>
-  <div class="col" style="gap: 2px"><span style="font-weight: 500">{{ title }}</span>{% if hint %}<span class="hint">{{ hint }}</span>{% endif %}</div>
+  <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">{{ title }}</span>{% if hint %}<span class="hint">{{ hint }}</span>{% endif %}</div>
   <span class="sp"></span>
   <label class="btn sm{% if disabled %} disabled{% endif %}">Escolher ficheiros<input type="file" name="files" accept="{{ accept }}" multiple hidden{% if not disabled %} data-autosubmit{% else %} disabled{% endif %}></label>
 </form>
@@ -168,7 +169,7 @@
 {# Os rejeitados que ainda têm o ficheiro: repor (volta a por decidir) ou aprovar. #}
 {% macro rejected_block(items, ratio="r43", width=110, video=False) %}{% if items %}<details class="rejected-takes"><summary class="hint">Rejeitados ({{ items|length }}) · ficam guardados: podes repor ou {{ "escolher" if video else "aprovar" }}</summary><div class="results">{{ results(items, ratio=ratio, width=width, video=video, rejected=True) }}</div></details>{% endif %}{% endmacro %}
 
-{% macro results(items, ratio="r916", width=120, video=False, edit=False, takes=None, frame_post=None, take_info=None, draft_base=None, rejected=False) %}
+{% macro results(items, ratio="r916", width=120, video=False, edit=False, takes=None, frame_post=None, take_info=None, draft_base=None, rejected=False, prefix="") %}
 {% for r in items %}
 {% set fname = r.path.rsplit('/', 1)[-1] %}
 <div class="res{% if takes and r.status == 'approved' %} chosen{% endif %}" style="width: {{ width }}px"{% if takes and r.status == 'approved' %} id="take-escolhido"{% endif %}>
@@ -177,8 +178,8 @@
   {% elif video %}
   <div class="ph {{ ratio }} img-ph" style="width: {{ width }}px"><video src="/media/{{ r.path }}#t=0.1" poster="/media/capa/{{ r.path }}" preload="none" controls playsinline></video><a class="zoom" href="/media/{{ r.path }}" hx-boost="false" aria-label="Ver {{ fname }} em grande" title="Ver em grande"{% if frame_post %} data-frame-post="{{ frame_post }}" data-take="{{ r.id }}"{% endif %}>{{ i.icon("film", 12) }}</a><span class="lb">{{ takes[r.id] if takes and r.id in takes else fname }}{% if r.duration_ms %} · {{ (r.duration_ms / 1000)|clock }}{% endif %}</span></div>
   {% else %}
-  <a class="ph {{ ratio }} img-ph" style="width: {{ width }}px" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="{{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">{{ fname }}</span></a>
-  {% if edit %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="{{ r.role }}" data-edit-src="{{ r.path|thumb }}" data-edit-name="{{ fname }}">Editar imagem</button>{% endif %}
+  <a class="ph {{ ratio }} img-ph" style="width: {{ width }}px" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="{{ prefix }}{{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">{{ prefix }}{{ fname }}</span></a>
+  {% if edit %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="{{ r.role or 'sheet' }}" data-edit-src="{{ r.path|thumb }}" data-edit-name="{{ prefix }}{{ fname }}">Editar imagem</button>{% endif %}
   {% endif %}
   <div class="acts">
     <a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar {{ takes.get(r.id, fname) if takes else fname }}" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>

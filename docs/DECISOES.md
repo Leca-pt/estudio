@@ -473,3 +473,8 @@ serve de base à fusão a três quando o ficheiro mudou entre a proposta e o «A
 - Nomes: «escritor de prompts» (os prompts) ≠ «Assistente» (o chat); take em vez de clip; Guardar; português claro
   (Primeira/Última imagem, parte da encenação, notas de encenação, Traços marcantes, Formato); sem «painéis».
 - Projetos: arquivar (sai da lista e do seletor; «Arquivados»), pesquisa na lista; criar um asset abre a ficha nova.
+- Guião da cena (História): acrescentar, mover e tirar linhas faz-se no browser (sem pedidos); guardar mantém o id das
+  linhas que já existiam (via fields.set_script) — antes, guardar apagava e recriava as linhas e desligava os planos
+  das falas que cobriam (ShotLineLink) e os tempos da encenação.
+- Ficha do asset: os resultados da folha, do retrato e dos looks usam os blocos comuns (m.results, m.upload_zone).
+- Saldo do Artlist junto aos botões de gerar (guardado 5 min no servidor; uma chamada de cada vez).

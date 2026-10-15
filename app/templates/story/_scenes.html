@@ -55,13 +55,32 @@
       <textarea id="scene_description" name="scene_description" class="in" style="min-height: 64px" placeholder="ex.: Abertura da série. Flyby pela cidade ao anoitecer: a câmara passa sobre o monorail, desce pela rua do bar e pára no letreiro de néon.">{{ s.description or '' }}</textarea></div>
     <div class="f span3">
       <div class="row"><span class="l" style="font-size: 12px; font-weight: 500; color: var(--tx2)">Guião</span><span class="sp"></span>
-        <button class="btn sm" type="submit" name="op" value="line_action">+ Ação</button>
-        <button class="btn sm" type="submit" name="op" value="line_dialogue">+ Diálogo</button>
+        <button class="btn sm" type="button" data-line-add="action">+ Ação</button>
+        <button class="btn sm" type="button" data-line-add="dialogue">+ Diálogo</button>
       </div>
-      <div class="script">
+      <template data-line-tpl>
+        <div class="ln k-action">
+          <input type="hidden" name="line_id" value="">
+          <select class="in" name="line_kind" data-line-kind aria-label="Tipo" style="height: 30px">
+            {% for code, label in line_kinds.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+          </select>
+          <select class="in mono chr" name="line_character" aria-label="Personagem" style="height: 30px">
+            <option value="">{{ "Personagem…" if characters else "Sem personagens" }}</option>
+            {% for id, name in characters.items() %}<option value="{{ id }}">{{ name }}</option>{% endfor %}
+          </select>
+          <textarea class="in" name="line_text" aria-label="Texto" rows="1"></textarea>
+          <div class="acts">
+            <button class="ib sm" type="button" data-line-move="-1" aria-label="Subir linha" title="Subir linha">{{ i.icon("chev-up", 14) }}</button>
+            <button class="ib sm" type="button" data-line-move="1" aria-label="Descer linha" title="Descer linha">{{ i.icon("chev-down", 14) }}</button>
+            <button class="ib sm" type="button" data-line-del aria-label="Remover linha" title="Remover linha">{{ i.icon("x", 14) }}</button>
+          </div>
+        </div>
+      </template>
+      <div class="script" data-script>
         {% for ln in lines %}
         {% set idx = loop.index0 %}
         <div class="ln k-{{ ln.kind }}">
+          <input type="hidden" name="line_id" value="{{ ln.id }}">
           <select class="in" name="line_kind" data-line-kind aria-label="Tipo" style="height: 30px">
             {% for code, label in line_kinds.items() %}<option value="{{ code }}" {% if code == ln.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}
           </select>
@@ -71,9 +90,9 @@
           </select>
           <textarea class="in" name="line_text" aria-label="{{ 'Fala' if ln.kind == 'dialogue' else 'Texto' }}" rows="1">{{ ln.text }}</textarea>
           <div class="acts">
-            {{ m.op_button("line_up:%d" % idx, "chev-up", "Subir linha", disabled=loop.first) }}
-            {{ m.op_button("line_down:%d" % idx, "chev-down", "Descer linha", disabled=loop.last) }}
-            {{ m.op_button("line_del:%d" % idx, "x", "Remover linha") }}
+            <button class="ib sm" type="button" data-line-move="-1" aria-label="Subir linha" title="Subir linha">{{ i.icon("chev-up", 14) }}</button>
+            <button class="ib sm" type="button" data-line-move="1" aria-label="Descer linha" title="Descer linha">{{ i.icon("chev-down", 14) }}</button>
+            <button class="ib sm" type="button" data-line-del aria-label="Remover linha" title="Remover linha (guarda para confirmar)">{{ i.icon("x", 14) }}</button>
           </div>
         </div>
         {% else %}

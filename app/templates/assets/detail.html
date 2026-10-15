@@ -176,25 +176,9 @@
     <section class="sec" id="resultados">
       <div class="sec-h"><h2 class="h2">{{ "Resultados da folha" if portrait else "Resultados" }}</h2><span class="sp"></span><span class="hint">Aprovar substitui a imagem aprovada atual. Rejeitar tira-a daqui e guarda-a em «Rejeitados» (podes repô-la).</span></div>
       <div class="results">
-        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/resultados" enctype="multipart/form-data" class="drop drop-compact {% if results %}drop-sm{% endif %}" data-dropzone>
-          {{ m.csrf() }}
-          <div class="ico">{{ i.icon("upload", 18) }}</div>
-          <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP, até {{ max_upload_mb }} MB.</span></div>
-          <span class="sp"></span>
-          <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
-        </form>
+        {{ m.upload_zone("/projetos/%d/assets/%d/resultados" % (project.id, asset.id), "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP, até %d MB." % max_upload_mb, compact=True, small=results|length > 0) }}
         {{ m.job_tiles(gpt_jobs) }}
-        {% for r in results %}
-        {% set fname = r.path.rsplit('/', 1)[-1] %}
-        <div class="res">
-          <a class="ph r43 img-ph" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="{{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">{{ fname }}</span></a>
-          {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="sheet" data-edit-src="{{ r.path|thumb }}" data-edit-name="{{ fname }}">Editar imagem</button>{% endif %}
-          <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
-          </div>
-        </div>
-        {% endfor %}
+        {{ m.results(results, ratio="r43", edit=gpt_enabled) }}
       </div>
       {{ m.rejected_block(rejected_files(project.id, ("sheet", ""), asset_id=asset.id, look_id=None), "r43") }}
     </section>
@@ -355,25 +339,9 @@
       <section class="sec">
         <div class="sec-h"><h2 class="h2">Resultados do retrato</h2><span class="sp"></span><span class="hint">Cabeça e ombros, de frente: a referência de cara para os grandes planos.</span></div>
         <div class="results">
-          <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/retrato" enctype="multipart/form-data" class="drop drop-compact {% if portrait_results %}drop-sm{% endif %}" data-dropzone>
-            {{ m.csrf() }}
-            <div class="ico">{{ i.icon("upload", 18) }}</div>
-            <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP, até {{ max_upload_mb }} MB.</span></div>
-            <span class="sp"></span>
-            <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
-          </form>
+          {{ m.upload_zone("/projetos/%d/assets/%d/retrato" % (project.id, asset.id), "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP, até %d MB." % max_upload_mb, compact=True, small=portrait_results|length > 0) }}
           {{ m.job_tiles(portrait_jobs) }}
-          {% for r in portrait_results %}
-          {% set fname = r.path.rsplit('/', 1)[-1] %}
-          <div class="res">
-            <a class="ph r11 img-ph" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="Retrato {{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">retrato {{ fname }}</span></a>
-            {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="portrait" data-edit-src="{{ r.path|thumb }}" data-edit-name="retrato {{ fname }}">Editar imagem</button>{% endif %}
-            <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
-              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
-            </div>
-          </div>
-          {% endfor %}
+          {{ m.results(portrait_results, ratio="r11", edit=gpt_enabled, prefix="retrato ") }}
         </div>
         {{ m.rejected_block(rejected_files(project.id, "portrait", asset_id=asset.id), "r11") }}
       </section>
@@ -429,22 +397,9 @@
             <div class="col" style="gap: 8px">
               <span class="cap">Resultados</span>
               <div class="results">
-                <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/looks/{{ lk.id }}/ficheiros" enctype="multipart/form-data" class="drop drop-compact {% if r.results %}drop-sm{% endif %}" data-dropzone>{{ m.csrf() }}
-                  <div class="ico">{{ i.icon("upload", 18) }}</div>
-                  <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP.</span></div>
-                  <span class="sp"></span>
-                  <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
-                </form>
+                {{ m.upload_zone("/projetos/%d/assets/%d/looks/%d/ficheiros" % (project.id, asset.id, lk.id), "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP, até %d MB." % max_upload_mb, compact=True, small=r.results|length > 0) }}
                 {{ m.job_tiles(r.jobs) }}
-                {% for x in r.results %}{% set fname = x.path.rsplit('/', 1)[-1] %}
-                <div class="res">
-                  <a class="ph r169 img-ph" href="/media/{{ x.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ x.path|thumb }}" alt="Look {{ lk.name }} {{ fname }}" loading="lazy"><span class="lb">{{ lk.name }} {{ fname }}</span></a>
-                  <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ x.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
-                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
-                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
-                  </div>
-                </div>
-                {% endfor %}
+                {{ m.results(r.results, ratio="r169", prefix=lk.name ~ " ") }}
               </div>
               {{ m.rejected_block(rejected_files(project.id, "look", look_id=lk.id), "r169") }}
             </div>

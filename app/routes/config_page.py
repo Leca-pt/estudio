@@ -549,9 +549,37 @@ def artlist_disconnect(request: Request):
     return RedirectResponse("/configuracao/ligacoes#artlist", status_code=303)
 
 
+_BALANCE: dict = {"t": 0.0, "data": None, "lock": None}  # o saldo guardado 5 min (cada leitura chama o Artlist)
+
+
+async def cached_balance(max_age: float = 300) -> dict | None:
+    import asyncio
+    import time
+
+    if not artlist.connected():
+        return None
+    if _BALANCE["lock"] is None:
+        _BALANCE["lock"] = asyncio.Lock()
+    async with _BALANCE["lock"]:  # várias páginas ao mesmo tempo: uma só chamada
+        if time.monotonic() - _BALANCE["t"] > max_age or _BALANCE["data"] is None:
+            data = await artlist.balance()
+            if data is not None:
+                _BALANCE.update(t=time.monotonic(), data=data)
+            return data
+        return _BALANCE["data"]
+
+
 @router.get("/artlist/saldo")
-async def artlist_balance(request: Request):
-    data = await artlist.balance() if artlist.connected() else None
+async def artlist_balance(request: Request, curto: int = 0):
+    """O saldo do Artlist: completo na Configuração; curto (curto=1) junto aos botões de gerar."""
+    from fastapi.responses import HTMLResponse
+
+    data = await cached_balance(max_age=300 if curto else 0)
+    if curto:
+        if data and data.get("creditsLeft") is not None:
+            n = "{:,}".format(int(data["creditsLeft"])).replace(",", ".")
+            return HTMLResponse(f'<a href="/configuracao/ligacoes#artlist" title="Saldo de créditos do Artlist (atualiza a cada 5 min)">saldo Artlist: {n} créditos</a>')
+        return HTMLResponse("")
     return templates.TemplateResponse(request, "config/_artlist_balance.html", {"b": data})
 
 

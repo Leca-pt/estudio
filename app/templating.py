@@ -320,3 +320,15 @@ def _seg(value) -> str:
 
 
 templates.env.filters["seg"] = _seg
+
+
+def _artlist_connected() -> bool:
+    from app import artlist
+
+    try:
+        return artlist.connected()
+    except Exception:  # noqa: BLE001 — sem configuração, não está ligado
+        return False
+
+
+templates.env.globals["artlist_connected"] = _artlist_connected
