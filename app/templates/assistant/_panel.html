@@ -1,0 +1,30 @@
+{% import "_icons.html" as i %}
+<aside class="asst" id="asst" aria-label="Assistente">
+  <div class="asst-h">{{ i.icon("chat") }}<span class="h3">Assistente</span><span class="sp"></span>
+    <button class="ib sm" type="button" data-toggle-asst aria-label="Recolher assistente">{{ i.icon("panel-right", 15) }}</button>
+  </div>
+  <div class="ctx"><span>Contexto</span><b>{{ asst.label }}</b>{% if asst.engine %}<span class="sp"></span><a class="asst-engine" href="/configuracao/assistente" title="Motor do Assistente (muda na Configuração)">{{ asst.engine }}</a>{% endif %}</div>
+  <div class="msgs" id="asst-msgs">{% include "assistant/_messages.html" %}</div>
+  {% if asst.enabled %}
+  {% if asst.suggestions %}
+  <div class="asst-chips">{% for s in asst.suggestions %}<button type="button" class="chip add" data-asst-ask="{{ s }}">{{ s }}</button>{% endfor %}</div>
+  {% endif %}
+  <form class="composer" id="asst-form" hx-post="/projetos/{{ project.id }}/assistente" hx-target="#asst-msgs" hx-swap="innerHTML"
+        hx-indicator="#asst-thinking" hx-disabled-elt="find textarea, find button">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="hidden" name="ctx" value="{{ asst.key }}">
+    {% if asst.scene_hint %}<input type="hidden" name="cena" value="{{ asst.scene_hint }}">{% endif %}
+    <input type="hidden" name="back" value="{{ back_url }}">
+    <textarea name="message" aria-label="Mensagem para o Assistente" placeholder="Escrever ao Assistente… (@ para mencionar um asset)" maxlength="4000" data-enter-submit data-mentions='{{ (asst.mentions or [])|tojson }}'></textarea>
+    <div class="mention-list" hidden role="listbox" aria-label="Assets"></div>
+    <button class="ib b" type="submit" aria-label="Enviar">{{ i.icon("send") }}</button>
+  </form>
+  {% else %}
+  <div class="composer asst-off"><span class="hint">O Assistente ainda não está ligado: falta o token do Claude Code no servidor (ver README).</span></div>
+  {% endif %}
+</aside>
+<div class="rail" aria-hidden="false">
+  <button class="ib" type="button" data-toggle-asst aria-label="Abrir assistente">{{ i.icon("chat") }}</button>
+  <span class="rail-lbl">Assistente</span>
+</div>
+<div class="asst-scrim" data-toggle-asst></div>

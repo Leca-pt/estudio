@@ -1,0 +1,77 @@
+{% import "_macros.html" as m with context %}
+<form id="breakdown-form" method="post" action="/projetos/{{ project.id }}/desglose" class="col" style="gap: 16px">
+  {{ m.csrf() }}
+  {% if group_id %}<input type="hidden" name="grupo" value="{{ group_id }}">{% endif %}
+  <div class="phead">
+    <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<a href="/projetos/{{ project.id }}/etapa/4">{{ stage_name }}</a></div><h1 class="h1">Assets por cena</h1></div>
+    <span class="sp"></span>
+    <div class="seg" role="group" aria-label="Vista">
+      <a href="/projetos/{{ project.id }}/etapa/4">Cartões</a><a href="/projetos/{{ project.id }}/etapa/4?vista=lista">Lista</a><a class="on" href="/projetos/{{ project.id }}/etapa/4?vista=cenas">Por cena</a>
+    </div>
+    {% if asst.enabled and scenes %}<button class="btn" type="button" data-asst-ask="Extrai do guião as personagens, os locais e os adereços que ainda não existem e marca em que cenas aparecem.">Extrair do guião</button>{% endif %}
+    <button class="btn" type="button" data-open-dialog="new-asset">{{ i.icon("plus", 15) }}Novo asset</button>
+    {% if assets and scenes %}<button class="btn pri save" type="submit">Guardar</button>{% endif %}
+  </div>
+  {{ m.alerts(error, saved) }}
+  <p class="hint" style="margin: 0">Quem e o que aparece em cada cena, tudo num quadro. Também se marca dentro de cada cena, em “Quem e o que aparece”. É isto que decide que personagens, locais e adereços os painéis do storyboard podem usar.</p>
+
+  {% if groups %}
+  <div class="row" style="flex-wrap: wrap">
+    <label for="grupo" class="dim" style="font-size: 12px">{{ "Episódio" if project.type == "series" else "Ato" }}</label>
+    <select id="grupo" class="in" data-nav style="width: auto; min-width: 220px">
+      {% for gid, glabel in groups %}<option value="/projetos/{{ project.id }}/etapa/4?vista=cenas&grupo={{ gid }}" {% if gid == group_id %}selected{% endif %}>{{ glabel }}</option>{% endfor %}
+    </select>
+    <span class="hint">As colunas mostram as cenas {{ "deste episódio" if project.type == "series" else "deste ato" }}; a contagem “Cenas” é do projeto inteiro.</span>
+  </div>
+  {% endif %}
+
+  <div class="sec" style="overflow: hidden">
+    <div class="tbl-wrap">
+    <table class="tbl matrix">
+      <thead><tr>
+        <th>Asset</th>
+        {% for s in scenes %}
+        <th class="cc"><input type="hidden" name="scene_id" value="{{ s.id }}">C{{ '%02d' % s.number }}<div class="cc-sub">{{ (s.title or '—')|truncate(14, True, '…') }}</div></th>
+        {% endfor %}
+        <th class="cc" style="width: 70px">Cenas</th>
+      </tr></thead>
+      <tbody>
+        {% for kind, klabel in kinds_plural.items() %}
+        {% set rows = assets|selectattr("kind", "equalto", kind)|list %}
+        <tr class="grp"><td colspan="{{ scenes|length + 2 }}">{{ klabel }} · {{ rows|length }}</td></tr>
+        {% for a in rows %}
+        <tr>
+          <td><a class="row asset-cell" href="/projetos/{{ project.id }}/assets/{{ a.id }}">
+            {% if a.approved_image_id and approved.get(a.approved_image_id) %}<img class="thumb24" src="{{ approved[a.approved_image_id].path|thumb }}" alt="">
+            {% else %}<span class="slot thumb24"></span>{% endif %}
+            <span class="mono" style="font-size: 12px">{{ a.name }}</span><span class="dim">{{ a.label }}</span>
+          </a></td>
+          {% for s in scenes %}
+          {% set on = (a.id, s.id) in links %}
+          <td class="cc"><label class="tick" title="{{ a.label }} em C{{ '%02d' % s.number }}"><input type="checkbox" name="link" value="{{ a.id }}:{{ s.id }}" {% if on %}checked{% endif %} aria-label="{{ a.label }} em C{{ '%02d' % s.number }}">{{ i.icon("check", 14) }}</label></td>
+          {% endfor %}
+          <td class="cc mono dim">{{ totals.get(a.id, 0) }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if not assets %}
+    <div class="empty" style="margin: 20px; padding: 36px 24px">
+      <div class="ico">{{ i.icon("table", 22) }}</div>
+      <h3>Ainda sem assets</h3>
+      <p>Lista as personagens, os locais e os adereços e marca em que cenas aparecem. É este quadro que decide que folhas de referência entram em cada plano.</p>
+      <div class="row" style="margin-top: 6px">
+        {% if asst.enabled and scenes %}<button class="btn pri" type="button" data-asst-ask="Extrai do guião as personagens, os locais e os adereços e marca em que cenas aparecem.">Extrair do guião</button>{% endif %}
+        <button class="btn{{ '' if asst.enabled and scenes else ' pri' }}" type="button" data-open-dialog="new-asset">Novo asset</button>
+      </div>
+      {% if asst.enabled and scenes %}<span class="hint">Extrair do guião envia propostas para o Assistente; cada uma é aplicada à mão.</span>{% endif %}
+    </div>
+    {% elif not scenes %}
+    <div style="padding: 22px 16px; color: var(--tx3); font-size: 12.5px">Ainda não há cenas {{ "neste grupo" if groups else "" }}. Cria-as na <a href="/projetos/{{ project.id }}/etapa/2">História</a>.</div>
+    {% endif %}
+  </div>
+</form>
+{% set next_url = "/projetos/%d/etapa/4?vista=cenas%s" % (project.id, ("&grupo=%d" % group_id) if group_id else "") %}
+{% include "assets/_new_dialog.html" %}

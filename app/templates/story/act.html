@@ -1,0 +1,29 @@
+{% import "_macros.html" as m with context %}
+<form id="story-form" method="post" action="{{ action }}" class="col" style="gap: 16px">
+  {{ m.csrf() }}
+  {% include "_scene_nav.html" %}
+  <div class="phead">
+    <div>
+      <div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<a href="/projetos/{{ project.id }}/etapa/2">{{ step_titles[2][1] }}</a>/<span>A{{ act.number }}</span></div>
+      <h1 class="h1">Ato {{ act.number }}{% if act.title %} · {{ act.title }}{% endif %}</h1>
+    </div>
+    <span class="sp"></span>
+    <button class="btn pri save" type="submit">Guardar</button>
+  </div>
+  {{ m.alerts(error, saved) }}
+  {% include "story/_durations.html" %}
+
+  {% if nav %}<details class="sec fold">
+    <summary class="sec-h"><h2 class="h2">Ato</h2><span class="hint">título, logline e sinopse · abrir</span></summary>
+  {% endif %}
+  {% if not nav %}<section class="sec">{% endif %}
+    <div class="sec-h"><span class="n">A{{ act.number }}</span><h2 class="h2">Ato</h2></div>
+    <div class="sec-b">
+      {{ m.input("act_title", "Título", act.title, cls="span3", placeholder="Opcional") }}
+      {{ m.textarea("act_arc", "Arco", act.arc, cls="span3") }}
+      {{ m.textarea("act_summary", "Resumo", act.summary, cls="span3") }}
+    </div>
+  {% if nav %}</details>{% else %}</section>{% endif %}
+
+  {% include "story/_scenes.html" %}
+</form>

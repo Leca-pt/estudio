@@ -1,0 +1,228 @@
+{% import "_macros.html" as m with context %}
+{% set F = "shot-form" %}
+<form id="{{ F }}" hidden method="post" action="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}">{{ m.csrf() }}<input type="hidden" name="checks_present" value="1"></form>
+{% include "_scene_nav.html" %}
+<div class="phead">
+  <div>
+    <div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<a href="/projetos/{{ project.id }}/storyboard/cenas/{{ scene.id }}">{{ scene_code }} · {{ scene.title or 'Sem título' }}</a>/<span class="mono">P{{ '%02d' % shot.number }}</span></div>
+    <div class="row" style="gap: 10px; flex-wrap: wrap"><h1 class="h1">P{{ '%02d' % shot.number }}{% if shot.shot_type %} · {{ shot.shot_type }}{% endif %}{% if shot.title %} · {{ shot.title }}{% endif %}{% if not shot.shot_type and not shot.title %} · Novo plano{% endif %}</h1>
+      {{ m.status(state, {"ok": "Storyboard pronto", "wip": "Em curso", "pend": "Pendente"}[state]) }}</div>
+  </div>
+  <span class="sp"></span>
+  {% if prev_shot %}<a class="btn ghost" href="/projetos/{{ project.id }}/storyboard/planos/{{ prev_shot.id }}">{{ i.icon("chev-left", 14) }}P{{ '%02d' % prev_shot.number }}</a>{% endif %}
+  {% if next_shot %}<a class="btn ghost" href="/projetos/{{ project.id }}/storyboard/planos/{{ next_shot.id }}">P{{ '%02d' % next_shot.number }}{{ i.icon("chev-right", 14) }}</a>{% endif %}
+  <button class="btn pri save" type="submit" form="{{ F }}">Guardar</button>
+</div>
+{{ m.alerts(error, saved) }}
+
+<ol class="flow-steps">
+  <li class="{{ 'done' if shot.description else '' }}">1 · O que acontece</li>
+  <li class="{{ 'done' if shot.scene3d else '' }}">2 · Câmara</li>
+  {% set not_ready = moments|rejectattr("ready")|list %}
+  <li class="{{ 'done' if moments and not not_ready else '' }}"{% if not_ready %} title="Falta em: {% for r in not_ready %}momento {{ r.n }} ({{ 'sem imagem aprovada' if not r.image else 'a vista automática não serve' }}){{ ', ' if not loop.last }}{% endfor %}"{% endif %}>3 · Vistas do local{% if moments and not_ready %} · falta {{ not_ready|length }}{% endif %}</li>
+  <li class="{{ 'done' if guide_ok and not guide_stale else '' }}">4 · Vídeo-guia{% if guide and not guide_ok %} · por aprovar{% elif guide_stale %} · desatualizado{% endif %}</li>
+</ol>
+
+<div class="sb-shot">
+  <section class="sec" id="plano">
+    <div class="sec-h"><h2 class="h2">1 · Plano</h2><span class="sp"></span>
+      <span class="hint">Duração {{ shot.duration_s ~ " s" if shot.duration_s else "por definir" }} (a do vídeo; muda-se na cena 3D ou no Vídeo)</span></div>
+    <div class="sec-b">
+      <div class="f span3"><label for="title">Nome</label><input id="title" name="title" class="in" form="{{ F }}" value="{{ shot.title or '' }}" placeholder="ex.: Flyby até à rua"></div>
+      <div class="f span3"><span class="l">Linhas do guião que este plano cobre</span>
+        {% if script %}
+        <div class="picked">
+          {% for r in script if r.line.id in shot_lines %}<span class="tag" title="{{ r.line.text }}">linha {{ r.n }}</span>{% else %}<span class="hint">Nenhuma linha.</span>{% endfor %}
+          <button class="btn sm" type="button" data-open-dialog="pick-lines">Escolher linhas</button>
+          {% if shot_lines|length < script|length %}<button class="btn sm ghost" type="submit" form="{{ F }}" name="op" value="all_lines">Todas as linhas</button>{% endif %}
+        </div>
+        <span class="hint">Ao gravar, se «O que acontece no plano» estiver vazio é preenchido com estas linhas; uma fala marcada passa a ser a fala do plano.</span>
+        {% else %}<span class="hint">A cena ainda não tem guião (etapa História).</span>{% endif %}
+      </div>
+      <div class="f span3"><label for="description">O que acontece no plano <span class="dim">(em português, do início ao fim)</span></label>
+        <textarea id="description" name="description" class="in" form="{{ F }}" rows="3" placeholder="ex.: A câmara começa muito alto sobre a cidade, desce ao lado do comboio do monorail enquanto ele passa e termina ao nível da rua, em frente à porta do bar.">{{ shot.description or '' }}</textarea></div>
+      {% for key, label in [("shot_type", "Tipo de plano"), ("camera_angle", "Ângulo"), ("camera_movement", "Movimento de câmara")] %}
+      <div class="f"><label for="{{ key }}">{{ label }}</label>
+        <select id="{{ key }}" name="{{ key }}" class="in" form="{{ F }}"><option value="">Escolher…</option>
+          {% set v = shot[key] %}
+          {% if v and v not in options[key] %}<option selected>{{ v }}</option>{% endif %}
+          {% for o in options[key] %}<option {% if o == v %}selected{% endif %}>{{ o }}</option>{% endfor %}
+        </select></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="sec" id="maquete">
+    <div class="sec-h"><h2 class="h2">2 · Câmara sobre a encenação</h2><span class="sp"></span>
+      <span class="hint">O plano mostra um troço da encenação 3D da cena (as posições de toda a gente são as da cena); aqui só se põe a câmara.</span></div>
+    {% set scene_url = "/projetos/%d/storyboard/cenas/%d#encenacao" % (project.id, scene.id) %}
+    {% if not location %}
+    <div class="m3d-empty">
+      <p>A cena ainda não tem local com maquete 3D. Escolhe-o na encenação da cena (o plano passa-se dentro dela).</p>
+      <a class="btn pri" href="{{ scene_url }}">Ir à encenação da cena</a>
+    </div>
+    {% elif not stage %}
+    <div class="m3d-empty">
+      <p>A cena ainda não tem encenação 3D (quem está onde e o que se mexe). Monta-a primeiro na página da cena; depois põe-se a câmara de cada plano.</p>
+      <a class="btn pri" href="{{ scene_url }}">Ir à encenação da cena</a>
+    </div>
+    {% else %}
+    {% set cur_d = shot.duration_s or 5 %}
+    <div class="m3d-ctl row" style="padding: 10px 16px 0; gap: 8px; flex-wrap: wrap; align-items: center">
+      <label class="hint" for="stage_start">Começa aos</label>
+      <input id="stage_start" name="stage_start" form="{{ F }}" class="in" style="width: 80px" inputmode="decimal" value="{{ '%g'|format(shot.stage_start or 0) }}" data-autosubmit>
+      <span class="hint">s da encenação · dura</span>
+      <select id="m3d_duration" name="m3d_duration" form="{{ F }}" class="in" style="width: auto" data-autosubmit aria-label="Duração do plano">
+        {% if cur_d not in m3d_durations %}<option value="{{ cur_d }}" selected>{{ cur_d }} s (fora do modelo)</option>{% endif %}
+        {% for d in m3d_durations %}<option value="{{ d }}" {% if d == cur_d %}selected{% endif %}>{{ d }} s</option>{% endfor %}
+      </select>
+      <span class="tag mono">{{ "%g"|format(win_start) }}–{{ "%g"|format(win_end) }} s de {{ "%g"|format(stage_d) }} s</span>
+      {% if window_over %}<span class="hint c-wip">Passa do fim da encenação: depois do fim, ninguém se mexe.</span>{% endif %}
+      <a class="btn sm ghost" href="{{ scene_url }}">Ver a encenação da cena</a>
+    </div>
+    <div class="m3d-cast row" style="padding: 8px 16px 0">
+      <span class="hint">A câmara vê</span>
+      {% for c in in_frame %}<span class="m3d-member"><i style="background: {{ c.hex }}"></i><span class="mono">{{ c.asset.name }}</span></span>{% else %}<span class="hint">{{ "ninguém do elenco" if shot.scene3d else "— (ainda sem câmara)" }}</span>{% endfor %}
+      <span class="hint">· seguem para o vídeo as folhas de quem a câmara vê</span>
+    </div>
+    {% if crowd %}<div class="alert warn" style="margin: 8px 16px 0">{{ i.icon("warn", 14) }}<span><b>Demasiadas figuras no vídeo-guia:</b> a câmara deste plano vê {{ crowd.n }} além das personagens principais ({{ crowd.detail }}). Com mais de 3, o modelo de vídeo gera mal: copia as figuras do previs (manequins, cores), estica o take e repete a ação. Tira figurantes ou elementos da encenação da cena (ou afasta-os do enquadramento) antes de gravar o vídeo-guia.</span></div>{% endif %}
+    {% if cam_warnings %}<div class="alert warn" style="margin: 8px 16px 0">{{ i.icon("warn", 14) }}<span><b>Movimento brusco da câmara:</b> {{ cam_warnings|join("; ") }}. Os modelos de vídeo costumam ler isto como um corte. Dá mais tempo entre essas posições (ou junta uma posição a meio) no editor da câmara.</span></div>{% endif %}
+    {% if shot.scene3d %}
+    <div class="m3d" data-scene3d data-aspect="{{ project.aspect_ratio or '16:9' }}" data-base="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}"
+         data-camera-url="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}/camera" {% if (shot.moments or {}).get("camera_prev") %}data-camera-undo="1"{% endif %}
+         data-preview="/projetos/{{ project.id }}/storyboard/planos/{{ shot.id }}/maquete/previas" data-preview-hash="{{ preview_hash or '' }}" data-preview-have="{{ preview_have }}"
+         {% if renders_stale %}data-moments-stale="1"{% endif %} data-loc-base="/projetos/{{ project.id }}/assets/{{ location.id }}/vistas3d" data-loc-hash="{{ loc_hash or '' }}">
+      <script type="application/json" class="m3d-data">{{ scene3d|tojson }}</script>
+      <script type="application/json" class="m3d-moments">{{ m3d_moments|tojson }}</script>
+      <script type="application/json" class="m3d-locpending">{{ loc_pending|tojson }}</script>
+      <div class="m3d-stage"></div>
+      <div class="m3d-bar row"></div>
+      <div class="m3d-chips row"></div>
+      <div class="m3d-legend row"></div>
+      <div class="m3d-actions row">
+        {% if asst is defined and asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Revê a câmara deste plano: o troço da encenação, o enquadramento de quem fala e de quem ouve, e a regra dos 180° em relação aos outros planos da cena.">{{ i.icon("sparkles", 13) }}Rever a câmara com o Assistente</button>{% endif %}
+        <span class="sp"></span>
+        <span class="hint m3d-status"></span>
+        <button class="btn sm" type="button" data-m3d="record" title="Grava a animação pela câmara do plano (demora o tempo do plano)">{{ i.icon("film", 13) }}Gravar vídeo-guia</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="m3d-empty">
+      <p>Ainda sem câmara. O Assistente põe-na sobre a encenação: o troço que o plano mostra (pelas linhas do guião que cobre) e a câmara em cada momento — plano geral, por cima do ombro, grande plano…</p>
+      {% if asst is defined and asst.enabled %}<button class="btn pri" type="button" data-asst-ask="Põe a câmara deste plano sobre a encenação da cena: o início do troço pelas linhas do guião que o plano cobre e a câmara (marca com &quot;moment&quot; as posições que contam), de acordo com o tipo de plano e o que acontece nele." data-ask-from="description">{{ i.icon("sparkles", 14) }}Pôr a câmara com o Assistente</button>{% else %}<span class="hint">Liga o Assistente na Configuração.</span>{% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  {% if moments %}
+  <section class="sec" id="momentos">
+    <div class="sec-h"><h2 class="h2">3 · Vistas do local nos momentos da câmara</h2><span class="sp"></span>
+      <span class="hint">Em cada momento, a vista do local que vai para o vídeo (sem pessoas: o aspeto do sítio). A app escolhe a mais parecida com a câmara; se nenhuma serve, cria uma a partir desta câmara.</span></div>
+    <div class="moments">
+      {% for r in moments %}
+      <div class="moment">
+        <div class="mo-h"><span class="mo-t"><b>Momento {{ r.n }}</b> <span class="mono dim">{{ fmt_seconds(r.t) }}</span>{% if r.zone %} <span class="dim" title="{{ r.zone }}">· {{ r.zone }}</span>{% endif %}</span>
+          <span class="mo-tags">{% if r.view %}<span class="tag fit-{{ r.fit }}" title="Parecença entre a câmara do plano neste momento e a câmara da vista do local escolhida{{ '; escolhida à mão: conta como pronta' if not r.auto else '' }}{{ '. A vista ainda não tem imagem: gera-a em baixo.' if not r.image else '' }}">câmara {{ r.fit }}{{ " · à mão" if not r.auto else "" }}</span>{% if not r.image %}<span class="tag warn" title="A vista escolhida ainda não tem imagem gerada">sem imagem</span>{% endif %}{% endif %}</span></div>
+        <div class="mo-imgs">
+          <figure>{% if r.render %}<a class="ph img-ph" href="/media/{{ r.render.path }}" hx-boost="false"><img src="{{ r.render.path|thumb }}" alt="Previs do momento {{ r.n }}" loading="lazy"></a>{% else %}<span class="slot">A tirar o previs…</span>{% endif %}<figcaption class="hint">Previs (cena 3D)</figcaption></figure>
+          <figure>{% if r.image %}<a class="ph img-ph" href="/media/{{ r.image.path }}" hx-boost="false"><img src="{{ r.image.path|thumb }}" alt="{{ r.view.label }}" loading="lazy"></a>{% else %}<span class="slot">{{ "A vista «%s» ainda não tem imagem: carrega em Gerar imagem" % r.view.label if r.view else "Sem vista" }}</span>{% endif %}<figcaption class="hint">Vista do local{% if r.view %}: {{ r.view.label }}{% endif %}</figcaption></figure>
+        </div>
+        <div class="mo-ctl">
+          <select name="mview:{{ r.n }}" form="{{ F }}" class="in" aria-label="Vista do local no momento {{ r.n }}" data-autosubmit>
+            <option value="" {% if r.auto %}selected{% endif %}>Automática{% if r.auto and r.view %} ({{ r.view.label }}){% endif %}</option>
+            {% for vid, label in view_options %}<option value="{{ vid }}" {% if not r.auto and r.view and r.view.id == vid %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <button class="btn sm" type="submit" form="{{ F }}" name="op" value="mview_new:{{ r.n }}" title="Cria uma vista do local com a câmara deste momento (fica na maquete do local e serve para outros planos)"{% if r.fit == "parecida" %} data-confirm="Criar outra vista?" data-confirm-text="Já há uma vista parecida com esta câmara. A nova fica na maquete do local e tem de ser gerada." data-confirm-ok="Criar"{% endif %}>{{ i.icon("plus", 13) }}Vista desta câmara</button>
+        </div>
+        {% if r.view and not r.image %}
+        <div class="mo-gen">
+          {% set busy = m.busy_label(r.jobs)|trim %}
+          {% if r.task and r.task.status == "running" %}{% with task=r.task, kind="vista", ref=r.view.id|string, pid=project.id %}{% include "writer/_status.html" %}{% endwith %}
+          {% elif busy %}<button class="btn sm gpt-btn busy" type="button" disabled><span class="dots"><i></i><i></i><i></i></span>{{ busy }}</button>
+          {% elif not r.render_ok %}<span class="hint">A tirar o render da vista na maquete…</span>
+          {% else %}{% set gens = image_generators("maquete") %}
+          {% if not gens.options %}<span class="hint">Sem modelos de imagem ligados (Configuração → Ligações ou Chaves de API).</span>{% else %}
+          {% if r.task and r.task.status == "failed" %}<span class="hint c-no">{{ r.task.error or "Não foi possível escrever o prompt." }}</span>{% endif %}
+          <span class="gen-split"><select name="gen:vista:{{ r.view.id }}" class="gen-select" form="{{ F }}" aria-label="Modelo">{% for v, l in gens.options %}<option value="{{ v }}" data-res="{{ gens.res.get(v, '') }}"{% if v == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % r.view.id, F) }}
+            <button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgen:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="O Assistente escreve o prompt da vista e a imagem gera-se logo a seguir">{{ i.icon("image", 13) }}Gerar imagem</button></span>
+          {% endif %}{% endif %}
+          <a class="btn sm ghost" href="/projetos/{{ project.id }}/assets/{{ location.id }}#vista3d-{{ r.view.id }}">Ver o prompt</a>
+        </div>
+        {% if r.jobs or r.results %}<div class="row" style="gap: 8px; flex-wrap: wrap; align-items: flex-start">{{ m.job_tiles(r.jobs) }}{{ m.results(r.results, ratio="r169", width=140) }}</div>{% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if shot.scene3d %}
+  <section class="sec" id="guia">
+    <div class="sec-h"><h2 class="h2">4 · Vídeo-guia</h2><span class="sp"></span><span class="hint">A animação pela câmara do plano: o modelo de vídeo segue-a (câmara, ritmo, posições).</span></div>
+    {% if guide %}
+    <div class="m3d-guide">
+      <video src="/media/{{ guide.path }}" poster="/media/capa/{{ guide.path }}" controls preload="none" playsinline></video>
+      <div class="col" style="gap: 6px">
+        {% if guide_replaces %}{{ m.status("wip", "Vídeo-guia novo, por aprovar") }}<span class="hint">Até o aprovares, o que segue para o vídeo continua a ser o anterior.</span>
+        <div class="row" style="gap: 6px">
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+        </div>
+        {% elif guide_stale %}{{ m.status("no", "Vídeo-guia desatualizado") }}<span class="hint">Foi gravado com {{ (guide.duration_ms / 1000)|round(1) }} s e o plano tem agora {{ shot.duration_s }} s: grava de novo (não segue para o vídeo assim).</span>
+        {% elif guide_old %}{{ m.status("wip", "Vídeo-guia de uma versão anterior") }}<span class="hint">A encenação da cena ou a câmara mudou depois de o gravares: grava-o de novo para o vídeo seguir as posições atuais.</span>
+        {% elif guide_ok %}{{ m.status("ok", "Vídeo-guia aprovado") }}<span class="hint">Segue para o vídeo com os modelos que aceitam vídeo de referência.</span>
+        {% else %}{{ m.status("wip", "Vídeo-guia por aprovar") }}<span class="hint">Vê se a câmara e o movimento estão como queres antes de o usar.</span>
+        <div class="row" style="gap: 6px">
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ guide.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+        </div>{% endif %}
+      </div>
+    </div>
+    {% else %}<div class="sec-b"><span class="hint">Ainda sem vídeo-guia: carrega em «Gravar vídeo-guia» na cena 3D (acima).</span></div>{% endif %}
+    {% if guide_others %}
+    <div class="guide-others">
+      <span class="hint">Outros vídeos-guia gravados ({{ guide_others|length }}): aprova um para voltar a usá-lo.</span>
+      <div class="guide-list">
+        {% for g in guide_others %}
+        <figure class="guide-item">
+          <video src="/media/{{ g.path }}" poster="/media/capa/{{ g.path }}" muted loop playsinline preload="none" onmouseenter="this.play()" onmouseleave="this.pause()"></video>
+          <figcaption>
+            <span class="mono">{{ g.path.rsplit('/', 1)[-1].rsplit('.', 1)[0]|replace('guide_', '') }}</span> · {{ g.created_at|relative }}
+            {% if g.id == shot.guide_video_id %}<span class="tag">Aprovado</span>{% else %}
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ g.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ g.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" title="Apaga o ficheiro">Rejeitar</button></form>{% endif %}
+          </figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <details class="sec" id="continuidade"{% if checks|rejectattr("checked")|list %} open{% endif %}>
+    <summary class="sec-h"><h2 class="h2">Continuidade</h2><span class="sp"></span>
+      {% if checks %}<span class="hint">{{ checks|selectattr("checked")|list|length }} de {{ checks|length }} verificados</span>{% endif %}</summary>
+    <div style="padding: 4px 16px 8px">
+      {% for c in checks %}
+      <label class="ck"><input type="checkbox" name="check" value="{{ c.id }}" form="{{ F }}" {% if c.checked %}checked{% endif %}>
+        <div style="flex: 1"><span class="tag" style="height: 18px; margin-right: 6px">{{ check_categories[c.category] }}</span>{{ c.text }}{% if c.note %}<div class="d">{{ c.note }}</div>{% endif %}</div>
+        <span class="ck-del">{{ m.op_button("del_check:%d" % c.id, "x", "Remover verificação", form=F) }}</span>
+      </label>
+      {% else %}
+      <div style="padding: 12px 0; color: var(--tx3); font-size: 12.5px">Sem verificações. Cada plano novo recebe as verificações do plano anterior.</div>
+      {% endfor %}
+    </div>
+    <div class="ck-add">
+      <select class="in" name="new_check_category" form="{{ F }}" aria-label="Categoria">{% for code, label in check_categories.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>
+      <input class="in" name="new_check_text" form="{{ F }}" placeholder="O que confirmar (ex.: um só candeeiro, à esquerda do ecrã)" aria-label="Verificação">
+      <input class="in" name="new_check_note" form="{{ F }}" placeholder="Nota (opcional)" aria-label="Nota">
+      <button class="btn" type="submit" form="{{ F }}" name="op" value="add_check">Adicionar</button>
+    </div>
+  </details>
+
+  <div class="row" style="gap: 6px"><span class="sp"></span>{{ m.op_button("delete_shot", "trash", "Apagar plano", confirm="Apagar o P%02d?" % shot.number, confirm_text="A cena 3D, os takes e as imagens deste plano são apagados. As vistas criadas na maquete do local ficam.", confirm_ok="Apagar", form=F) }}<span class="hint">Apagar plano</span></div>
+</div>
+
+{% if script %}{{ m.picker("pick-lines", "Linhas do guião deste plano", line_groups, shot_lines, "line", F, hint="As linhas que este plano cobre. Uma linha pode estar em vários planos (ex.: plano geral e grande plano da mesma fala).", sent_name="lines_sent") }}{% endif %}

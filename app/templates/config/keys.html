@@ -1,0 +1,62 @@
+{% extends "config/shell.html" %}
+{% set main_form = "keys-form" %}
+{% block content %}
+<form id="keys-form" method="post" action="/configuracao/chaves" class="col" style="gap: 14px" autocomplete="off">
+  {{ m.csrf() }}
+  <div class="phead"><div><div class="crumbs">Configuração</div><h1 class="h1">Chaves de API</h1></div><span class="sp"></span><button class="btn pri save" type="submit">Guardar</button></div>
+  {{ m.alerts(error) }}
+  {% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+  <div class="alert info">As chaves ficam cifradas e nunca voltam a ser mostradas (só os últimos 4 caracteres). Para trocar uma chave, cola a nova por cima; um campo vazio mantém a atual. Guardar testa logo as chaves novas, com um pedido só de leitura. O OpenRouter serve o Assistente e o escritor de prompts; a fal.ai serve as imagens e os vídeos. O GPT Image, o Artlist e o Claude ligam-se pelas subscrições, em Configuração → Ligações.</div>
+
+  {% if leftover %}
+  <div class="alert info"><span>Há chaves guardadas de fornecedores que a app não usa: {{ leftover|map(attribute=1)|join(", ") }}. Não fazem nada (a app só usa o OpenRouter, a fal.ai e as ligações por subscrição).</span>
+    <button class="btn sm no" type="submit" name="op" value="remove_unused" data-confirm="Remover estas chaves?" data-confirm-text="As chaves de {{ leftover|map(attribute=1)|join(', ') }} são apagadas da app." data-confirm-ok="Remover">Remover estas chaves</button></div>
+  {% endif %}
+
+  {% for gname, items in groups.items() %}
+  <h2 class="h2 keys-group">{{ gname }}</h2>
+  <div class="keys-grid">
+  {% for pid, info in items %}
+  {% set v = view[pid] %}
+  <section class="sec key-card" id="k-{{ pid }}">
+    <div class="sec-h">
+      <div class="col" style="gap: 2px; min-width: 0">
+        <h2 class="h2">{{ info.name }}</h2>
+        <span class="dim" style="font-size: 11.5px">{{ info.covers }}</span>
+      </div>
+      <span class="sp"></span>
+      {% for u in info.uses %}<span class="tag">{{ u }}</span>{% endfor %}
+    </div>
+    <div class="key-fields">
+      {% for f in fields_of(pid) %}
+      {% set lab = (info.labels or {}).get(f) or {"key": "Chave de API", "secret": "Segunda chave", "access": "Access key", "base_url": "Endpoint / região"}[f] %}
+      {% if f == "base_url" %}
+      <div class="f"><label for="k_{{ pid }}_{{ f }}">{{ lab }}</label><input id="k_{{ pid }}_{{ f }}" name="k_{{ pid }}_{{ f }}" class="in mono" value="{{ v.base_url }}" placeholder="https://…"></div>
+      {% else %}
+      <div class="f"><label for="k_{{ pid }}_{{ f }}">{{ lab }}</label>
+        <input id="k_{{ pid }}_{{ f }}" name="k_{{ pid }}_{{ f }}" class="in mono" type="password" autocomplete="new-password" spellcheck="false"
+               placeholder="{% if f == 'key' and v.has_key %}•••• {{ v.last4 }} (guardada; cola uma nova para trocar){% elif f == 'secret' and v.has_secret %}•••• (guardada){% elif f == 'access' and v.has_access %}•••• (guardada){% else %}Colar a chave{% endif %}"></div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="sec-f">
+      {% if v.broken %}<span class="st no">Ilegível: introduz de novo</span>
+      {% elif v.status == "ok" %}<span class="st ok">Válida</span>
+      {% elif v.status == "fail" %}<span class="st no">Falhou</span>
+      {% elif v.status == "untested" %}<span class="st wip">Guardada, sem teste</span>
+      {% elif v.has_key %}<span class="st wip">Guardada</span>
+      {% else %}<span class="st pend">Sem chave</span>{% endif %}
+      <span class="hint">{{ v.message }}{% if v.tested_at %} · {{ v.tested_at }}{% endif %}</span>
+      <span class="sp"></span>
+      <a class="btn ghost sm" href="{{ info.url }}" target="_blank" rel="noopener" hx-boost="false">Obter chave</a>
+      {% if v.has_key %}
+      {% if info.test %}<button class="btn sm" type="submit" name="op" value="test:{{ pid }}">Testar</button>{% endif %}
+      <button class="btn sm no" type="submit" name="op" value="remove:{{ pid }}" data-confirm="Remover a chave de {{ info.name }}?" data-confirm-text="A chave é apagada da app." data-confirm-ok="Remover">Remover</button>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+  </div>
+  {% endfor %}
+</form>
+{% endblock %}

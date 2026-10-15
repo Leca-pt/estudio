@@ -1,0 +1,87 @@
+{# Lista de cenas de um contentor, com a cena `expanded` aberta para edição. Dentro do formulário principal. #}
+{% import "_macros.html" as m with context %}
+<div class="row"><h2 class="h2">Cenas</h2><span class="tag">{{ scenes|length }}</span><span class="sp"></span>
+  <button class="btn sm" type="submit" name="op" value="add_scene">{{ i.icon("plus", 13) }}Nova cena</button>
+</div>
+{% if not scenes %}
+{% call m.empty_state("Ainda sem cenas", "Cada cena tem local, hora do dia e o guião em linhas de ação e diálogo.", "film") %}
+  <button class="btn" type="submit" name="op" value="add_scene">{{ i.icon("plus", 13) }}Nova cena</button>
+{% endcall %}
+{% endif %}
+{% for s in scenes %}
+{% set open = s.id == expanded %}
+<section class="sec {% if not open %}collapsed{% endif %}" id="cena-{{ s.id }}">
+  <div class="sec-h">
+    <button class="sec-toggle" type="submit" name="op" value="open:{{ 0 if open else s.id }}" aria-expanded="{{ 'true' if open else 'false' }}">
+      <span class="n">C{{ '%02d' % s.number }}</span><span class="h2">{{ s.title or 'Sem título' }}</span>
+      {% if not open %}
+        {% if s.location_id and locations.get(s.location_id) %}<span class="tag mono">{{ locations[s.location_id] }}</span>{% endif %}
+        {% if s.time_of_day %}<span class="tag">{{ s.time_of_day }}</span>{% endif %}
+      {% endif %}
+    </button>
+    <span class="hint">{{ line_counts.get(s.id, 0) }} linha(s) · {{ shot_counts.get(s.id, 0) }} plano(s)</span>
+    <div class="seg seg-sm" role="group" aria-label="Ir para esta cena noutro passo">
+      <a href="/projetos/{{ project.id }}/storyboard/cenas/{{ s.id }}" title="A encenação 3D e os planos da cena">Storyboard</a>
+      <a href="/projetos/{{ project.id }}/etapa/6#cena-{{ s.id }}" title="Os vídeos dos planos da cena">Vídeo</a>
+    </div>
+    <div class="acts">
+      {{ m.op_button("scene_up:%d" % s.id, "chev-up", "Subir cena", disabled=loop.first) }}
+      {{ m.op_button("scene_down:%d" % s.id, "chev-down", "Descer cena", disabled=loop.last) }}
+      {{ m.op_button("del_scene:%d" % s.id, "trash", "Apagar cena", confirm="Apagar a cena C%02d?" % s.number, confirm_text="A cena e o guião são apagados. Esta ação não se desfaz.") }}
+    </div>
+  </div>
+  {% if not open and s.description %}<div class="scene-desc">{{ s.description }}</div>{% endif %}
+  {% if open %}
+  <input type="hidden" name="scene_id" value="{{ s.id }}">
+  <div class="sec-b">
+    {{ m.input("scene_title", "Título", s.title) }}
+    <div class="f">
+      <label for="scene_location_id">Local</label>
+      <select id="scene_location_id" name="scene_location_id" class="in mono">
+        <option value="">{{ "Escolher…" if locations else "Sem locais (cria-os nos Assets)" }}</option>
+        {% for id, name in locations.items() %}<option value="{{ id }}" {% if id == s.location_id %}selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </div>
+    {{ m.select("scene_time_of_day", "Hora do dia", options.time_of_day, s.time_of_day) }}
+    <div class="f span3"><span class="l">Quem e o que aparece <span class="dim" style="font-weight: 400">· personagens, outros locais e adereços desta cena; são os que os painéis do storyboard podem usar</span></span>
+      <div class="row" style="gap: 8px; flex-wrap: wrap; align-items: center">
+        {{ m.picked("pick-scene-cast", cast_picked, "Escolher", empty="Ninguém marcado ainda.") }}
+        {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Marca quem e o que aparece na cena C{{ '%02d' % s.number }} a partir da descrição e do guião: personagens, locais e adereços. Se faltar algum asset no projeto, propõe criá-lo." data-ask-from="scene_description">Tirar do guião</button>{% endif %}
+      </div>
+      <span class="hint">Quem tem falas no guião entra sozinho. O local principal (acima) também.</span>
+      {{ m.picker("pick-scene-cast", "Quem e o que aparece na C%02d" % s.number, cast_groups, cast_ids, "scene_cast", "story-form", hint="Marca as personagens, os outros locais e os adereços que aparecem nesta cena. O local principal escolhe-se no campo Local.", sent_name="scene_cast_sent") }}
+    </div>
+    <div class="f span3"><label for="scene_description">Descrição da cena <span class="dim" style="font-weight: 400">· o que acontece, em poucas frases; depois parte-se em ações e diálogos</span></label>
+      <textarea id="scene_description" name="scene_description" class="in" style="min-height: 64px" placeholder="ex.: Abertura da série. Flyby pela cidade ao anoitecer: a câmara passa sobre o monorail, desce pela rua do bar e pára no letreiro de néon.">{{ s.description or '' }}</textarea></div>
+    <div class="f span3">
+      <div class="row"><span class="l" style="font-size: 12px; font-weight: 500; color: var(--tx2)">Guião</span><span class="sp"></span>
+        <button class="btn sm" type="submit" name="op" value="line_action">+ Ação</button>
+        <button class="btn sm" type="submit" name="op" value="line_dialogue">+ Diálogo</button>
+      </div>
+      <div class="script">
+        {% for ln in lines %}
+        {% set idx = loop.index0 %}
+        <div class="ln k-{{ ln.kind }}">
+          <select class="in" name="line_kind" data-line-kind aria-label="Tipo" style="height: 30px">
+            {% for code, label in line_kinds.items() %}<option value="{{ code }}" {% if code == ln.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <select class="in mono chr" name="line_character" aria-label="Personagem" style="height: 30px">
+            <option value="">{{ "Personagem…" if characters else "Sem personagens" }}</option>
+            {% for id, name in characters.items() %}<option value="{{ id }}" {% if id == ln.character_id %}selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+          <textarea class="in" name="line_text" aria-label="{{ 'Fala' if ln.kind == 'dialogue' else 'Texto' }}" rows="1">{{ ln.text }}</textarea>
+          <div class="acts">
+            {{ m.op_button("line_up:%d" % idx, "chev-up", "Subir linha", disabled=loop.first) }}
+            {{ m.op_button("line_down:%d" % idx, "chev-down", "Descer linha", disabled=loop.last) }}
+            {{ m.op_button("line_del:%d" % idx, "x", "Remover linha") }}
+          </div>
+        </div>
+        {% else %}
+        <div class="script-empty">Sem linhas. Usa “+ Ação” ou “+ Diálogo”.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}

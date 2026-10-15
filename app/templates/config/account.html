@@ -1,0 +1,26 @@
+{% extends "config/shell.html" %}
+{% block content %}
+<div class="phead"><div><div class="crumbs">Configuração</div><h1 class="h1">Conta</h1></div></div>
+{{ m.alerts(error, saved) }}
+<div class="cfg-grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)">
+  <section class="sec">
+    <div class="sec-h"><h2 class="h2">Palavra-passe</h2></div>
+    <form method="post" action="/alterar-password" class="col" style="padding: 16px; gap: 14px">
+      {{ m.csrf() }}
+      <input type="hidden" name="origin" value="conta">
+      <div class="f"><label>Email</label><input class="in" value="{{ email }}" disabled></div>
+      {% include "_password_fields.html" %}
+      <div><button class="btn pri" type="submit">Alterar palavra-passe</button></div>
+      <span class="hint">Ao alterar, as outras sessões abertas terminam.</span>
+    </form>
+  </section>
+  <section class="sec">
+    <div class="sec-h"><h2 class="h2">Aparência</h2></div>
+    <div class="col" style="padding: 16px; gap: 10px">
+      <span class="l" style="font-size: 12px; font-weight: 500; color: var(--tx2)">Tema</span>
+      <div class="seg"><button type="button" data-theme-set="dark">Escuro</button><button type="button" data-theme-set="light">Claro</button></div>
+      <span class="hint">Guardado neste browser.</span>
+    </div>
+  </section>
+</div>
+{% endblock %}

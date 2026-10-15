@@ -1,0 +1,242 @@
+{% extends "config/shell.html" %}
+{% set main_form = "prompts-form" %}
+{% block content %}
+<form id="prompts-form" method="post" action="/configuracao/modelos" class="col" style="gap: 14px">
+  {{ m.csrf() }}
+  <input type="hidden" name="page" value="{{ page }}">
+  <div class="phead"><div><div class="crumbs">Configuração</div><h1 class="h1">{{ page_title }}</h1></div><span class="sp"></span><button class="btn pri save" type="submit">Guardar</button></div>
+  {{ m.alerts(error, saved) }}
+
+
+
+  <div class="cfg-grid">
+    {% if "guias" in sections %}
+    <section class="sec" id="guias" style="grid-column: 1 / -1">
+      <div class="sec-h"><h2 class="h2">Guias do escritor de prompts</h2><span class="dim" style="font-size: 11.5px">como o Assistente escreve cada tipo de prompt</span></div>
+      <div class="dim" style="padding: 10px 16px 4px; font-size: 11.5px">Todos os prompts da app são escritos pelo escritor de prompts (Configuração → Assistente → «Modelo para escrever prompts»). Ele recebe a bíblia, o mundo, as regras abaixo, a cena, o plano, quem aparece e as imagens que seguem, e escreve o prompt completo seguindo a guia do tipo. A app não junta nada ao prompt: só troca os marcadores <span class="mono">@CÓDIGO</span> pela sintaxe do modelo no envio. Muda uma guia e os prompts desse tipo ficam desatualizados (ao Gerar, são reescritos).</div>
+      <div class="sec-b c2">
+        {% for key, label in guide_labels.items() %}
+        {{ m.textarea("guide_" ~ key, label, guides[key], min_height=150) }}
+        {% endfor %}
+        {{ m.select("sheet_aspect", "Proporção das folhas", options_aspect, guides.sheet_aspect) }}
+        {{ m.select("portrait_aspect", "Proporção dos retratos", options_aspect, guides.portrait_aspect) }}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if "regras" in sections %}
+    <section class="sec" id="regras">
+      <div class="sec-h"><h2 class="h2">Regras de prompt</h2><span class="sp"></span><button class="btn sm" type="submit" name="op" value="add_rule">+ Regra</button></div>
+      <div style="padding: 4px 16px 8px">
+        <label class="ck-row"><input type="checkbox" name="warn_enabled" value="1" {% if warn_enabled %}checked{% endif %}><span>Aviso acima de <input class="in mono" name="max_chars" value="{{ max_chars }}" aria-label="Limite de caracteres" inputmode="numeric" style="width: 70px; height: 26px; display: inline-block; padding: 0 6px"> caracteres</span></label>
+        {% for r in rules %}
+        {% set idx = loop.index0 %}
+        <div class="ck-row">
+          <input type="checkbox" name="r_active" value="{{ idx }}" {% if r.active %}checked{% endif %} aria-label="Regra ativa">
+          <textarea class="in in-line" name="r_text" aria-label="Regra {{ loop.index }}" style="flex: 1" rows="1">{{ r.text }}</textarea>
+          {{ m.op_button("del_rule:%d" % idx, "x", "Remover regra") }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="sec-f"><span class="hint">O escritor de prompts segue estas regras em todos os prompts que escreve (e o Assistente no chat também). As regras de cada projeto vão na bíblia («Regras dos prompts»).</span></div>
+    </section>
+    {% endif %}
+  </div>
+
+    {% if "validacoes" in sections %}
+    <section class="sec" id="validacoes">
+      <div class="sec-h"><h2 class="h2">Validações de prompts</h2><span class="dim" style="font-size: 11.5px">Avisos junto a cada prompt · nenhum bloqueia · uma entrada por linha</span></div>
+      <div class="sec-b">
+        <div class="span3 prof-grid">
+          <div class="prof-h">Limites de palavras por perfil de modelo <span class="dim">· vale o perfil do modelo por omissão (Modelos e geração)</span></div>
+          {% for p in profiles.image %}
+          <div class="prof{% if active_profiles and active_profiles.image.key == p.key %} on{% endif %}">
+            <div class="prof-t"><b>Imagem · {{ p.name }}</b>{% if active_profiles and active_profiles.image.key == p.key %}<span class="tag ok">em uso · {{ active_profiles.image.model }}</span>{% endif %}<span class="hint">{{ p.models }}</span><span class="hint">Fonte: {{ p.source }}</span></div>
+            <div class="prof-f">
+              {{ m.input("p_%s_image_max_words" % p.key, "Mestra, plano, capa", p.image_max_words, type="number", extra='min="1"') }}
+              {{ m.input("p_%s_reference_max_words" % p.key, "Folha, retrato, vistas", p.reference_max_words, type="number", extra='min="1"') }}
+            </div>
+          </div>
+          {% endfor %}
+          {% for p in profiles.video %}
+          <div class="prof{% if active_profiles and active_profiles.video.key == p.key %} on{% endif %}">
+            <div class="prof-t"><b>Vídeo · {{ p.name }}</b>{% if active_profiles and active_profiles.video.key == p.key %}<span class="tag ok">em uso · {{ active_profiles.video.model }}</span>{% endif %}<span class="hint">{{ p.models }}</span><span class="hint">Fonte: {{ p.source }}</span></div>
+            <div class="prof-f">
+              {{ m.input("p_%s_video_max_words" % p.key, "Vídeo", p.video_max_words, type="number", extra='min="1"') }}
+              {{ m.input("p_%s_video_max_words_timed" % p.key, "Com tempos", p.video_max_words_timed, type="number", extra='min="1"') }}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% for key, label in [("motion_words", "Movimento (proibido em imagens)"), ("camera_words", "Movimentos de câmara (um por vídeo)"), ("fast_words", "Rapidez (evitar no vídeo)"), ("empty_adjectives", "Adjetivos vazios"), ("format_words", "Formato e resolução no texto")] %}
+        {{ m.textarea(key, label, (checks[key] or [])|join("\n"), mono=True, lang="en", min_height=110) }}
+        {% endfor %}
+      </div>
+      <div class="sec-f"><span class="hint">Regras completas em <span class="mono">docs/PROMPT_RULES.md</span>. Também se avisa quando falta “exactly N people”, quando a fala está sem aspas e quando os modos Frames/Referências se misturam.</span></div>
+    </section>
+    {% endif %}
+
+    {% if "geracao" in sections %}
+  {% macro provider_pair(key, label_provider, label_model, groups, current, pending, name, hint="", allow_same=False) %}
+  {% set cur_p = (current or "").split(":")[0] if current else (groups[0][0] if groups else "") %}
+  {% if allow_same and not current %}{% set cur_p = "same" %}{% endif %}
+  <div class="f"><label for="{{ key }}_provider">{{ label_provider }}</label>
+    <select id="{{ key }}_provider" class="in" data-provider-select="{{ key }}">
+      {% if allow_same %}<option value="same" {% if cur_p == "same" %}selected{% endif %}>O mesmo de gerar</option>{% endif %}
+      {% for pid, plabel, _opts in groups %}<option value="{{ pid }}" {% if cur_p == pid %}selected{% endif %}>{{ plabel }}</option>{% endfor %}
+      {% for pname in pending %}<option disabled>{{ pname }} · chave guardada, ainda não ligado</option>{% endfor %}
+    </select>{% if hint %}<span class="hint">{{ hint }}</span>{% endif %}</div>
+  <div class="f span2"><label for="{{ key }}_model">{{ label_model }}</label>
+    <select id="{{ key }}_model" name="{{ name }}" class="in" data-provider-models="{{ key }}">
+      {% if allow_same %}<option value="" data-provider="same" {% if not current %}selected{% endif %}>—</option>{% endif %}
+      {% for pid, _plabel, opts in groups %}{% for v, l in opts %}<option value="{{ v }}" data-provider="{{ pid }}" {% if v == current %}selected{% endif %}>{{ l }}</option>{% endfor %}{% endfor %}
+    </select></div>
+  {% endmacro %}
+  <section class="sec" id="geracao">
+    <div class="sec-h"><h2 class="h2">Imagens</h2><span class="dim" style="font-size: 11.5px">o fornecedor e o modelo que vêm escolhidos nos botões Gerar e Editar</span></div>
+    <div class="sec-b">
+      {% if img_groups %}
+      {{ provider_pair("img", "Fornecedor para gerar", "Modelo para gerar", img_groups, img_default, img_pending, "image_generator_default") }}
+      {{ provider_pair("imgedit", "Fornecedor para editar", "Modelo para editar", img_groups, img_edit, [], "image_generator_edit", allow_same=True) }}
+      {% else %}<span class="hint span3">Liga o ChatGPT (GPT Image) ou o Artlist em <a href="/configuracao/ligacoes">Ligações</a> para gerar imagens na app.</span>{% endif %}
+    </div>
+    <div class="sec-f"><span class="hint">{% if active_profiles %}Os prompts são escritos e validados para este modelo (perfil <b>{{ active_profiles.image.name }}</b>: até {{ active_profiles.image.image_max_words }} palavras, {{ active_profiles.image.reference_max_words }} nas referências). {% endif %}Em cada botão Gerar podes escolher outro modelo no seletor ao lado, sem vir aqui e sem refazer o prompt. Editar vale para «Editar imagem».</span></div>
+  </section>
+  {% if fal_on %}
+  <section class="sec" id="fal">
+    <div class="sec-h"><h2 class="h2">Modelos da fal.ai</h2><span class="sp"></span><span class="dim" style="font-size: 11.5px">quais aparecem nos botões Gerar</span></div>
+    <div class="sec-b" style="display: flex; flex-direction: column; gap: 10px">
+      <div><span class="l">Recomendados (testados na app, sempre ativos)</span>
+        <div class="row" style="gap: 6px; flex-wrap: wrap; margin-top: 4px">{% for n in fal_recommended %}<span class="tag">{{ n }}</span>{% endfor %}</div></div>
+      <div><span class="l">Do catálogo ({{ fal_active|length }} ativo(s))</span>
+        <div class="row" style="gap: 6px; flex-wrap: wrap; margin-top: 4px">{% for e, m in fal_active.items() %}<span class="tag" title="{{ e }}">{{ m.name }} · {{ m.adapter.caps|join(", ") }}{% if m.price %} · {{ m.price }}{% endif %}</span>{% else %}<span class="hint">Nenhum.</span>{% endfor %}</div></div>
+      <div class="row" style="gap: 8px; flex-wrap: wrap">
+        {% if fal_catalog_n %}<button class="btn sm" type="button" data-open-dialog="pick-fal">Escolher modelos do catálogo ({{ fal_catalog_n }})</button>{% endif %}
+        <button class="btn sm ghost" type="submit" form="fal-refresh-form" data-busy-label="A descarregar…">{{ "Atualizar catálogo" if fal_catalog_n else "Descarregar catálogo da fal" }}</button>
+        {% if fal_updated %}<span class="hint">atualizado em {{ fal_updated[:16]|replace("T", " ") }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="sec-f"><span class="hint">Ao ativar um modelo, a app lê o esquema dele e descobre sozinha o que sabe fazer (só texto, referências, edição, seguir a maquete) e como se pede. Os que precisam de campos que a app não sabe preencher ficam de fora, com o motivo. O preço é o da fal no momento.</span></div>
+  </section>
+  {% endif %}
+  <section class="sec" id="video">
+    <div class="sec-h"><h2 class="h2">Vídeo</h2><span class="dim" style="font-size: 11.5px">o modelo pré-escolhido em cada plano, a resolução e o som (para qualquer fornecedor)</span></div>
+    <div class="sec-b">
+      {{ provider_pair("vid", "Fornecedor", "Modelo por omissão (projetos novos)", vid_groups, vid_default, vid_pending, "video_default", hint="Cada projeto tem o seu modelo e a sua resolução padrão (etapa Vídeo) e cada plano pode escolher outro. Os modelos que aceitam várias imagens recebem as vistas do local, as folhas do elenco e, se aceitarem vídeo, o vídeo-guia; os outros só a imagem inicial (e final).") }}
+      <div class="f"><label for="video_quality">Resolução do vídeo</label><select id="video_quality" name="video_quality" class="in">{% for q in ["480p", "720p", "1080p"] %}<option value="{{ q }}" {% if video_quality == q %}selected{% endif %}>{{ q }}{{ " · mais barato, para testar" if q == "480p" }}</option>{% endfor %}</select></div>
+      <label class="ck-row" style="border: 0"><input type="checkbox" name="video_audio" value="1" {% if video_audio %}checked{% endif %}><span>Com som por omissão (voz, efeitos, ambiente)</span></label>
+    </div>
+    <div class="sec-f"><span class="hint">{% if active_profiles %}Os prompts de vídeo são escritos e validados para este modelo (perfil <b>{{ active_profiles.video.name }}</b>: até {{ active_profiles.video.video_max_words }} palavras, {{ active_profiles.video.video_max_words_timed }} com tempos). {% endif %}Os custos indicados são a 480p e 5 s; mais resolução ou mais segundos custam mais.</span></div>
+  </section>
+  {% endif %}
+
+  {% if "claude" in sections %}
+    <section class="sec" id="claude">
+      <div class="sec-h"><h2 class="h2">Claude Code</h2><span class="dim" style="font-size: 11.5px">o Assistente, pela subscrição Claude</span><span class="sp"></span>
+        {% if claude_status.ok %}<span class="st ok">Ligado</span>{% else %}<span class="st no">Sem ligação</span>{% endif %}</div>
+      <div class="sec-b">
+        <div class="f span3"><span class="l">Estado</span><span class="hint">{{ claude_status.message }}</span></div>
+      </div>
+      <div class="sec-f"><span class="hint">A ligação do Claude é um token guardado no servidor (ficheiro .env), não na app. Para o renovar: no servidor, <span class="mono">claude setup-token</span>, pôr o token novo em <span class="mono">CLAUDE_CODE_OAUTH_TOKEN</span> no .env e reiniciar a app. Posso fazer isso contigo quando for preciso.</span></div>
+    </section>
+  {% endif %}
+
+  {% if "gpt" in sections %}
+    <section class="sec" id="gpt-image">
+      <div class="sec-h"><h2 class="h2">GPT Image (Codex)</h2><span class="dim" style="font-size: 11.5px">gera e edita imagens pela subscrição ChatGPT</span><span class="sp"></span>
+        {% if codex and codex.state == "waiting" %}<span class="st wip">A ligar…</span>{% elif gpt_status.logged_in %}<span class="st ok">Ligado</span>{% else %}<span class="st no">Sem login</span>{% endif %}</div>
+      <div class="sec-b">
+        <div class="f span3"><span class="l">Conta</span>
+          {% include "config/_codex_login.html" %}
+        </div>
+        <label class="ck-row" style="border: 0"><input type="checkbox" name="gpt_enabled" value="1" {% if gpt.enabled is not defined or gpt.enabled %}checked{% endif %}><span>Disponível nos seletores Gerar e Editar imagem</span></label>
+        {{ m.input("gpt_timeout", "Tempo limite por imagem (s)", gpt.timeout_s or 300, type="number", extra='min="30" max="900"') }}
+        <div class="f"><span class="l">Últimas 24 h</span><span class="hint">{{ gpt_status.counts.get("done", 0) }} geradas · {{ gpt_status.counts.get("failed", 0) }} falharam · {{ (gpt_status.counts.get("queued", 0) + gpt_status.counts.get("running", 0)) }} na fila</span></div>
+      </div>
+      <div class="sec-f"><span class="hint">Um pedido de cada vez. Cada imagem gasta o limite do plano ChatGPT bastante mais do que uma mensagem.</span></div>
+    </section>
+  {% endif %}
+
+    {% if "artlist" in sections %}
+    <section class="sec" id="artlist">
+      <div class="sec-h"><h2 class="h2">Artlist</h2><span class="dim" style="font-size: 11.5px">gera e edita imagens com os créditos Artlist, por MCP</span><span class="sp"></span>
+        {% if artlist_connected %}<span class="st ok">Ligado</span>{% else %}<span class="st no">Não ligado</span>{% endif %}</div>
+      {% if artlist_msg == "ok" %}<div class="alert ok" style="margin: 12px 16px 0">A app ficou ligada à tua conta Artlist.</div>
+      {% elif artlist_msg %}<div class="alert err" style="margin: 12px 16px 0">{{ artlist_msg }}</div>{% endif %}
+      <div class="sec-b">
+        {% if artlist_connected %}
+        <div class="f"><span class="l">Saldo</span><span class="hint" hx-get="/configuracao/artlist/saldo" hx-trigger="load" hx-swap="innerHTML">A ler o saldo…</span></div>
+        <label class="ck-row" style="border: 0"><input type="checkbox" name="artlist_enabled" value="1" {% if artlist.enabled is not defined or artlist.enabled %}checked{% endif %}><span>Disponível nos seletores Gerar e Editar imagem</span></label>
+        <div class="f"><label for="artlist_quality">Resolução</label><select id="artlist_quality" name="artlist_quality" class="in">{% for q in ["1k", "2k"] %}<option value="{{ q }}" {% if (artlist.quality or "1k") == q %}selected{% endif %}>{{ q|upper }}{{ " · mais caro" if q == "2k" }}</option>{% endfor %}</select></div>
+        <div class="f"><label for="artlist_parallel">Gerações em simultâneo</label><select id="artlist_parallel" name="artlist_parallel" class="in">{% for n in ["1", "2", "3", "4"] %}<option value="{{ n }}" {% if (artlist.parallel or 3)|string == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="f"><span class="l">Conta</span><div class="row" style="gap: 8px"><button class="btn sm" type="submit" formaction="/configuracao/artlist/ligar" formmethod="post" data-busy-label="A preparar…">Voltar a ligar</button><button class="btn ghost sm" type="submit" formaction="/configuracao/artlist/desligar" formmethod="post" data-confirm="Desligar do Artlist?" data-confirm-text="Os botões do Artlist desaparecem até voltares a ligar." data-confirm-ok="Desligar">Desligar</button></div></div>
+        {% else %}
+        <input type="hidden" name="artlist_enabled" value="{{ '1' if artlist.enabled is not defined or artlist.enabled else '' }}">
+        <input type="hidden" name="artlist_quality" value="{{ artlist.quality or '1k' }}">
+        <input type="hidden" name="artlist_parallel" value="{{ artlist.parallel or 3 }}">
+        {% if artlist_login_url %}
+        <div class="f span2"><span class="l">1. Abre o Artlist e autoriza</span>
+          <a class="btn pri sm" href="{{ artlist_login_url }}" target="_blank" rel="noopener" hx-boost="false" style="align-self: flex-start">Abrir o Artlist</a>
+          <span class="hint">Entra com a tua conta e carrega em autorizar. No fim, o browser vai para um endereço <span class="mono">http://localhost:…/callback?code=…</span> que não abre — é normal.</span></div>
+        <div class="f span2"><label for="redirect_url">2. Cola aqui esse endereço (da barra do browser)</label>
+          <textarea id="redirect_url" name="redirect_url" class="in in-line mono" rows="1" placeholder="http://localhost:50354/callback?code=…&state=…"></textarea>
+          <button class="btn sm" type="submit" formaction="/configuracao/artlist/concluir" formmethod="post" style="align-self: flex-start; margin-top: 6px">Concluir ligação</button></div>
+        {% else %}
+        <div class="f span2"><span class="l">Ligar a tua conta</span><span class="hint">A app usa o Claude Code como cliente do Artlist (o Artlist só aceita clientes conhecidos). Só é preciso uma vez.</span>
+          <button class="btn pri sm" type="submit" formaction="/configuracao/artlist/ligar" formmethod="post" style="align-self: flex-start; margin-top: 6px" data-busy-label="A preparar…">Ligar ao Artlist</button></div>
+        {% endif %}
+        {% endif %}
+      </div>
+      <div class="sec-f"><span class="hint">Cada imagem gasta créditos do teu plano (os custos de cada modelo estão na secção Imagens, a 1K). O modelo escolhe-se em Imagens ou no seletor de cada botão Gerar. O Artlist tem fila própria e gera várias imagens em simultâneo; o GPT Image faz um pedido de cada vez.</span></div>
+    </section>
+    {% endif %}
+
+    {% if "assistente" in sections %}
+    <section class="sec" id="assistente">
+      <div class="sec-h"><h2 class="h2">Assistente</h2><span class="dim" style="font-size: 11.5px">o motor que responde no chat</span></div>
+      <div class="sec-b">
+{% set cur = ("openrouter:" ~ (assistant.openrouter_model or "openrouter/free")) if assistant.engine == "openrouter" else ("claude:" ~ (assistant.model or "sonnet")) %}
+        {% set cur_provider = cur.split(":")[0] %}
+        <div class="f"><label for="asst_provider">Fornecedor</label>
+          <select id="asst_provider" class="in" data-provider-select>
+            <option value="claude" {% if cur_provider == "claude" %}selected{% endif %}>Claude · subscrição (Claude Code)</option>
+            <option value="openrouter" {% if cur_provider == "openrouter" %}selected{% endif %} {% if not or_key %}disabled{% endif %}>OpenRouter{% if not or_key %} · sem chave{% elif or_free_only %} · plano grátis{% endif %}</option>
+            {% for pid, pname in llm_pending %}<option disabled>{{ pname }} · chave guardada, ainda não ligado</option>{% endfor %}
+          </select>
+          <span class="hint">{% if not or_key %}O OpenRouter aparece quando guardares a chave em <a href="/configuracao/chaves#k-openrouter">Chaves de API</a>.{% else %}Outros fornecedores de texto aparecem aqui quando tiverem chave e forem ligados à app.{% endif %}</span></div>
+        <div class="f span2"><label for="asst_choice">Modelo</label>
+          <select id="asst_choice" name="asst_choice" class="in" data-provider-models>
+            {% for mid, mname, mnote in claude_aliases %}
+            <option value="claude:{{ mid }}" data-provider="claude" {% if cur == "claude:" ~ mid %}selected{% endif %}>Claude {{ mname }} · {{ mnote }}</option>{% endfor %}
+            {% for mdl in claude_models %}
+            <option value="claude:{{ mdl.id }}" data-provider="claude" {% if cur == "claude:" ~ mdl.id %}selected{% endif %}>{{ mdl.name }} · versão fixa</option>{% endfor %}
+            {% for mdl in or_models %}
+            <option value="openrouter:{{ mdl.id }}" data-provider="openrouter" {% if cur == "openrouter:" ~ mdl.id %}selected{% endif %}>{% if not mdl.free %}{{ "Pago · " if not or_free_only else "Pago (precisa de saldo) · " }}{% endif %}{{ mdl.name }}{% if mdl.json %} · JSON{% endif %}{% if mdl.images %} · vê imagens{% endif %}</option>{% endfor %}
+          </select>
+          <span class="hint" data-provider-hint="claude">Pela tua subscrição Claude, sem custos extra. É o motor mais fiável para as regras e o formato das propostas. «Sempre o mais recente» passa sozinho para a versão nova quando sai; «versão fixa» fica sempre na mesma.</span>
+          <span class="hint" data-provider-hint="openrouter">{% if or_info %}Plano {{ "grátis" if or_info.is_free_tier else "pago" }}{% if or_info.limit_remaining is not none %}: restam {{ or_info.limit_remaining }} pedidos hoje{% endif %}. {% endif %}Lista completa: primeiro os grátis, depois os pagos{% if or_free_only %} (estes só funcionam depois de carregares saldo no OpenRouter){% endif %}. Prefere os marcados com JSON e «vê imagens». Os grátis ficam muitas vezes sobrecarregados; a app tenta outro grátis sozinha.</span>
+        </div>
+        {% set w = assistant.writer or {} %}
+        {% set wcur = ("openrouter:" ~ w.openrouter_model) if w.engine == "openrouter" else ("claude:" ~ (w.model or "sonnet")) %}
+        <div class="f span2"><label for="writer_choice">Modelo para escrever prompts</label>
+          <select id="writer_choice" name="writer_choice" class="in">
+            {% for mid, mname, mnote in claude_aliases %}<option value="claude:{{ mid }}" {% if wcur == "claude:" ~ mid %}selected{% endif %}>Claude {{ mname }} · {{ mnote }}</option>{% endfor %}
+            {% for mdl in claude_models %}<option value="claude:{{ mdl.id }}" {% if wcur == "claude:" ~ mdl.id %}selected{% endif %}>{{ mdl.name }} · versão fixa</option>{% endfor %}
+            {% for mdl in or_models if mdl.images %}<option value="openrouter:{{ mdl.id }}" {% if wcur == "openrouter:" ~ mdl.id %}selected{% endif %}>OpenRouter · {{ mdl.name }}</option>{% endfor %}
+          </select>
+          <span class="hint">Escreve todos os prompts da app (folhas, retratos, vistas, vídeo, capa) quando carregas em Gerar ou Escrever: olha para as imagens e segue as guias de Configuração → Prompts. Tem de ver imagens (ex.: Sonnet); o chat continua com o modelo de cima.</span></div>
+        {{ m.input("asst_timeout", "Tempo limite (s)", assistant.timeout_s or 120, type="number", extra='min="10" max="600"') }}
+      </div>
+      <div class="sec-f"><span class="hint">O Claude Code (subscrição) é o motor por omissão e continua disponível. O GPT Image (Codex) e o Artlist nas imagens não mudam.</span></div>
+    </section>
+    {% endif %}
+
+
+</form>
+{% if fal_on %}
+<form id="fal-refresh-form" method="post" action="/configuracao/fal/catalogo">{{ m.csrf() }}</form>
+<form id="fal-models-form" method="post" action="/configuracao/fal/modelos">{{ m.csrf() }}</form>
+{% if fal_catalog_n %}{{ m.picker("pick-fal", "Modelos da fal.ai", fal_groups, fal_active.keys()|list, "fal_model", "fal-models-form",
+    hint="Marca os que queres nos botões Gerar. Muitos dos de imagem → imagem são ferramentas (ampliar, tirar fundo…): a app só ativa os que sabe chamar com um prompt.") }}{% endif %}
+{% endif %}
+{% endblock %}

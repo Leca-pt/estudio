@@ -1,0 +1,24 @@
+{# Diálogo "Novo asset". Precisa de: next_url #}
+<dialog id="new-asset" class="dlg wide">
+  <form method="post" action="/projetos/{{ project.id }}/assets">
+    {{ m.csrf() }}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="dlg-b" style="gap: 12px">
+      <h3 class="h2">Novo asset</h3>
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 12px">
+        <div class="f"><label for="na-label">Nome</label><input id="na-label" name="label" class="in" placeholder="ex.: Rita" required></div>
+        <div class="f"><label for="na-kind">Tipo</label>
+          <select id="na-kind" name="kind" class="in">{% for code, label in kinds.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="f"><label for="na-group">Grupo <span class="dim" style="font-weight: 400">· opcional (ex.: Cidade, Equipa)</span></label>
+        <input id="na-group" name="group_name" class="in" list="asset-groups" autocomplete="off"></div>
+      <datalist id="asset-groups">{% for g in groups or [] %}<option value="{{ g }}">{% endfor %}</datalist>
+      <span class="hint">O código é gerado a partir do nome, com o prefixo do projeto (ex.: <span class="mono">{{ project.prefix }}_VERA</span>), e fica fixo.</span>
+    </div>
+    <div class="dlg-f">
+      <button class="btn" type="button" data-close-dialog>Cancelar</button>
+      <button class="btn pri" type="submit">Criar asset</button>
+    </div>
+  </form>
+</dialog>

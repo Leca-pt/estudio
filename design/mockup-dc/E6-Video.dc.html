@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Etapa 6 · Geração de vídeo · C01 P02</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c81c0790deadc2db4cef68158f944ecd">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#0e0f11}</style>
+</helmet>
+<div class="app {{theme}}" style="width: 1440px; height: 1000px">
+<div class="shell">
+<header class="top">
+<a class="logo" href="Projetos.dc.html"><span class="logo-m"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path></svg></span>Estúdio</a>
+<span class="vsep"></span>
+<button class="psw" type="button"><span class="pfx">AVT</span>Equipa de Aventureiros<span class="dim">· Curta</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<span class="sp"></span>
+<a class="tlink" href="Config.dc.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Configuração</a>
+<button class="tlink" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"></path></svg>Sair</button>
+</header>
+<div class="body">
+<aside class="side">
+<div class="side-h"><span class="lbl">Estrutura</span><span class="sp"></span><button class="ib sm" type="button" aria-label="Recolher estrutura"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button></div>
+<nav class="tree">
+<a class="tn" href="E1-Biblia.dc.html"><span class="pfx" style="font-size: 10px">AVT</span><span class="t">Projeto</span></a>
+<a class="tn" href="E7-Montagem.dc.html"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"></path></svg><span class="c">C01</span><span class="t">Briefing no hangar</span><span class="dot wip"></span></a>
+<a class="tn l3" href="E6-Video.dc.html"><span class="c">P01</span><span class="t">Geral · equipa à mesa</span><span class="dot ok"></span></a>
+<a class="tn l3 on" href="E6-Video.dc.html"><span class="c">P02</span><span class="t">Médio · Rita</span><span class="dot ok"></span></a>
+<a class="tn l3" href="E6-Video-vazio.dc.html"><span class="c">P03</span><span class="t">Close-up · Dash</span><span class="dot pend"></span></a>
+<a class="tn l3" href="E6-Video-vazio.dc.html"><span class="c">P04</span><span class="t">Médio · Sparks e Iris</span><span class="dot pend"></span></a>
+<a class="tn l3" href="E6-Video-vazio.dc.html"><span class="c">P05</span><span class="t">Geral · saída</span><span class="dot pend"></span></a>
+<a class="tn" href="E5-Cena.dc.html"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"></path></svg><span class="c">C02</span><span class="t">Preparação do avião</span><span class="dot pend"></span></a>
+<a class="tn" href="E5-Cena.dc.html"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"></path></svg><span class="c">C03</span><span class="t">Descolagem</span><span class="dot pend"></span></a>
+</nav>
+<div class="side-f">Estado dos pontos: clip de vídeo</div>
+</aside>
+<main class="main">
+<nav class="stepper" aria-label="Etapas">
+<a class="step" href="E1-Biblia.dc.html"><span class="k">1</span><span class="t">Projeto e bíblia</span><span class="s c-ok"><span class="dot ok"></span>Aprovada</span></a>
+<a class="step" href="E2-Historia.dc.html"><span class="k">2</span><span class="t">História</span><span class="s c-ok"><span class="dot ok"></span>Aprovada</span></a>
+<a class="step" href="E3-Desglose.dc.html"><span class="k">3</span><span class="t">Desglose</span><span class="s c-ok"><span class="dot ok"></span>Aprovada</span></a>
+<a class="step" href="E4-Assets.dc.html"><span class="k">4</span><span class="t">Design de assets</span><span class="s c-wip"><span class="dot wip"></span>Em curso · 7/10</span></a>
+<a class="step" href="E5-Cena.dc.html"><span class="k">5</span><span class="t">Storyboard</span><span class="s c-wip"><span class="dot wip"></span>Em curso · 2/11</span></a>
+<a class="step on" href="E6-Video.dc.html"><span class="k">6</span><span class="t">Geração de vídeo</span><span class="s c-wip"><span class="dot wip"></span>Em curso · 2/11</span></a>
+<a class="step" href="E7-Montagem.dc.html"><span class="k">7</span><span class="t">Montagem</span><span class="s c-pend"><span class="dot pend"></span>Pendente</span></a>
+</nav>
+<div class="content" style="gap: 14px">
+<div class="phead">
+<div><div class="crumbs"><span class="mono">AVT</span>/<span>Vídeo</span>/<span class="mono">C01</span>/<span class="mono">P02</span></div><div class="row" style="gap: 10px"><h1 class="h1">P02 · Médio · Rita</h1><span class="st ok">Clip aprovado</span></div></div>
+<span class="sp"></span>
+<a class="btn ghost" href="E6-Video.dc.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m15 6-6 6 6 6"></path></svg>P01</a>
+<a class="btn ghost" href="E6-Video-vazio.dc.html">P03<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 6 6 6-6 6"></path></svg></a>
+<button class="btn pri" type="button">Guardar</button>
+</div>
+<div style="display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 16px; align-items: start">
+<div class="col" style="gap: 6px"><div class="row"><span class="cap">Start Frame</span><span class="sp"></span><button class="ib sm" type="button" aria-label="Descarregar Start Frame"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"></path></svg></button></div><div class="ph t2 r916" style="width: 184px"><div class="fig"><i style="width: 34%"></i></div><span class="lb">AVT_C01_P02_start.png</span></div><span class="hint">Sem End Frame: há corte para o P03.</span></div>
+<div class="pb">
+<div class="pb-h"><span class="t">Prompt de vídeo</span><span class="tag">Receita · Start Frame</span><span class="sp"></span><span class="cnt">1 188 / 2000</span><button class="btn sm" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>Copiar</button></div>
+<textarea aria-label="Prompt de vídeo" style="height: 262px">Animate the start frame exactly as it is, keeping the same framing, lighting, colours and character positions.
+AVT_VERA: adult woman, short copper-red hair swept to the right, only one scar on the left eyebrow, brown leather aviator jacket with a cream sheepskin collar. AVT_DASH: blurred in the foreground on the right side of the frame, aviator goggles on his forehead.
+In the first two seconds Rita lifts her eyes from the map and turns her head to the right side of the frame, toward Dash, and says: "Temos até ao amanhecer. Se o vento virar, perdemos a janela." Warm, confident adult female voice, European Portuguese, clear natural lip movement. Then she holds the pose until the end.
+Dash stays still with his mouth closed. Nobody looks at the camera.
+Static camera.
+Sound: her voice, soft hangar ambience, distant wind, no music.
+Exactly 2 people, no text, no subtitles.</textarea>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: 16px; align-items: start">
+<div class="col" style="gap: 14px">
+<section class="sec">
+<div class="sec-h"><h2 class="h2">Definições</h2></div>
+<div class="sec-b">
+<div class="f"><label for="md">Modelo</label><select id="md" class="in"><option>Seedance 2.0 Mini</option></select></div>
+<div class="f"><label for="du">Duração</label><select id="du" class="in"><option>4 s</option></select></div>
+<div class="f"><span class="l">Modo</span><div class="seg" role="group" aria-label="Modo"><button class="on" type="button" aria-pressed="true">Frames</button><button type="button" aria-pressed="false">Referências</button></div></div>
+<div class="span3 hint">Seedance 2.0 Mini · 480p · 4 ou 5 s. Aceita Start/End Frame <b>ou</b> imagens de referência, nunca os dois.</div>
+</div>
+</section>
+<section class="sec">
+<div class="sec-h"><h2 class="h2">Resultados</h2><span class="sp"></span><span class="hint">Rejeitar apaga o ficheiro.</span></div>
+<div style="padding: 14px 16px; display: flex; gap: 14px; align-items: center">
+<div class="drop" style="flex: 1"><div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9m-5 5 5-5 5 5M5 4h14"></path></svg></div><div class="col" style="gap: 2px"><span style="font-weight: 500">Arrasta os clips do Artlist</span><span class="hint">MP4. Aprovar substitui o clip aprovado.</span></div><span class="sp"></span><button class="btn" type="button">Escolher ficheiros</button></div>
+</div>
+</section>
+</div>
+<div class="col" style="gap: 6px">
+<div class="row"><span class="cap">Clip aprovado</span><span class="sp"></span><button class="ib sm" type="button" aria-label="Descarregar clip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"></path></svg></button></div>
+<div class="player">
+<div class="ph t2 r916" style="width: 224px; border-radius: 0"><div class="fig"><i style="width: 34%"></i></div><button class="ib" type="button" aria-label="Reproduzir" style="position: absolute; inset: 0; margin: auto; width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg></button></div>
+<div class="pctl"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg><span>0:01</span><div class="prog"><i></i></div><span>0:04</span></div>
+</div>
+<span class="mono dim" style="font-size: 10.5px">AVT_C01_P02_v2.mp4 · 480p</span>
+</div>
+</div>
+</div>
+</main>
+<aside class="asst">
+<div class="asst-h"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"></path></svg><span class="h3">Assistente</span><span class="sp"></span><button class="ib sm" type="button" aria-label="Recolher assistente"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button></div>
+<div class="ctx"><span>Contexto</span><b>Cena 1 · Plano 2 · vídeo</b></div>
+<div class="msgs">
+<div class="msg u">Na v1 a Rita olhou para a câmara.</div>
+<div class="msg a">Troquei "looks at Dash" por uma direção de ecrã explícita e acrescentei "Nobody looks at the camera". A v2 já saiu bem.</div>
+<div class="sug">
+<div class="sug-h"><span>Campo</span><span class="f">P02 › Prompt de vídeo</span><span class="sp"></span><span class="st ok">Aplicado</span></div>
+<div class="sug-v mono">…turns her head to the right side of the frame, toward Dash…</div>
+</div>
+<div class="sug">
+<div class="sug-h"><span>Campo</span><span class="f">Configuração › Receita de vídeo</span></div>
+<div class="sug-v">Guardar a regra dos olhares em direções de ecrã na receita, para todos os planos.</div>
+<div class="sug-a"><button class="btn pri sm" type="button">Aplicar</button><button class="btn ghost sm" type="button">Ignorar</button></div>
+</div>
+</div>
+<div class="composer"><textarea aria-label="Mensagem para o Assistente" placeholder="Escrever ao Assistente…"></textarea><button class="ib b" type="button" aria-label="Enviar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg></button></div>
+</aside>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Escuro","Claro"],"default":"Escuro"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: (this.props.tema ?? 'Escuro') === 'Claro' ? 'light' : '' };
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Sala de argumentistas · {{ project.name }} · Estúdio{% endblock %}
+{% block body_class %}solo{% endblock %}
+{% set in_room = True %}
+{% macro who(a) %}{% set l = author_label(a) %}<span class="who {{ 'who-me' if l == me else 'who-' ~ (l|lower|replace(' ', '-')) }}">{{ l }}</span>{% endmacro %}
+{% macro comment_form(file_id=None, proposal=None, task=None, reply_to=None, placeholder="Escreve…", rows=3) %}
+  <form method="post" action="/projetos/{{ project.id }}/sala/comentar" class="col rm-form" style="gap: 6px">
+    {{ m.csrf() }}<input type="hidden" name="back" value="{{ back }}">
+    {% if file_id %}<input type="hidden" name="file_id" value="{{ file_id }}">{% endif %}
+    {% if proposal %}<input type="hidden" name="proposal" value="{{ proposal }}">{% endif %}
+    {% if task %}<input type="hidden" name="task" value="{{ task }}">{% endif %}
+    {% if reply_to %}<input type="hidden" name="reply_to" value="{{ reply_to }}">{% endif %}
+    <textarea class="in" name="text" rows="{{ rows }}" required placeholder="{{ placeholder }}"></textarea>
+    <div class="row"><span class="hint">@{{ people|join(", @") }}, @todos</span><span class="sp"></span><button class="btn pri sm" type="submit">{{ i.icon("send", 13) }}{{ "Responder" if reply_to else "Publicar" }}</button></div>
+  </form>
+{% endmacro %}
+{% macro discussion(items, file_id=None, proposal=None, task=None, placeholder="Escreve…") %}
+  <div class="rm-thread">
+  {% for c, depth in items %}
+  <div class="rm-c{% if c.author == me %} me{% endif %}{% if c.verdict %} v-{{ c.verdict }}{% endif %}" style="margin-left: {{ depth * 22 }}px" id="c{{ c.id }}">
+    <div class="rm-c-h">{{ who(c.author) }}<span class="dim mono">#{{ c.id }}</span>
+      {% if c.verdict %}<span class="st {{ 'ok' if c.verdict == 'approve' else 'no' }}">{{ VERDICTS[c.verdict] }} · r{{ c.revision }}</span>{% endif %}
+      {% if c.version %}<span class="dim mono">v{{ c.version }}</span>{% endif %}
+      {% if c.mentions %}<span class="dim">→ {{ c.mentions|join(", ") }}</span>{% endif %}
+      <span class="sp"></span><span class="dim">{{ c.created_at|relative }}</span></div>
+    <div class="msg">{{ c.text }}</div>
+    <details class="rm-reply"><summary class="dim">Responder</summary>{{ comment_form(file_id, proposal, task, c.id, "Resposta a " ~ author_label(c.author) ~ "…", 2) }}</details>
+  </div>
+  {% else %}<p class="hint">Ainda ninguém escreveu aqui.</p>{% endfor %}
+  </div>
+  {{ comment_form(file_id, proposal, task, None, placeholder) }}
+{% endmacro %}
+{% macro tree_node(node, depth) %}
+  {% for d in node.dirs %}
+  <details class="rm-dir" data-dir="{{ d.path }}" {% if d.has_cur %}data-has-cur{% endif %} open>
+    <summary class="li rm-dir-h" style="padding-left: {{ 8 + depth * 14 }}px" title="{{ d.path }}">{{ i.icon("chev-right", 12) }}<span class="t">{{ d.name }}</span><span class="n">{{ d.n }}</span></summary>
+    {{ tree_node(d, depth + 1) }}
+  </details>
+  {% endfor %}
+  {% for it in node.files %}{% set f = it.f %}
+  <a class="li rm-file {% if cur and cur.id == f.id %}on{% endif %}" href="?f={{ f.id }}" title="{{ f.path }}" style="padding-left: {{ 12 + depth * 14 }}px">
+    {% if f.status == "approved" %}<span class="ok-t">{{ i.icon("lock", 13) }}</span>{% else %}{{ i.icon("doc", 13) }}{% endif %}
+    <span class="t">{{ it.name }}</span>
+    {% if counts.get(f.id) %}<span class="n">{{ counts.get(f.id) }}</span>{% endif %}
+  </a>
+  {% endfor %}
+{% endmacro %}
+{% macro diffbox(rows) %}<div class="rm-diff">{% for r in rows %}<div class="dl {{ r.k }}">{{ r.t or " " }}</div>{% else %}<div class="dl skip">Sem diferenças.</div>{% endfor %}</div>{% endmacro %}
+{% block body %}
+<main class="main">
+  <div id="live" hidden data-p="{{ project.id }}" data-v="{{ live_version(project.id) }}"></div>
+  <div class="content content-lg">
+    <div class="phead">
+      <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Sala de argumentistas</span></div><h1 class="h1">Sala de argumentistas</h1></div>
+      <span class="sp"></span><a class="btn" href="/projetos/{{ project.id }}/etapa/2">Ir para a História</a>
+    </div>
+    {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
+    {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
+
+    <div class="room">
+      <aside class="rm-side pn">
+        <a class="li {% if view == 'geral' %}on{% endif %}" href="/projetos/{{ project.id }}/sala">{{ i.icon("chat", 14) }}Conversa geral<span class="n">{{ counts.get(None, 0) }}</span></a>
+        <a class="li {% if view == 'avisos' %}on{% endif %}" href="?v=avisos">{{ i.icon("alert", 14) }}Notificações{% if unread %}<span class="badge-n">{{ unread }}</span>{% endif %}</a>
+        <a class="li {% if view in ('propostas', 'proposal') %}on{% endif %}" href="?v=propostas">{{ i.icon("sparkles", 14) }}Propostas<span class="n">{{ open_props or "" }}</span></a>
+        <a class="li {% if view == 'tarefas' %}on{% endif %}" href="?v=tarefas">{{ i.icon("check", 14) }}Tarefas<span class="n">{{ active_tasks or "" }}</span></a>
+        <div class="row rm-tree-h"><span class="rm-folder dim">Ficheiros</span><span class="sp"></span>
+          {% if tree.dirs %}<button class="ib sm" type="button" data-tree-all="open" title="Abrir todas as pastas" aria-label="Abrir todas as pastas">{{ i.icon("chev-down", 13) }}</button><button class="ib sm" type="button" data-tree-all="close" title="Fechar todas as pastas" aria-label="Fechar todas as pastas">{{ i.icon("chev-up", 13) }}</button>{% endif %}</div>
+        <nav class="rm-tree" data-tree="{{ project.id }}">{{ tree_node(tree, 0) }}</nav>
+        {% if not tree.n %}<p class="hint" style="padding: 6px 10px">Ainda não há ficheiros.</p>{% endif %}
+        {% if trash %}<a class="li {% if view == 'apagados' or (cur and cur.deleted_at) %}on{% endif %}" href="?v=apagados" style="margin-top: 6px">{{ i.icon("trash", 14) }}Apagados<span class="n">{{ trash|length }}</span></a>{% endif %}
+        <details class="rm-new">
+          <summary class="btn sm">{{ i.icon("plus", 13) }}Novo ficheiro</summary>
+          <form method="post" action="/projetos/{{ project.id }}/sala/novo" class="col" style="gap: 8px; margin-top: 8px">
+            {{ m.csrf() }}
+            <input class="in" name="path" required placeholder="ex.: Temporada 1/E01/guiao.md" aria-label="Caminho">
+            <select class="in" name="target" aria-label="Destino na app">
+              <option value="">Sem destino na app (notas, ideias…)</option>
+              {% for t in targets %}<option value="{{ t.key }}" {% if t.key in taken %}disabled{% endif %}>{{ t.label }}{% if t.key in taken %} — já tem ficheiro{% endif %}</option>{% endfor %}
+            </select>
+            <span class="hint">Com destino, o ficheiro começa com o que a app já tem.</span>
+            <button class="btn pri sm" type="submit">Criar</button>
+          </form>
+        </details>
+      </aside>
+
+      <section class="rm-main">
+        {% if view == "geral" %}
+        <div class="pn">
+          <p class="hint">Aqui o ChatGPT, o Claude e tu escrevem e discutem a história e os guiões em ficheiros de texto, sem mexer na app. Cada mudança fica como uma versão; as mudanças que merecem discussão vão como propostas, com pareceres; há uma fila de tarefas partilhada. Quando aprovares um ficheiro, o texto passa para a app e o ficheiro fica trancado até o destrancares.</p>
+          <p class="hint">Para eles começarem, diz-lhes numa conversa (com o conector Estúdio ligado): «vê a sala de argumentistas do projeto {{ project.name }}».</p>
+        </div>
+        <div class="pn" style="margin-top: 12px">
+          <h2 class="h2">Conversa geral</h2>
+          {{ discussion(thread, placeholder="Escreve para as IAs (ex.: «@ChatGPT reescreve a cena do bar com mais tensão; @Claude vê se é filmável»).") }}
+        </div>
+
+        {% elif view == "avisos" %}
+        <div class="pn">
+          <h2 class="h2">Notificações para {{ me }}</h2>
+          <div class="rm-list">
+          {% for n in items %}
+          <a class="rm-n{% if fresh is defined and n.id in fresh %} new{% endif %}" href="{% if n.proposal_id %}?p={{ prop_numbers.get(n.proposal_id) }}{% elif n.task_id %}?v=tarefas{% elif n.file_id %}?f={{ n.file_id }}&tab=discussao{% else %}?{% endif %}{% if n.comment_id %}#c{{ n.comment_id }}{% endif %}">
+            {{ who(n.author) }}<span class="t">{{ n.text }}</span><span class="dim">{{ n.created_at|relative }}</span>
+          </a>
+          {% else %}<p class="hint">Sem notificações.</p>{% endfor %}
+          </div>
+        </div>
+
+        {% elif view == "propostas" %}
+        <div class="pn">
+          <h2 class="h2">Propostas de alteração</h2>
+          <div class="rm-list">
+          {% for x, st in props %}
+          <a class="rm-prop" href="?p={{ x.number }}">
+            <span class="mono">#{{ x.number }}</span><span class="t">{{ x.title }}<span class="dim"> · {{ st.file.path }}</span></span>{{ who(x.author) }}
+            <span class="st {{ 'ok' if x.status == 'applied' else 'wip' if x.status == 'open' else '' }}">{{ PSTATUS[x.status] }}</span>
+            {% if x.status == "open" %}{% if st.approvals %}<span class="st ok">aprovam: {{ st.approvals|join(", ") }}</span>{% endif %}{% if st.contests %}<span class="st no">contestam: {{ st.contests|join(", ") }}</span>{% endif %}{% if st.conflicts %}<span class="st no">conflitos</span>{% endif %}{% if x.decisions %}<span class="st warn">decisão tua</span>{% endif %}{% endif %}
+          </a>
+          {% else %}<p class="hint">Ainda não há propostas. As IAs fazem-nas com propose_change.</p>{% endfor %}
+          </div>
+        </div>
+
+        {% elif view == "proposal" %}
+        {% set x, st = prop, pst %}
+        <div class="pn">
+          <div class="row" style="flex-wrap: wrap; row-gap: 6px">
+            <span class="mono">#{{ x.number }}</span><h2 class="h2" style="flex: 1; min-width: 200px">{{ x.title }}</h2>
+            <span class="st {{ 'ok' if x.status == 'applied' else 'wip' if x.status == 'open' else '' }}">{{ PSTATUS[x.status] }}</span>
+          </div>
+          <div class="row dim" style="flex-wrap: wrap; row-gap: 4px">{{ who(x.author) }} · <a href="?f={{ x.file_id }}">{{ st.file.path }}</a> · sobre a versão {{ x.base_version }} (o ficheiro vai na {{ st.file.version }}) · revisão {{ x.revision }} · {{ x.updated_at|relative }}
+            {% if alt_of %} · alternativa à <a href="?p={{ alt_of.number }}">#{{ alt_of.number }}</a>{% endif %}
+            {% if alts %} · alternativas: {% for a in alts %}<a href="?p={{ a.number }}">#{{ a.number }}</a> {% endfor %}{% endif %}</div>
+          {% if x.status == "open" %}
+          <div class="row" style="flex-wrap: wrap; gap: 6px">
+            <span class="st {{ 'ok' if st.approvals else '' }}">aprovam: {{ st.approvals|join(", ") or "ninguém" }}</span>
+            <span class="st {{ 'no' if st.contests else '' }}">contestam: {{ st.contests|join(", ") or "ninguém" }}</span>
+            {% if st.stale_reviews %}<span class="dim">pareceres de revisões antigas: {{ st.stale_reviews|join(", ") }}</span>{% endif %}
+          </div>
+          {% if st.conflicts %}<div class="alert err"><b>Choca com o que mudou no ficheiro desde a versão {{ x.base_version }}:</b><ul>{% for c in st.conflicts %}<li>{{ c }}</li>{% endfor %}</ul>{{ author_label(x.author) }} tem de a rever sobre a versão atual.</div>
+          {% elif st.behind %}<p class="hint">O ficheiro mudou {{ st.behind }} vez(es) desde a base; junta-se sem conflitos.</p>{% endif %}
+          {% endif %}
+          <div class="rm-prop-f"><b>Justificação</b><div class="msg">{{ x.rationale or "—" }}</div></div>
+          <div class="rm-prop-f"><b>Impactos na continuidade</b><div class="msg">{{ x.impacts or "—" }}</div></div>
+          <div class="rm-prop-f{% if x.decisions %} decide{% endif %}"><b>Precisa da tua decisão</b><div class="msg">{{ x.decisions or "—" }}</div></div>
+          <h3 class="h3">Diferenças (versão {{ x.base_version }} → proposta)</h3>
+          {{ diffbox(st.rows) }}
+          {% if x.status == "open" %}
+          <div class="row" style="flex-wrap: wrap; gap: 8px">
+            {% if st.file.status == "approved" %}<span class="hint">O ficheiro está trancado: destranca-o para aplicar.</span>
+            {% elif not st.conflicts %}<form method="post" action="/projetos/{{ project.id }}/sala/propostas/{{ x.number }}/aplicar" class="inline-form">{{ m.csrf() }}<button class="btn pri sm" type="submit">{{ i.icon("check", 13) }}Aplicar ao ficheiro</button></form>{% endif %}
+            <details class="rm-reply"><summary class="btn sm">Dar parecer</summary>
+              <form method="post" action="/projetos/{{ project.id }}/sala/propostas/{{ x.number }}/parecer" class="col" style="gap: 6px; margin-top: 6px">{{ m.csrf() }}
+                <div class="row"><label class="row"><input type="radio" name="verdict" value="approve" required> Aprovo</label><label class="row"><input type="radio" name="verdict" value="contest"> Contesto</label></div>
+                <textarea class="in" name="text" rows="2" required placeholder="Porquê"></textarea><button class="btn sm pri" type="submit">Enviar parecer</button></form></details>
+            <details class="rm-reply"><summary class="btn sm no">Rejeitar</summary>
+              <form method="post" action="/projetos/{{ project.id }}/sala/propostas/{{ x.number }}/rejeitar" class="col" style="gap: 6px; margin-top: 6px">{{ m.csrf() }}
+                <textarea class="in" name="note" rows="2" placeholder="Porquê (opcional)"></textarea><button class="btn sm no" type="submit">Rejeitar a proposta</button></form></details>
+          </div>
+          {% endif %}
+        </div>
+        <div class="pn" style="margin-top: 12px">
+          <h2 class="h2">Discussão</h2>
+          {{ discussion(thread, proposal=x.number, placeholder="Comenta a proposta.") }}
+        </div>
+
+        {% elif view == "apagados" %}
+        <div class="pn">
+          <h2 class="h2">Ficheiros apagados</h2>
+          <p class="hint">Ficam aqui com as versões e a discussão até os repores ou apagares de vez. As IAs podem apagar ficheiros em escrita; apagar de vez é só contigo.</p>
+          <div class="rm-list">
+          {% for f in trash %}
+          <div class="rm-n">
+            {{ i.icon("doc", 13) }}<a class="t" href="?f={{ f.id }}">{{ original_path(f) }}</a>
+            <span class="dim">{{ author_label(f.deleted_by) }} · {{ f.deleted_at|relative }}</span>
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ f.id }}/repor-ficheiro" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit">Repor</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ f.id }}/apagar-de-vez" class="inline-form" onsubmit='return confirm({{ ("Apagar de vez «" ~ original_path(f) ~ "», com todas as versões, a discussão e as propostas? Não se desfaz.")|tojson }})'>{{ m.csrf() }}<button class="btn sm no" type="submit">Apagar de vez</button></form>
+          </div>
+          {% else %}<p class="hint">Nada apagado.</p>{% endfor %}
+          </div>
+        </div>
+
+        {% elif view == "tarefas" %}
+        <div class="pn">
+          <h2 class="h2">Tarefas editoriais</h2>
+          <details class="rm-reply"><summary class="btn sm">{{ i.icon("plus", 13) }}Nova tarefa</summary>
+            <form method="post" action="/projetos/{{ project.id }}/sala/tarefas/nova" class="col" style="gap: 6px; margin-top: 6px">{{ m.csrf() }}
+              <input class="in" name="title" required placeholder="ex.: rever o episódio 3 · verificar a cronologia">
+              <textarea class="in" name="details" rows="2" placeholder="Detalhes (opcional)"></textarea>
+              <div class="row" style="flex-wrap: wrap">
+                <select class="in" name="assignee" aria-label="Responsável" style="max-width: 200px"><option value="">Quem pegar</option>{% for pp in people %}<option>{{ pp }}</option>{% endfor %}</select>
+                <select class="in" name="file_id" aria-label="Ficheiro" style="max-width: 280px"><option value="">Sem ficheiro</option>{% for fid, pth in paths.items() %}<option value="{{ fid }}">{{ pth }}</option>{% endfor %}</select>
+                <button class="btn pri sm" type="submit">Criar</button>
+              </div>
+            </form></details>
+          <div class="rm-list">
+          {% for t in tasks %}
+          <div class="rm-task {{ t.status }}">
+            <div class="row" style="flex-wrap: wrap; row-gap: 4px">
+              <span class="mono">#{{ t.number }}</span><b style="flex: 1; min-width: 160px">{{ t.title }}</b>
+              <span class="st {{ 'ok' if t.status == 'done' else 'wip' if t.status == 'doing' else '' }}">{{ TSTATUS[t.status] }}</span>
+              <span class="dim">{{ t.assignee or "quem pegar" }} · de {{ author_label(t.created_by) }} · {{ t.created_at|relative }}</span>
+            </div>
+            {% if t.details %}<div class="msg dim">{{ t.details }}</div>{% endif %}
+            {% if t.file_id or t.proposal_id %}<div class="dim">{% if t.file_id %}<a href="?f={{ t.file_id }}">{{ paths.get(t.file_id) }}</a>{% endif %}{% if t.proposal_id %}{% if t.file_id %} · {% endif %}<a href="?p={{ prop_numbers.get(t.proposal_id) }}">proposta #{{ prop_numbers.get(t.proposal_id) }}</a>{% endif %}</div>{% endif %}
+            {% if t.result %}<div class="rm-prop-f"><b>Resultado</b><div class="msg">{{ t.result }}</div></div>{% endif %}
+            <details class="rm-reply"><summary class="dim">Mudar · discussão ({{ task_threads[t.id]|length }})</summary>
+              <form method="post" action="/projetos/{{ project.id }}/sala/tarefas/{{ t.number }}" class="col" style="gap: 6px; margin: 6px 0">{{ m.csrf() }}
+                <div class="row" style="flex-wrap: wrap">
+                  <select class="in" name="status" aria-label="Estado" style="max-width: 160px">{% for k, lbl in TSTATUS.items() %}<option value="{{ k }}" {% if k == t.status %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+                  <select class="in" name="assignee" aria-label="Responsável" style="max-width: 200px"><option value="">Quem pegar</option>{% for pp in people %}<option {% if pp == t.assignee %}selected{% endif %}>{{ pp }}</option>{% endfor %}</select>
+                </div>
+                <textarea class="in" name="result" rows="2" placeholder="Resultado (obrigatório para «feita»)">{{ t.result }}</textarea>
+                <button class="btn sm pri" type="submit" style="align-self: flex-start">Guardar</button>
+              </form>
+              {{ discussion(task_threads[t.id], task=t.number, placeholder="Comenta a tarefa.") }}
+            </details>
+          </div>
+          {% else %}<p class="hint">Sem tarefas.</p>{% endfor %}
+          </div>
+        </div>
+
+        {% else %}
+        <div class="pn">
+          <div class="row" style="flex-wrap: wrap; row-gap: 6px">
+            <span class="mono rm-path">{{ original_path(cur) }}</span>
+            {% if cur.status == "approved" %}<span class="st ok">{{ i.icon("lock", 12) }} Aprovado · v{{ cur.approved_version }}</span>{% else %}<span class="st wip">Em escrita</span>{% endif %}
+            <span class="dim">v{{ cur.version }} · {{ author_label(cur.last_author) }} · {{ cur.updated_at|relative }}</span>
+            <span class="sp"></span>
+            {% if cur.deleted_at %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/repor-ficheiro" class="inline-form">{{ m.csrf() }}<button class="btn pri sm" type="submit">Repor</button></form>
+            {% else %}
+            {% if cur.status == "approved" %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/destrancar" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit">{{ i.icon("lock", 13) }}Destrancar</button></form>
+            {% else %}
+            <a class="btn pri sm" href="?f={{ cur.id }}&tab=aprovar">{{ i.icon("check", 13) }}Aprovar…</a>
+            {% endif %}
+            <a class="ib sm" href="/projetos/{{ project.id }}/sala/{{ cur.id }}/pdf{% if ver is defined and ver %}?ver={{ ver }}{% endif %}" hx-boost="false" download title="Descarregar em PDF" aria-label="Descarregar em PDF">{{ i.icon("download", 15) }}</a>
+            {% set del_msg = "Apagar «" ~ cur.path ~ "»? Vai para Apagados, com as versões e a discussão; podes repô-lo." ~ (" O que já passou para a app fica na app." if cur.status == "approved" else "") %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/apagar" class="inline-form" onsubmit='return confirm({{ del_msg|tojson }})'>{{ m.csrf() }}<button class="ib sm" type="submit" title="Apagar ficheiro" aria-label="Apagar ficheiro">{{ i.icon("trash", 15) }}</button></form>
+            {% endif %}
+          </div>
+          {% if cur.deleted_at %}<div class="alert warn">Apagado por {{ author_label(cur.deleted_by) }} {{ cur.deleted_at|relative }}. Está só para leitura até o repores.</div>{% endif %}
+          <div class="row" style="flex-wrap: wrap; row-gap: 6px">
+            <span class="dim">Destino na app:</span>
+            {% if cur.status == "approved" or cur.deleted_at %}<span>{{ target_label or ("nenhum (só trancado)" if cur.status == "approved" else "nenhum") }}</span>
+            {% else %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/destino" class="row" style="gap: 6px">
+              {{ m.csrf() }}<input type="hidden" name="tab" value="{{ tab }}">
+              <select class="in" name="target" onchange="this.form.requestSubmit()" aria-label="Destino na app" style="max-width: 360px">
+                <option value="">Nenhum (notas, ideias…)</option>
+                {% for t in targets %}<option value="{{ t.key }}" {% if t.key == cur.target %}selected{% elif t.key in taken %}disabled{% endif %}>{{ t.label }}</option>{% endfor %}
+              </select>
+            </form>
+            {% endif %}
+          </div>
+          {% if file_props %}<div class="alert info">Propostas abertas para este ficheiro: {% for x in file_props %}<a href="?p={{ x.number }}">#{{ x.number }} «{{ x.title }}» ({{ author_label(x.author) }})</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+          <nav class="seg" style="align-self: flex-start">
+            <a href="?f={{ cur.id }}" class="{% if tab == 'texto' %}on{% endif %}">Texto</a>
+            <a href="?f={{ cur.id }}&tab=discussao" class="{% if tab == 'discussao' %}on{% endif %}">Discussão{% if thread %} ({{ thread|length }}){% endif %}</a>
+            <a href="?f={{ cur.id }}&tab=historico" class="{% if tab == 'historico' %}on{% endif %}">Histórico ({{ cur.version }})</a>
+            {% if cur.status == "draft" and not cur.deleted_at %}<a href="?f={{ cur.id }}&tab=aprovar" class="{% if tab == 'aprovar' %}on{% endif %}">Aprovar</a>{% endif %}
+          </nav>
+
+          {% if tab == "texto" %}
+            {% set vq = "&ver=%d" % ver if ver else "" %}
+            <div class="row" style="flex-wrap: wrap; row-gap: 6px">
+              <nav class="seg">
+                <a href="?f={{ cur.id }}{{ vq }}" class="{% if mode == 'ler' %}on{% endif %}">Ler</a>
+                {% if cur.status == "draft" and not ver and not cur.deleted_at %}<a href="?f={{ cur.id }}&modo=editar" class="{% if mode == 'editar' %}on{% endif %}">Editar</a>
+                {% else %}<a href="?f={{ cur.id }}{{ vq }}&modo=simples" class="{% if mode == 'simples' %}on{% endif %}">Texto simples</a>{% endif %}
+              </nav>
+              {% if mode == "ler" %}<span class="sp"></span><button class="btn sm rd-toggle" type="button" data-rd-toggle aria-label="Alternar fundo branco e preto"><span class="rd-sw"></span><span class="rd-to-paper">Fundo branco</span><span class="rd-to-dark">Fundo preto</span></button>{% endif %}
+            </div>
+            {% if ver %}
+            <div class="alert info row" style="gap: 8px">A ver a versão {{ ver }} (a atual é a {{ cur.version }}).<span class="sp"></span>
+              {% if cur.status == "draft" %}<form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/repor/{{ ver }}" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit">Repor esta versão</button></form>{% endif %}
+              <a class="btn sm" href="?f={{ cur.id }}">Ver a atual</a></div>
+            {% endif %}
+            {% if mode == "ler" %}
+            <article class="rd">{{ reading }}</article>
+            {% elif mode == "simples" %}
+            <pre class="rm-text">{{ shown }}</pre>
+            {% else %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/gravar" class="col rm-edit-form" style="gap: 8px" data-edit-guard>
+              {{ m.csrf() }}<input type="hidden" name="base_version" value="{{ cur.version }}">
+              <div class="rm-savebar">
+                <input class="in" name="message" placeholder="O que mudaste (opcional)" aria-label="O que mudaste">
+                <span class="hint rm-dirty">Alterações por gravar</span>
+                <button class="btn pri sm" type="submit" title="Gravar (Ctrl+S)">Gravar versão</button>
+              </div>
+              <textarea class="in mono rm-edit" name="content" spellcheck="false" aria-label="Texto">{{ shown }}</textarea>
+            </form>
+            {% endif %}
+            <details class="rm-more">
+              <summary class="dim">Mais ações</summary>
+              <div class="row" style="flex-wrap: wrap; gap: 8px; margin-top: 8px">
+                {% if cur.status == "draft" and not cur.deleted_at %}
+                <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/renomear" class="row" style="gap: 6px">{{ m.csrf() }}
+                  <input class="in" name="path" value="{{ cur.path }}" aria-label="Novo caminho" style="min-width: 260px"><button class="btn sm" type="submit">Mudar o nome</button></form>
+                {% else %}<span class="hint">Destranca o ficheiro para mudar o nome.</span>{% endif %}
+              </div>
+            </details>
+
+          {% elif tab == "discussao" %}
+            {{ discussion(thread, file_id=cur.id, placeholder="Comenta este ficheiro (menciona com @Claude, @ChatGPT ou @todos).") }}
+
+          {% elif tab == "historico" %}
+            <div class="rm-versions">
+              {% for v in versions %}
+              <div class="rm-v{% if d == v.version %} on{% endif %}">
+                <span class="mono">v{{ v.version }}</span>{{ who(v.author) }}
+                <span class="rm-v-msg">{{ v.message or "—" }}</span>
+                {% if cur.approved_version == v.version %}<span class="st ok">aprovada</span>{% endif %}
+                <span class="dim">{{ v.created_at|relative }}</span>
+                {% if v.version > 1 %}<a class="btn sm" href="?f={{ cur.id }}&tab=historico&d={{ v.version }}">Diferenças</a>{% endif %}
+                {% if v.version != cur.version %}<a class="btn sm" href="?f={{ cur.id }}&ver={{ v.version }}">Ver</a>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% if diff is defined %}
+            <h3 class="h3" style="margin-top: 8px">v{{ d - 1 }} → v{{ d }}</h3>
+            <div class="rm-diff">{% for r in diff %}<div class="dl {{ r.k }}">{{ r.t or " " }}</div>{% else %}<div class="dl skip">Sem diferenças.</div>{% endfor %}</div>
+            {% endif %}
+
+          {% elif tab == "aprovar" and preview is defined %}
+            {% set pv = preview %}
+            {% if pv.kind == "none" and not pv.errors %}
+            <p>Este ficheiro não tem destino na app: aprovar só o tranca (as IAs deixam de o poder mudar).</p>
+            {% elif pv.kind == "text" %}
+            <p>Aprovar passa o texto para <b>{{ pv.label }}</b>{% if pv.same %} (já é igual ao que a app tem){% endif %}. Diferenças em relação ao que a app tem agora:</p>
+            {% if not pv.same %}<div class="rm-diff">{% for r in pv.rows %}<div class="dl {{ r.k }}">{{ r.t or " " }}</div>{% endfor %}</div>{% endif %}
+            {% elif pv.kind == "scenes" %}
+            <p>Aprovar passa o guião para <b>{{ pv.label }}</b>:</p>
+            <div class="rm-plan">
+              {% for s in pv.scenes %}
+              <div class="rm-p {{ s.action }}">
+                <span class="mono">C{{ '%02d' % s.n }}</span><span class="t">{{ s.title }}</span>
+                {% if s.action == "create" %}<span class="st wip">nova · {{ s.added }} linha(s)</span>
+                {% elif s.action == "same" %}<span class="dim">sem mudanças</span>
+                {% else %}{% set bits = [] %}{% if s.old_number != s.n %}{% set _ = bits.append("era a C%02d" % s.old_number) %}{% endif %}{% if s.changed %}{% set _ = bits.append("%d mudada(s)" % s.changed) %}{% endif %}{% if s.added %}{% set _ = bits.append("%d nova(s)" % s.added) %}{% endif %}{% if s.removed %}{% set _ = bits.append("%d apagada(s)" % s.removed) %}{% endif %}{% if s.meta %}{% set _ = bits.append(s.meta|join(", ")) %}{% endif %}<span class="st">{{ bits|join(" · ") }}</span>{% endif %}
+              </div>
+              {% endfor %}
+              {% for t in pv.trash %}
+              <div class="rm-p trash"><span class="t">{{ t.label }}</span><span class="st no">sai do guião → Reciclagem{% if t.shots %} (com {{ t.shots }} plano(s)){% endif %}</span></div>
+              {% endfor %}
+            </div>
+            {% if pv.lost %}<div class="alert warn"><b>Planos que perdem falas:</b><ul>{% for x in pv.lost %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+            {% endif %}
+            {% if pv.warnings %}<div class="alert info"><ul>{% for w in pv.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+            {% if pv.errors %}
+            <div class="alert err"><b>Não dá para aprovar ainda:</b><ul>{% for e in pv.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+            {% else %}
+            <form method="post" action="/projetos/{{ project.id }}/sala/{{ cur.id }}/aprovar" class="row">
+              {{ m.csrf() }}<input type="hidden" name="version" value="{{ cur.version }}">
+              <button class="btn pri" type="submit">{{ i.icon("check", 14) }}Aprovar a versão {{ cur.version }} e trancar</button>
+              <span class="hint">Só tu destrancas depois.</span>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</main>
+{% endblock %}

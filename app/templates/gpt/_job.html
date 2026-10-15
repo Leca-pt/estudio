@@ -1,0 +1,22 @@
+{# Cartão de um trabalho de imagem (GPT Image ou Artlist). item = {job, position}. Enquanto corre, pergunta o estado a cada 4 s. #}
+{% set j = item.job %}
+<div class="res job-tile" id="job-{{ j.id }}"{% if j.status in ("queued", "running") %} hx-get="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}" hx-trigger="every 4s" hx-swap="outerHTML"{% endif %}>
+  <div class="slot job-slot {{ 'job-fail' if j.status == 'failed' else '' }}">
+    {% if j.status == "failed" %}
+      <span class="st no">Falhou · {{ item.provider_label }}</span><span class="job-err">{{ j.error or "Erro desconhecido." }}</span>
+    {% else %}
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span>{{ "A gerar…" if j.status == "running" else ("Na fila" ~ (" · %d antes" % item.position if item.position else "")) }}</span>
+      {% if j.status == "running" and j.stage %}<span class="job-stage">{{ j.stage }}</span>{% endif %}
+      <span class="dim">{{ item.provider_label }}{{ " · edição" if j.kind == "edit" else "" }}{{ " · vídeo" if j.role == "clip" else "" }}</span>
+    {% endif %}
+  </div>
+  <div class="acts">
+    {% if j.status == "failed" %}
+    <form method="post" action="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}/repetir" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ request.url.path }}"><button class="btn sm" type="submit">Repetir</button></form>
+    {% endif %}
+    {% if j.status in ("queued", "failed") %}
+    <form method="post" action="/projetos/{{ project.id }}/imagens/trabalhos/{{ j.id }}/cancelar" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ request.url.path }}"><button class="btn ghost sm" type="submit">{{ "Cancelar" if j.status == "queued" else "Fechar" }}</button></form>
+    {% endif %}
+  </div>
+</div>

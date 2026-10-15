@@ -1,0 +1,27 @@
+{% import "_macros.html" as m with context %}
+<div class="phead">
+  <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Etapa {{ stage_pos }}</span></div><h1 class="h1">Geração de vídeo</h1></div>
+  <span class="sp"></span>
+  {{ m.status(stage_state[0], stage_state[1]) }}
+</div>
+{{ m.alerts(error) }}
+{% if models %}
+<form method="post" action="/projetos/{{ project.id }}/video/padrao" class="sec" style="margin-bottom: 14px">{{ m.csrf() }}
+  <div class="sec-h"><h2 class="h2">Padrão do projeto</h2><span class="hint">· os planos usam este modelo e esta resolução até escolherem outros na página de vídeo do plano</span></div>
+  <div class="sec-b">
+    <div class="f span2"><label for="p_video_model">Modelo de vídeo</label>
+      <select id="p_video_model" name="video_model" class="in">{% for md in models %}<option value="{{ md.name }}" {% if proj_model and md.name == proj_model.name %}selected{% endif %}>{{ md.name }}{% if not md.video_refs %} · sem vídeo-guia{% endif %}</option>{% endfor %}</select></div>
+    <div class="f"><label for="p_video_resolution">Resolução</label>
+      <select id="p_video_resolution" name="video_resolution" class="in">{% for r in resolutions %}<option value="{{ r }}" {% if r == proj_res %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="sec-f"><span class="sp"></span><button class="btn pri sm" type="submit">Guardar padrão</button></div>
+</form>
+{% endif %}
+{% if rows %}
+<span class="hint">Escolhe um plano para montar o prompt de vídeo e carregar os clips.</span>
+{% include "montage/_rows.html" %}
+{% else %}
+{% call m.empty_state("Ainda sem cenas", "Os planos criados no Storyboard aparecem aqui, cada um com o seu prompt de vídeo e os clips carregados.", "film") %}
+  <a class="btn pri" href="/projetos/{{ project.id }}/etapa/5">Ir para o Storyboard</a>
+{% endcall %}
+{% endif %}

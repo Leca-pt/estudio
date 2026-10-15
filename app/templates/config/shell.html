@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set has_side = True %}
+{% block title %}Configuração · Estúdio{% endblock %}
+{% block body_class %}no-asst{% endblock %}
+{% block body %}
+<aside class="side" aria-label="Configuração">
+  <div class="side-h"><span class="lbl">Configuração</span><span class="sp"></span>
+    <button class="ib sm" type="button" data-toggle-side aria-label="Recolher menu">{{ i.icon("panel-left", 15) }}</button>
+  </div>
+  <nav class="tree">
+    <a class="tn {% if section == 'listas' %}on{% endif %}" href="/configuracao/listas"><span class="t">Listas</span></a>
+    <a class="tn {% if section == 'modelos' %}on{% endif %}" href="/configuracao/modelos"><span class="t">Modelos e geração</span></a>
+    {% if section == 'modelos' %}
+    <a class="tn sub" href="#geracao"><span class="t">Imagens</span></a>
+    <a class="tn sub" href="#video"><span class="t">Vídeo</span></a>
+    {% endif %}
+    <a class="tn {% if section == 'ligacoes' %}on{% endif %}" href="/configuracao/ligacoes"><span class="t">Ligações</span></a>
+    {% if section == 'ligacoes' %}
+    <a class="tn sub" href="#claude"><span class="t">Claude Code</span></a>
+    <a class="tn sub" href="#gpt-image"><span class="t">GPT Image (Codex)</span></a>
+    <a class="tn sub" href="#artlist"><span class="t">Artlist</span></a>
+    {% endif %}
+    <a class="tn {% if section == 'prompts' %}on{% endif %}" href="/configuracao/prompts"><span class="t">Prompts</span></a>
+    {% if section == 'prompts' %}
+    <a class="tn sub" href="#receita"><span class="t">Receitas de vídeo</span></a>
+    <a class="tn sub" href="#regras"><span class="t">Regras de prompt</span></a>
+    <a class="tn sub" href="#folhas"><span class="t">Receitas de folha</span></a>
+    <a class="tn sub" href="#validacoes"><span class="t">Validações</span></a>
+    {% endif %}
+    <a class="tn {% if section == 'assistente' %}on{% endif %}" href="/configuracao/assistente"><span class="t">Assistente</span></a>
+    <a class="tn {% if section == 'chaves' %}on{% endif %}" href="/configuracao/chaves"><span class="t">Chaves de API</span></a>
+    <a class="tn {% if section == 'conta' %}on{% endif %}" href="/configuracao/conta"><span class="t">Conta</span></a>
+  </nav>
+  <div class="side-f">Aplica-se a todos os projetos</div>
+</aside>
+<div class="side-scrim" data-toggle-side></div>
+<main class="main">
+  <div class="content" style="padding-top: 22px">
+    {% block content %}{% endblock %}
+  </div>
+  {% if main_form is defined %}<div class="m-bar"><button class="btn pri m-btn" type="submit" form="{{ main_form }}">Guardar</button></div>{% endif %}
+</main>
+{% endblock %}

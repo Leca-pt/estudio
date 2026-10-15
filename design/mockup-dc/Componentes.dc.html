@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Componentes recorrentes</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c81c0790deadc2db4cef68158f944ecd">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#0e0f11}.pn{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0}.pn>.cap{margin-bottom:2px}</style>
+</helmet>
+<div class="app {{theme}}" style="width: 1440px; height: 900px; padding: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr); gap: 20px">
+
+<div class="pn">
+<span class="cap">Estados</span>
+<div class="row" style="flex-wrap: wrap; gap: 8px"><span class="st">Pendente</span><span class="st wip">Em curso</span><span class="st ok">Aprovado</span><span class="st no">Rejeitado</span></div>
+<div class="row" style="gap: 18px; font-size: 12px; color: var(--tx2)"><span class="row" style="gap: 6px"><span class="dot pend"></span>pendente</span><span class="row" style="gap: 6px"><span class="dot wip"></span>em curso</span><span class="row" style="gap: 6px"><span class="dot ok"></span>aprovado</span><span class="row" style="gap: 6px"><span class="dot no"></span>rejeitado</span></div>
+<span class="hint">A cor só aparece para estado. O pendente é um anel vazio e o rejeitado é quadrado, para se distinguirem também pela forma.</span>
+<div class="bar7"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="wip"></i><i class="wip"></i><i class="wip"></i><i></i></div>
+</div>
+
+<div class="pn">
+<span class="cap">Referência</span>
+<div class="refs">
+<div class="ref"><div class="ph t2 r916" style="width: 92px"><div class="fig"><i></i><i></i><i></i><i></i></div></div><span class="nm">C01 · mestra</span><div class="ra"><span class="st ok">Aprovada</span><span class="sp"></span><button class="ib sm" type="button" aria-label="Descarregar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"></path></svg></button></div></div>
+<div class="ref"><div class="slot r916" style="width: 92px; font-size: 10.5px">Sem folha</div><span class="nm">AVT_PISTA</span><div class="ra"><span class="st">Pendente</span></div></div>
+<div class="col" style="gap: 6px; flex: 1"><span class="hint">Só entram folhas de asset, a mestra e frames aprovados coerentes com o estado do plano. Imagens rejeitadas nunca aparecem aqui.</span></div>
+</div>
+</div>
+
+<div class="pn">
+<span class="cap">Assistente · cartões de sugestão</span>
+<div class="sug">
+<div class="sug-h"><span>Campo</span><span class="f">P03 › Ângulo</span></div>
+<div class="sug-v">Nível dos olhos · 3/4</div>
+<div class="sug-old">Nível dos olhos · frontal</div>
+<div class="sug-a"><button class="btn pri sm" type="button">Aplicar</button><button class="btn ghost sm" type="button">Ignorar</button></div>
+</div>
+<div class="row" style="gap: 8px"><div class="sug" style="flex: 1"><div class="sug-h"><span class="f">P03 › Tipo</span><span class="sp"></span><span class="st ok">Aplicado</span></div></div><div class="sug" style="flex: 1; opacity: .7"><div class="sug-h"><span class="f">P04 › Tipo</span><span class="sp"></span><span class="st">Ignorado</span></div></div></div>
+</div>
+
+<div class="pn">
+<span class="cap">Bloco de prompt · acima de 2000</span>
+<div class="pb">
+<div class="pb-h"><span class="t">Prompt da imagem</span><span class="sp"></span><span class="cnt warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"></path></svg>2 146 / 2000</span><button class="btn sm" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>Copiar</button></div>
+<div class="warnbar">146 caracteres acima do limite do Artlist. Encurta antes de copiar.</div>
+<textarea aria-label="Prompt" style="height: 170px">Medium shot of AVT_SPARKS and AVT_IRIS inside AVT_HANGAR at night, eye level, fixed camera on the south side of the map table. Exactly 2 people in focus, each appearing once; AVT_VERA partially visible and blurred on the left edge of the frame…</textarea>
+<div class="pb-f"><span class="tk">bloco de estilo</span><span class="tk">exclusões</span><span class="tk">AVT_SPARKS</span><span class="tk">AVT_IRIS</span></div>
+</div>
+</div>
+
+<div class="pn" style="position: relative; overflow: hidden">
+<span class="cap">Upload · confirmar rejeição</span>
+<div class="drop" style="padding: 12px"><div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9m-5 5 5-5 5 5M5 4h14"></path></svg></div><span style="font-size: 12px; font-weight: 500">Arrasta ficheiros ou</span><button class="btn sm" type="button">Escolher</button></div>
+<div class="row" style="gap: 10px; align-items: flex-start">
+<div class="res" style="width: 110px"><div class="ph t1 r916" style="width: 110px"><div class="fig" style="padding-bottom: 0"><i style="width: 70%; aspect-ratio: 1/1.3"></i></div><span class="lb">v1.png</span></div><div class="acts"><button class="btn sm ok" type="button">Aprovar</button><button class="btn sm no" type="button">Rejeitar</button></div></div>
+<div class="res" style="width: 110px"><div class="ph t1 r916" style="width: 110px"><div class="fig" style="padding-bottom: 0"><i style="width: 64%; aspect-ratio: 1/1.4"></i></div><span class="lb">v2.png</span></div><div class="acts"><button class="btn sm ok" type="button">Aprovar</button><button class="btn sm no" type="button">Rejeitar</button></div></div>
+</div>
+<div class="scrim" style="border-radius: 10px">
+<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt" style="width: 360px">
+<div class="dlg-b"><h3 id="dt" class="h2">Rejeitar v1.png?</h3><p class="muted" style="font-size: 12.5px">O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz.</p></div>
+<div class="dlg-f"><button class="btn" type="button">Cancelar</button><button class="btn dng" type="button">Rejeitar e apagar</button></div>
+</div>
+</div>
+</div>
+
+<div class="pn" style="position: relative; overflow: hidden">
+<span class="cap">Novo projeto</span>
+<div class="dlg" role="dialog" aria-labelledby="np" style="width: 100%; box-shadow: none">
+<div class="dlg-b" style="gap: 12px">
+<h3 id="np" class="h2">Novo projeto</h3>
+<div class="f"><label for="nn">Nome</label><input id="nn" class="in" value="Equipa de Aventureiros"></div>
+<div style="display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px">
+<div class="f"><label for="np2">Prefixo</label><input id="np2" class="in mono" value="AVT" maxlength="4"></div>
+<div class="f"><label for="nt">Tipo</label><select id="nt" class="in"><option>Curta / spot</option><option>Série</option><option>Filme</option></select></div>
+</div>
+<span class="hint">Estrutura: <span class="mono">Cenas → Planos</span></span>
+</div>
+<div class="dlg-f"><button class="btn" type="button">Cancelar</button><button class="btn pri" type="button">Criar projeto</button></div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Escuro","Claro"],"default":"Escuro"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: (this.props.tema ?? 'Escuro') === 'Claro' ? 'light' : '' };
+}
+}
+</script>
+</body>
+</html>

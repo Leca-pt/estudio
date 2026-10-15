@@ -1,0 +1,8 @@
+{% if durations is defined and (durations.shots or target) %}
+<div class="dur-row">
+  <span class="muted">Duração</span>
+  <span><span class="muted">prevista</span> <b class="mono">{{ durations.planned_s|clock }}</b> <span class="dim">({{ durations.shots }} plano(s))</span></span>
+  <span><span class="muted">aprovada</span> <b class="mono">{{ (durations.approved_ms / 1000)|clock }}</b> <span class="dim">({{ durations.approved }} clip(s))</span></span>
+  {% if target %}<span class="{{ 'c-wip' if durations.planned_s > target else '' }}"><span class="muted">alvo</span> <b class="mono">{{ target|clock }}</b>{% if durations.planned_s > target %} · previsto acima do alvo{% endif %}</span>{% endif %}
+</div>
+{% endif %}

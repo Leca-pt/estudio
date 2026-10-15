@@ -1,0 +1,18 @@
+{# Visualizador de imagens (abre as imagens da página num modal em vez de uma tab nova). #}
+<dialog id="lightbox" class="lightbox" aria-label="Imagem">
+  <div class="lb-bar">
+    <span class="lb-name mono" data-lb-name></span>
+    <span class="lb-count dim" data-lb-count></span>
+    <span class="sp"></span>
+    <button class="btn sm" type="button" data-lb-frame hidden title="Guarda o fotograma que está no ecrã (pausa o vídeo no momento que queres)">{{ i.icon("image", 13) }}Guardar este fotograma</button>
+    <a class="btn sm" href="" download data-lb-download>{{ i.icon("download", 13) }}Descarregar</a>
+    <a class="btn sm ghost" href="" target="_blank" rel="noopener" data-lb-open>Abrir numa tab</a>
+    <button class="ib" type="button" data-lb-close aria-label="Fechar">{{ i.icon("x", 18) }}</button>
+  </div>
+  <div class="lb-stage">
+    <button class="ib lb-nav lb-prev" type="button" data-lb-prev aria-label="Imagem anterior">{{ i.icon("chev-left", 22) }}</button>
+    <img alt="" data-lb-img>
+    <video data-lb-video controls playsinline preload="metadata" hidden></video>
+    <button class="ib lb-nav lb-next" type="button" data-lb-next aria-label="Imagem seguinte">{{ i.icon("chev-right", 22) }}</button>
+  </div>
+</dialog>

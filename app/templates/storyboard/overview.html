@@ -1,0 +1,32 @@
+{% import "_macros.html" as m with context %}
+<div class="phead">
+  <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Etapa {{ stage_pos }}</span></div><h1 class="h1">Storyboard</h1></div>
+  <span class="sp"></span>
+  {{ m.status(stage_state[0], stage_state[1]) }}
+</div>
+{{ m.alerts(error) }}
+{% set total = groups|map(attribute=1)|map("length")|sum %}
+{% if not total %}
+{% call m.empty_state("Ainda sem cenas", "O storyboard organiza-se por cena: cada plano passa-se na maquete 3D do local da cena.", "film") %}
+  <a class="btn pri" href="/projetos/{{ project.id }}/etapa/2">Ir para a História</a>
+{% endcall %}
+{% else %}
+<div class="sec" style="overflow: hidden">
+  {% for label, rows in groups %}
+  {% if label %}<div class="grp-title">{{ label }}</div>{% endif %}
+  <div class="sec-list">
+    {% for r in rows %}
+    <a class="row-link sb-row" href="/projetos/{{ project.id }}/storyboard/cenas/{{ r.scene.id }}">
+      <span class="c">C{{ '%02d' % r.scene.number }}</span>
+      <span style="flex: 1">{{ r.scene.title or 'Sem título' }}</span>
+      <span class="dim">{% if r.location %}{{ r.location.name }}{{ "" if r.has_maquete else " · sem maquete" }}{% else %}sem local{% endif %}</span>
+      <span class="tag">{{ r.ready }} de {{ r.shots }} planos prontos</span>
+      {{ i.icon("chev-right", 14) }}
+    </a>
+    {% else %}
+    <div style="padding: 12px 16px; color: var(--tx3); font-size: 12.5px">Sem cenas.</div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

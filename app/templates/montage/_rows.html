@@ -1,0 +1,36 @@
+{# Linhas por cena com os takes escolhidos (ou lacunas) pela ordem dos planos.
+   Montagem (play_tiles): a imagem do take abre-o no leitor e as setas passam ao plano seguinte.
+   Vídeo: a imagem leva à página de geração do plano; o ícone no canto mostra o take em grande. #}
+<div class="sec">
+  {% set ns = namespace(group=none) %}
+  {% for r in rows %}
+  {% if r.group and r.group != ns.group %}{% set ns.group = r.group %}<div class="grp-title">{{ r.group }}</div>{% endif %}
+  <div class="scn" id="cena-{{ r.scene.id }}">
+    <div class="col" style="gap: 4px">
+      <span class="mono dim" style="font-size: 11px">{{ r.code }}</span>
+      <a class="h3" href="/projetos/{{ project.id }}/storyboard/cenas/{{ r.scene.id }}" style="text-decoration: none">{{ r.scene.title or 'Sem título' }}</a>
+      <span class="hint">{{ r.durations.approved }} de {{ r.durations.shots }}{% if r.durations.approved_ms %} · {{ (r.durations.approved_ms / 1000)|clock }}{% endif %}</span>
+    </div>
+    <div class="clips">
+      {% for t in r.tiles %}
+      {% set sh = t.shot %}
+      {% set shot_url = "/projetos/%d/video/planos/%d" % (project.id, sh.id) %}
+      <div class="clip">
+        {% if t.clip and play_tiles is defined and play_tiles %}
+        <a class="ph img-ph clip-play" href="/media/{{ t.clip.path }}" hx-boost="false" title="Ver o take em grande"><video src="/media/{{ t.clip.path }}#t=0.1" poster="/media/capa/{{ t.clip.path }}" preload="none" muted playsinline></video><span class="play">{{ i.icon("play", 16) }}</span><span class="lb">{{ r.code }} · P{{ '%02d' % sh.number }} · {{ ((t.clip.duration_ms or 0) / 1000)|clock }}</span></a>
+        {% elif t.clip %}
+        <div class="ph img-ph clip-open"><a class="clip-link" href="{{ shot_url }}" title="Abrir a geração de vídeo do P{{ '%02d' % sh.number }}"><video src="/media/{{ t.clip.path }}#t=0.1" poster="/media/capa/{{ t.clip.path }}" preload="none" muted playsinline></video></a><a class="zoom" href="/media/{{ t.clip.path }}" hx-boost="false" title="Ver o take em grande" aria-label="Ver o take em grande">{{ i.icon("play", 12) }}</a><span class="lb">{{ ((t.clip.duration_ms or 0) / 1000)|clock }}</span></div>
+        {% else %}
+        <a class="gap{% if not t.wip_gap %} pend{% endif %}" href="{{ shot_url }}"><span class="{{ 'c-wip' if t.wip_gap else '' }}" style="font-weight: 600">Lacuna</span>{{ t.gap }}</a>
+        {% endif %}
+        <span class="clip-m"><a class="m" href="{{ shot_url }}" title="Abrir o plano"><span class="dot {{ t.state }}"></span>P{{ '%02d' % sh.number }}</a>
+        {% if t.clip %}<a class="ib sm clip-dl" href="/projetos/{{ project.id }}/media/{{ t.clip.id }}/descarregar" hx-boost="false" download title="Descarregar o take do P{{ '%02d' % sh.number }}" aria-label="Descarregar o take do P{{ '%02d' % sh.number }}">{{ i.icon("download", 13) }}</a>{% endif %}</span>
+        {% if sh.shot_type or sh.title %}<span class="d">{{ [sh.shot_type, sh.title]|select|join(" · ") }}</span>{% endif %}
+      </div>
+      {% else %}
+      <span class="hint">Sem planos. Cria-os no <a href="/projetos/{{ project.id }}/storyboard/cenas/{{ r.scene.id }}">Storyboard</a>.</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>

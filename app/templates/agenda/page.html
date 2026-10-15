@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Agenda · {{ VIEWS[view] }} · Estúdio{% endblock %}
+{% block body_class %}solo{% endblock %}
+{% set in_agenda = True %}
+{% macro tag(it) %}{% set pr = pmap.get(it.project_id) %}{% if pr %}<a class="pfx ag-pfx" href="/projetos/{{ pr.id }}" title="{{ pr.name }}">{{ pr.prefix }}</a>{% endif %}<span class="ag-kind k-{{ it.kind }}">{{ KINDS[it.kind] }}</span>{% endmacro %}
+{% macro card(it, quick=True) %}{% set x = info(it) %}
+  <div class="ag-card k-{{ it.kind }}{% if x.overdue %} late{% endif %}{% if it.status == 'done' %} done{% endif %}" data-item="{{ it.id }}" {% if view == "quadro" %}draggable="true"{% endif %}>
+    <div class="ag-card-h">{{ tag(it) }}<span class="sp"></span>
+      {% if x.overdue %}<span class="st no">atrasado {{ -x.left }} d</span>
+      {% elif it.status != "done" and x.running and not x.single %}<span class="dim">{{ "acaba hoje" if x.left == 0 else "faltam %d d" % x.left }}</span>{% endif %}
+    </div>
+    <a class="ag-title" href="/agenda/itens/{{ it.id }}">{{ it.title }}</a>
+    <div class="ag-when dim">{{ x.when }}</div>
+    {% if x.progress is not none and it.status != "done" %}<div class="ag-bar"><i style="width: {{ x.progress }}%"></i></div>{% endif %}
+    {% if it.notes %}<div class="ag-notes dim">{{ it.notes }}</div>{% endif %}
+    {% if quick %}
+    <div class="ag-acts">
+      {% if it.link %}<a class="btn sm ghost" href="{{ it.link }}">Abrir</a>{% endif %}
+      <span class="sp"></span>
+      {% if it.status == "todo" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="doing"><button class="btn sm" type="submit">Começar</button></form>{% endif %}
+      {% if it.status != "done" %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="done"><button class="btn sm ok" type="submit">{{ i.icon("check", 12) }}Feito</button></form>
+      {% else %}<form method="post" action="/agenda/itens/{{ it.id }}/estado" class="inline-form">{{ m.csrf() }}<input type="hidden" name="status" value="todo"><button class="btn sm ghost" type="submit">Reabrir</button></form>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+{% block body %}
+<main class="main">
+  <div class="content content-lg">
+    <div class="phead" style="flex-wrap: wrap; row-gap: 8px">
+      <div><h1 class="h1">Agenda</h1></div>
+      <nav class="seg">{% for k, lbl in VIEWS.items() %}<a href="/agenda{{ '' if k == 'hoje' else '/' ~ k }}{% if pid and k != 'geral' %}?p={{ pid }}{% endif %}" class="{% if view == k %}on{% endif %}">{{ lbl }}</a>{% endfor %}</nav>
+      <span class="sp"></span>
+      {% if view != "geral" %}
+      <select class="in ag-filter" aria-label="Projeto" onchange="location.href = location.pathname + (this.value ? '?p=' + this.value : '')">
+        <option value="">Todos os projetos</option>
+        {% for p in projects %}<option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <button class="btn" type="button" data-open-dialog="ag-rec">{{ i.icon("calendar", 14) }}Publicações recorrentes</button>
+      <button class="btn pri" type="button" data-open-dialog="ag-new">{{ i.icon("plus", 14) }}Novo</button>
+    </div>
+    {% if notice %}<div class="alert ok" role="status">{{ notice }}</div>{% endif %}
+    {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
+
+    {% if view == "hoje" %}
+    <h2 class="h2 ag-day">{{ fmt(today, True) }}</h2>
+    <p class="hint">O número no botão «Agenda», no topo, conta o que acaba hoje e o que está atrasado (amarelo: para hoje; vermelho: atrasado). Marca como feito e o número desce.</p>
+    {% if overdue %}
+    <section class="ag-sec"><h3 class="h3 c-no">Atrasado ({{ overdue|length }})</h3><div class="ag-grid">{% for it in overdue %}{{ card(it) }}{% endfor %}</div></section>
+    {% endif %}
+    <section class="ag-sec"><h3 class="h3">Hoje ({{ now|length }})</h3>
+      {% if now %}<div class="ag-grid">{% for it in now %}{{ card(it) }}{% endfor %}</div>
+      {% else %}<p class="hint">Nada planeado para hoje.{% if not soon and not overdue %} Acrescenta trabalho com «Novo».{% endif %}</p>{% endif %}
+    </section>
+    {% if soon %}
+    <section class="ag-sec"><h3 class="h3">Próximos 7 dias</h3><div class="ag-grid">{% for it in soon %}{{ card(it) }}{% endfor %}</div></section>
+    {% endif %}
+    {% if done_today %}
+    <section class="ag-sec"><h3 class="h3 c-ok">Feito hoje ({{ done_today|length }})</h3><div class="ag-grid">{% for it in done_today %}{{ card(it) }}{% endfor %}</div></section>
+    {% endif %}
+
+    {% elif view == "quadro" %}
+    <div class="ag-board" data-kanban data-csrf="{{ csrf_token(request) }}">
+      {% for st, lbl in STATUS.items() %}
+      <section class="ag-col" data-col="{{ st }}">
+        <div class="ag-col-h"><b>{{ lbl }}</b><span class="dim">{{ cols[st]|length }}</span>{% if st == "done" %}<span class="hint">últimos 30 dias</span>{% endif %}</div>
+        <div class="ag-col-b">{% for it in cols[st] %}{{ card(it) }}{% else %}<p class="hint ag-empty">Arrasta para aqui.</p>{% endfor %}</div>
+      </section>
+      {% endfor %}
+    </div>
+
+    {% elif view == "calendario" %}
+    {% set q = "&p=%d" % pid if pid else "" %}
+    <div class="row ag-cal-nav">
+      {% if modo == "mes" %}
+      <a class="ib" href="?ano={{ mg.prev[0] }}&mes={{ mg.prev[1] }}{{ q }}" aria-label="Mês anterior">{{ i.icon("chev-left", 16) }}</a>
+      <a class="ib" href="?ano={{ mg.next[0] }}&mes={{ mg.next[1] }}{{ q }}" aria-label="Mês seguinte">{{ i.icon("chev-right", 16) }}</a>
+      <h2 class="h2 ag-cal-title">{{ mg.label }}</h2>
+      {% else %}
+      <a class="ib" href="?modo=ano&ano={{ ano - 1 }}{{ q }}" aria-label="Ano anterior">{{ i.icon("chev-left", 16) }}</a>
+      <a class="ib" href="?modo=ano&ano={{ ano + 1 }}{{ q }}" aria-label="Ano seguinte">{{ i.icon("chev-right", 16) }}</a>
+      <h2 class="h2 ag-cal-title">{{ ano }}</h2>
+      {% endif %}
+      <a class="btn sm" href="?modo={{ modo }}{{ q }}">Hoje</a>
+      <span class="sp"></span>
+      <nav class="seg"><a href="?modo=mes&ano={{ ano }}&mes={{ mes }}{{ q }}" class="{% if modo == 'mes' %}on{% endif %}">Mês</a><a href="?modo=ano&ano={{ ano }}{{ q }}" class="{% if modo == 'ano' %}on{% endif %}">Ano</a></nav>
+    </div>
+    {% if modo == "mes" %}
+    <div class="ag-month">
+      <div class="ag-month-h">{% for d in WEEKDAYS %}<div>{{ d }}</div>{% endfor %}</div>
+      {% for wk in mg.weeks %}
+      <div class="ag-week" style="grid-template-rows: 26px repeat({{ wk.lanes }}, 22px) minmax(10px, 1fr)">
+        {% for d in wk.days %}<div class="ag-cell{% if not d['in'] %} out{% endif %}{% if d.weekend %} wk{% endif %}{% if d.today %} today{% endif %}" style="grid-column: {{ d.col }}; grid-row: 1 / -1"><span class="ag-dn">{{ d.d.day }}</span></div>{% endfor %}
+        {% for sg in wk.segs %}{% set it = sg.item %}
+        <a class="ag-ev k-{{ it.kind }}{% if sg.single %} one{% endif %}{% if sg.overdue %} late{% endif %}{% if it.status == 'done' %} done{% endif %}{% if sg.cont_l %} cont-l{% endif %}{% if sg.cont_r %} cont-r{% endif %}"
+           href="/agenda/itens/{{ it.id }}" style="grid-column: {{ sg.col_a }} / {{ sg.col_b }}; grid-row: {{ sg.row }}" title="{{ it.title }} · {{ sg.when }} · {{ STATUS[it.status] }}">{% set pr = pmap.get(it.project_id) %}{% if pr and not pid %}<b>{{ pr.prefix }}</b> {% endif %}{{ it.title }}</a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ag-year">
+      {% for mo in yr.months %}
+      <div class="ag-ym{% if mo.current %} cur{% endif %}">
+        <a class="ag-ym-h" href="?modo=mes&ano={{ yr.year }}&mes={{ mo.m }}{{ q }}">{{ mo.label }}</a>
+        <div class="ag-ym-g">
+          {% for d in WEEKDAYS %}<span class="ag-ym-wd">{{ d[0] }}</span>{% endfor %}
+          {% for wk in mo.weeks %}{% for c in wk %}
+          {% if c %}<a class="ag-yd{% if c.today %} today{% endif %}{% if c.weekend %} wk{% endif %}{% if c.n %} has{% endif %}{% if c.late %} late{% endif %}" href="?modo=mes&ano={{ yr.year }}&mes={{ mo.m }}{{ q }}" {% if c.n %}title="{{ fmt(c.d, True) }}: {{ c.titles }}"{% endif %}><span>{{ c.d.day }}</span>{% if c.kinds %}<i class="ag-yk">{% for k in c.kinds %}<b class="k-{{ k }}"></b>{% endfor %}</i>{% endif %}</a>
+          {% else %}<span></span>{% endif %}
+          {% endfor %}{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <p class="hint">{% for k, lbl in KINDS.items() %}<span class="ag-legend k-{{ k }}"><b></b>{{ lbl }}</span>{% endfor %}</p>
+
+    {% elif view == "linha" %}
+    {% set q = "&p=%d" % pid if pid else "" %}
+    <div class="row ag-tl-nav">
+      <a class="btn sm" href="?semana={{ semana - 4 }}&semanas={{ semanas }}{{ q }}">{{ i.icon("chev-left", 13) }}4 semanas</a>
+      <a class="btn sm" href="?semanas={{ semanas }}{{ q }}">Hoje</a>
+      <a class="btn sm" href="?semana={{ semana + 4 }}&semanas={{ semanas }}{{ q }}">4 semanas{{ i.icon("chev-right", 13) }}</a>
+      <span class="sp"></span>
+      <nav class="seg">{% for n in (4, 8, 13, 26, 52) %}<a href="?semana={{ semana }}&semanas={{ n }}{{ q }}" class="{% if semanas == n %}on{% endif %}">{{ "1 ano" if n == 52 else "%d sem." % n }}</a>{% endfor %}</nav>
+    </div>
+    <div class="ag-tl-wrap" data-tl-today="{{ tl.today_col or 0 }}">
+      <div class="ag-tl" style="--n: {{ tl.n }}; --dw: {{ 30 if semanas <= 8 else 18 if semanas <= 13 else 10 if semanas <= 26 else 4 }}px">
+        <div class="ag-tl-lab ag-tl-corner"></div>
+        <div class="ag-tl-grid ag-tl-months">{% for mo in tl.months %}<div style="grid-column: {{ mo.col }} / span {{ mo.span }}">{{ mo.label }}</div>{% endfor %}</div>
+        <div class="ag-tl-lab ag-tl-corner"></div>
+        <div class="ag-tl-grid ag-tl-days">{% for d in tl.days %}<div class="{% if d.today %}today{% endif %}{% if d.weekend %} wk{% endif %}{% if d.monday %} mon{% endif %}" style="grid-column: {{ d.col }}" title="{{ fmt(d.d, True) }}">{% if semanas <= 8 or (d.monday and semanas <= 26) %}{{ d.d.day }}{% endif %}</div>{% endfor %}</div>
+        {% for lane in tl.lanes %}
+        <div class="ag-tl-lab" style="grid-row: span {{ lane.rows|length }}">{% if lane.project %}<a href="/agenda/linha?p={{ lane.project.id }}&semanas={{ semanas }}"><span class="pfx">{{ lane.project.prefix }}</span> {{ lane.project.name }}</a>{% else %}<span class="dim">Sem projeto</span>{% endif %}</div>
+        {% for row in lane.rows %}
+        <div class="ag-tl-grid ag-tl-row{% if loop.first %} first{% endif %}">
+          {% for d in tl.days if d.weekend or d.today or d.monday %}<i class="ag-tl-bg{% if d.today %} today{% endif %}{% if d.weekend %} wk{% endif %}{% if d.monday %} mon{% endif %}" style="grid-column: {{ d.col }}"></i>{% endfor %}
+          {% for b in row %}{% set it = b.item %}
+          <a class="ag-bar-i k-{{ it.kind }}{% if b.single %} dot{% endif %}{% if b.overdue %} late{% endif %}{% if it.status == 'done' %} done{% endif %}{% if b.cut_l %} cut-l{% endif %}{% if b.cut_r %} cut-r{% endif %}"
+             href="/agenda/itens/{{ it.id }}" style="grid-column: {{ b.col_a }} / {{ b.col_b }}" title="{{ it.title }} · {{ b.when }} · {{ STATUS[it.status] }}">{% if not b.single %}<span>{{ it.title }}</span>{% endif %}</a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="ag-tl-lab"></div><div class="ag-tl-grid ag-tl-row first"><p class="hint" style="grid-column: 1 / -1; padding: 10px">Nada neste período.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="hint">Barras: blocos de trabalho (de início a prazo). Pontos: um dia (publicações, entregas). Vermelho: atrasado. Esbatido: feito.</p>
+
+    {% elif view == "geral" %}
+    <div class="ag-ov">
+      {% for c in cards %}
+      <div class="pn ag-ov-card">
+        <div class="row">{% if c.project %}<a class="h3" href="/agenda/linha?p={{ c.project.id }}"><span class="pfx">{{ c.project.prefix }}</span> {{ c.project.name }}</a>{% else %}<span class="h3 dim">Sem projeto</span>{% endif %}<span class="sp"></span><b>{{ c.pct }}%</b></div>
+        <div class="ag-bar big"><i style="width: {{ c.pct }}%"></i></div>
+        <div class="dim">{{ c.done }} de {{ c.total }} feitos · {% for k, d, t in c.kinds %}{{ k }} {{ d }}/{{ t }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+        {% if c.overdue %}<div class="c-no"><b>Atrasado:</b> {% for it in c.overdue %}<a href="/agenda/itens/{{ it.id }}">{{ it.title }}</a> ({{ fmt(it.due) }}){% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+        {% if c.running %}<div><b>A decorrer:</b> {% for it in c.running %}<a href="/agenda/itens/{{ it.id }}">{{ it.title }}</a> (até {{ fmt(it.due) }}){% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+        {% if c.next %}<div><b>Próximo:</b> <a href="/agenda/itens/{{ c.next.id }}">{{ c.next.title }}</a> · {{ info(c.next).when }}</div>{% endif %}
+        {% if not c.overdue and not c.running and not c.next %}<div class="c-ok">Tudo feito.</div>{% endif %}
+      </div>
+      {% else %}<p class="hint">Ainda não há nada na agenda. Começa com «Novo» (ex.: «E04», de 1 a 15 de novembro).</p>{% endfor %}
+    </div>
+    {% if recurrences %}
+    <div class="pn" style="margin-top: 16px">
+      <h3 class="h3">Publicações recorrentes</h3>
+      {% for r in recurrences %}{% set pr = pmap.get(r.project_id) %}
+      <div class="row" style="flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px">
+        {% if pr %}<span class="pfx">{{ pr.prefix }}</span>{% endif %}<span>{{ r.title }}</span><span class="dim">{{ weekdays_label(r.weekdays) }} · {{ fmt(r.start) }} → {{ fmt(r.end) }}</span><span class="sp"></span>
+        <form method="post" action="/agenda/recorrencias/{{ r.id }}/apagar" class="inline-form" onsubmit="return confirm('Apagar esta recorrência? As publicações por fazer saem da agenda; as feitas ficam.')">{{ m.csrf() }}<button class="btn sm no" type="submit">Apagar</button></form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</main>
+{% include "agenda/_dialogs.html" %}
+{% endblock %}

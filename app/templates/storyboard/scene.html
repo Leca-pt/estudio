@@ -1,0 +1,194 @@
+{% import "_macros.html" as m with context %}
+<form id="scene-form" hidden method="post" action="/projetos/{{ project.id }}/storyboard/cenas/{{ scene.id }}">{{ m.csrf() }}</form>
+{% include "_scene_nav.html" %}
+<div class="phead">
+  <div>
+    <div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<a href="/projetos/{{ project.id }}/etapa/5">Storyboard</a>/<span class="mono">{{ scene_code }}</span></div>
+    <div class="row" style="gap: 10px; flex-wrap: wrap"><h1 class="h1">{{ scene.title or 'Cena %d' % scene.number }}</h1>
+      {% if location %}<span class="tag mono">{{ location.name }}</span>{% endif %}
+      {% if scene.time_of_day %}<span class="tag">{{ scene.time_of_day }}</span>{% endif %}
+    </div>
+  </div>
+  <span class="sp"></span>
+  {% set sb_state = "ok" if shots and ready_n == shots|length else ("wip" if ready_n else "pend") %}
+  {{ m.status(sb_state, "%d de %d planos prontos" % (ready_n, shots|length) if shots else "Pendente") }}
+  <button class="btn pri save" type="submit" form="scene-form">Guardar</button>
+</div>
+{{ m.alerts(error, saved) }}
+
+<div class="sb-layout">
+  <div class="col" style="gap: 14px">
+    <div class="f">
+      <label for="blocking">Notas de blocking <span class="dim" style="font-weight: 400">· quem está onde, de que lado fica a câmara (regra dos 180°); o Assistente usa-as ao montar as cenas 3D</span></label>
+      <textarea id="blocking" name="blocking" form="scene-form" class="in" style="min-height: 112px" placeholder="ex.: a Ana atrás do balcão, à direita do ecrã; o Bruno entra pela porta da rua; a câmara fica do lado da sala.">{{ scene.blocking or '' }}</textarea>
+    </div>
+    <section class="sec">
+      <div class="sec-h"><h2 class="h2">Quem e o que aparece</h2><span class="hint">· o look de cada personagem vale para todos os planos da cena</span><span class="sp"></span>
+        <a class="btn sm ghost" href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">Mudar na cena</a></div>
+      <div style="padding: 12px 16px">
+        <div class="picked">
+          {% for a in assets if a.kind != "location" %}
+          {% set w = wardrobe.get(a.id) %}
+          {% set cur = w.current if w else none %}
+          {% set sh = sheets.get(cur.image_id if cur and cur.image_id else a.approved_image_id) %}
+          <div class="who-card">
+            {% if sh %}<a class="ph img-ph who-img" href="/media/{{ sh.path }}" hx-boost="false" title="{{ a.name }}{{ ' · ' ~ cur.name if cur }}"><img src="{{ sh.path|thumb }}" alt="{{ a.name }}"></a>
+            {% else %}<a class="slot who-img" href="/projetos/{{ project.id }}/assets/{{ a.id }}" title="Aprovar no asset">sem folha</a>{% endif %}
+            <span class="who-name" title="{{ a.name }}">{{ a.label or a.name }}</span>
+            {% if w %}
+            <select name="look:{{ a.id }}" form="scene-form" class="in who-look" aria-label="Look de {{ a.label or a.name }} nesta cena" title="Guarda-roupa de {{ a.label or a.name }} nesta cena">
+              <option value="">Base</option>
+              {% for lk in w.options %}<option value="{{ lk.id }}" {% if cur and cur.id == lk.id %}selected{% endif %}>{{ lk.name }}{{ "" if lk.image_id else " · sem folha" }}</option>{% endfor %}
+            </select>
+            {% if cur and not cur.image_id %}<span class="hint c-wip">sem folha: segue a Base</span>{% endif %}
+            {% elif a.kind == "character" %}<span class="hint">look: Base</span>
+            {% else %}<span class="hint">{{ kinds[a.kind] if kinds is defined and a.kind in kinds else a.kind }}</span>{% endif %}
+          </div>
+          {% else %}<span class="hint">Ninguém marcado nesta cena. Marca-os na cena, em <a href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">Quem e o que aparece</a>.</span>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col" style="gap: 8px" id="local">
+    <span class="cap">Local da cena</span>
+    {% for loc in locations %}
+    <a class="loc-card" href="/projetos/{{ project.id }}/assets/{{ loc.id }}#maquete">
+      <span class="mono">{{ loc.name }}</span>
+      {% if loc.layout3d %}{{ m.status("ok", "Com maquete 3D") }}{% else %}{{ m.status("wip", "Sem maquete: monta-a primeiro") }}{% endif %}
+    </a>
+    {% else %}
+    <span class="hint">A cena ainda não tem local. Escolhe-o na <a href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">cena</a>: os planos passam-se na maquete 3D dele.</span>
+    {% endfor %}
+  </div>
+</div>
+
+<section class="sec" id="encenacao">
+  <div class="sec-h"><h2 class="h2">Encenação 3D</h2>
+    <span class="hint">· quem está onde e o que se mexe ao longo de toda a cena; os planos são câmaras sobre ela</span>
+    <span class="sp"></span>
+    {% if stage_d %}<span class="tag">{{ "%g"|format(stage_d) }} s</span>{% endif %}</div>
+  {% set with_maquete = locations|selectattr("layout3d")|list %}
+  {% if not with_maquete %}
+  <div class="m3d-empty"><p>{% if locations %}O local desta cena ({{ locations[0].name }}) ainda não tem maquete 3D. Monta-a primeiro: a encenação passa-se dentro dela.{% else %}Esta cena ainda não tem local. Escolhe-o na cena (História) e monta a maquete dele.{% endif %}</p>
+    {% if locations %}<a class="btn pri" href="/projetos/{{ project.id }}/assets/{{ locations[0].id }}#maquete">Ir à maquete de {{ locations[0].label or locations[0].name }}</a>{% endif %}</div>
+  {% else %}
+  <div class="m3d-loc row" style="padding: 10px 16px 0; gap: 8px; flex-wrap: wrap; align-items: center">
+    <label class="hint" for="set3d_asset">Local</label>
+    <select id="set3d_asset" name="set3d_asset" form="scene-form" class="in" style="width: auto; max-width: 360px" data-autosubmit>
+      {% if not set_loc %}<option value="">Escolher…</option>{% endif %}
+      {% for a in with_maquete %}<option value="{{ a.id }}" {% if set_loc and a.id == set_loc.id %}selected{% endif %}>{{ a.name }}{% if a.label %} · {{ a.label }}{% endif %}</option>{% endfor %}
+    </select>
+    {% if set_loc %}<a class="btn sm ghost" href="/projetos/{{ project.id }}/assets/{{ set_loc.id }}#maquete">Abrir a maquete do local</a>{% endif %}
+  </div>
+  <div class="m3d-cast row" style="padding: 8px 16px 0">
+    <span class="hint">Elenco</span>
+    {% for c in cast3d %}
+    <span class="m3d-member"><i style="background: {{ c.hex }}"></i><span class="mono">{{ c.asset.name }}</span>
+      <select name="cast3d_color:{{ c.asset.name }}" form="scene-form" class="in" aria-label="Cor de {{ c.asset.label }}" data-autosubmit>
+        {% for code, name, hx in cast3d_colors %}<option value="{{ code }}" {% if code == c.color %}selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select></span>
+    {% else %}<span class="hint">ninguém ainda</span>{% endfor %}
+    <button class="btn sm" type="button" data-open-dialog="pick-cast3d">Escolher elenco</button>
+  </div>
+  {{ m.picker("pick-cast3d", "Elenco da encenação", cast3d_groups, cast3d_ids, "cast3d", "scene-form", hint="As personagens, os adereços e os elementos do mundo (robots, táxis…) que entram na cena. Cada um tem uma cor forte (a mesma noutras cenas, se estiver livre); um elemento com vários figurantes tem uma só cor. Nos vídeos seguem as folhas do que a câmara de cada plano vê.", sent_name="cast3d_sent") }}
+  {% if stage_spec and set_loc %}
+  <div class="m3d" data-scene3d data-aspect="{{ project.aspect_ratio or '16:9' }}"
+       data-preview="/projetos/{{ project.id }}/storyboard/cenas/{{ scene.id }}/encenacao/previas" data-preview-hash="{{ stage_hash or '' }}" data-preview-have="{{ stage_have }}">
+    <script type="application/json" class="m3d-data">{{ stage_spec|tojson }}</script>
+    <div class="m3d-stage"></div>
+    <div class="m3d-bar row"></div>
+    <div class="m3d-chips row"></div>
+    <div class="m3d-legend row"></div>
+    <div class="m3d-actions row"><span class="hint">Os chips P01, P02… mostram a encenação pela câmara de cada plano, no troço dele.</span><span class="sp"></span>
+      {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="{{ 'Ajusta a encenação 3D desta cena: confere as posições, os olhares e os tempos das linhas contra o guião e as notas de blocking.' if scene.stage3d else 'Monta a encenação 3D desta cena dentro da maquete do local: o elenco e os figurantes com as posições e os olhares ao longo de toda a cena, a partir do guião e das notas de blocking, e marca em lines o segundo em que começa cada linha do guião.' }}">{{ i.icon("sparkles", 13) }}{{ "Ajustar com o Assistente" if scene.stage3d else "Montar a encenação com o Assistente" }}</button>{% endif %}
+      <span class="hint m3d-status"></span></div>
+  </div>
+  {% endif %}
+  {% if windows and stage_d %}
+  <div class="stage-tl" aria-label="Troços dos planos na encenação" style="height: {{ tl_lanes * 28 + 24 }}px">
+    {% for t in tl_ticks %}<span class="stt" style="left: {{ (100 * t / tl_span)|round(2) }}%">{{ t }} s</span>{% endfor %}
+    {% if stage_d < tl_span %}<span class="st-end" style="left: {{ (100 * stage_d / tl_span)|round(2) }}%" title="Fim da encenação ({{ '%g'|format(stage_d) }} s)"></span>{% endif %}
+    {% for w in windows %}
+    <a class="stw{% if not w.camera %} nocam{% endif %}{% if w.end > stage_d + 0.05 %} over{% endif %}" href="/projetos/{{ project.id }}/storyboard/planos/{{ w.shot.id }}#maquete"
+       style="left: calc({{ (100 * w.start / tl_span)|round(3) }}% + 1px); width: calc({{ (100 * (w.end - w.start) / tl_span)|round(3) }}% - 2px); top: {{ w.lane * 28 + 20 }}px"
+       title="P{{ '%02d' % w.shot.number }}: {{ '%g'|format(w.start) }}–{{ '%g'|format(w.end) }} s{{ '' if w.camera else ' (sem câmara)' }}{{ ' · passa do fim da encenação' if w.end > stage_d + 0.05 else '' }}">P{{ '%02d' % w.shot.number }}<span class="dim"> {{ '%g'|format(w.start) }}–{{ '%g'|format(w.end) }} s</span></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+
+{% if script %}
+<div class="col" style="gap: 8px" id="guiao">
+  <div class="row" style="flex-wrap: wrap; gap: 8px"><h2 class="h2">Guião marcado</h2>
+    {% set uncovered = script|rejectattr("shots")|list %}
+    <span class="hint">{{ script|length - uncovered|length }} de {{ script|length }} linhas com plano{% if uncovered %} · <span class="c-wip">{{ uncovered|length }} sem plano</span>{% endif %}</span>
+    <span class="sp"></span>
+    {% for s in shots %}<button class="btn sm" type="submit" form="scene-form" name="op" value="all_lines:{{ s.shot.id }}" title="O P{{ '%02d' % s.shot.number }} passa a cobrir todas as linhas do guião">Todas as linhas no P{{ '%02d' % s.shot.number }}</button>{% endfor %}
+  </div>
+  <span class="hint">Um plano pode cobrir uma linha, várias ou todas (um só take para a cena inteira); uma linha pode estar em vários planos (ex.: plano geral e grande plano da mesma fala). Marca em cada linha os planos que a cobrem e grava.</span>
+  {% if shots %}<input type="hidden" name="cover_sent" value="1" form="scene-form">{% endif %}
+  <div class="script-cov">
+    {% for r in script %}
+    {% set ids = r.shots|map(attribute="id")|list %}
+    <div class="sc{% if not r.shots %} none{% endif %}">
+      <span class="sl-n mono dim">{{ r.n }}</span>
+      <span class="sl-t">{% if r.line.kind == "dialogue" %}<b>{{ r.who.name if r.who else "—" }}:</b> «{{ r.line.text }}»{% else %}{{ r.line.text }}{% endif %}</span>
+      <span class="sl-s">{% for s in shots %}<label class="cov-ck" title="P{{ '%02d' % s.shot.number }} cobre a linha {{ r.n }}"><input type="checkbox" name="cover" value="{{ r.line.id }}:{{ s.shot.id }}" form="scene-form" {% if s.shot.id in ids %}checked{% endif %}><span class="mono">P{{ '%02d' % s.shot.number }}</span></label>{% else %}<span class="c-wip" style="font-size: 11.5px">sem plano</span>{% endfor %}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="col" style="gap: 10px" id="planos">
+  <div class="row"><h2 class="h2">Planos</h2><span class="tag">{{ shots|length }}</span>
+    {% if durations.shots %}<span class="hint">previsto {{ durations.planned_s|clock }}{% if durations.approved %} · takes escolhidos {{ (durations.approved_ms / 1000)|clock }}{% endif %}</span>{% endif %}
+    <span class="sp"></span>
+    {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com o troço da encenação e a câmara (plano geral, campo/contracampo por cima do ombro de quem ouve, grandes planos), do mesmo lado do eixo.">Propor a cobertura</button>{% endif %}
+    <button class="btn sm" type="submit" form="scene-form" name="op" value="add_shot">{{ i.icon("plus", 13) }}Novo plano</button>
+  </div>
+  <span class="hint">Cada plano é uma câmara sobre a encenação, num troço de tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.</span>
+  {% if shots %}
+  {% set ar = (project.aspect_ratio or "16:9").split(" ")[0] %}
+  <div class="shot-rows" style="--ar: {{ ar|replace(':', ' / ') }}">
+    {% for s in shots %}
+    {% set sh = s.shot %}
+    {% set url = "/projetos/%d/storyboard/planos/%d" % (project.id, sh.id) %}
+    <div class="shot-row">
+      <div class="sr-h">
+        <span class="dot {{ s.state }}"></span>
+        <a class="sr-t" href="{{ url }}"><b>P{{ '%02d' % sh.number }}</b>{% if sh.shot_type %} · {{ sh.shot_type }}{% endif %}{% if sh.camera_movement %} · {{ sh.camera_movement }}{% endif %}{% if sh.title %}<span class="dim"> · {{ sh.title }}</span>{% endif %}</a>
+        {% if s.lines %}<span class="tag" title="Linhas do guião que este plano cobre">linhas {{ s.lines|join(", ") }}</span>{% endif %}
+        {% set w = windows[loop.index0] %}<span class="tag mono" title="Troço da encenação que o plano mostra">{{ "%g"|format(w.start) }}–{{ "%g"|format(w.end) }} s</span>
+        <span class="sp"></span>
+        <a class="btn sm" href="{{ url }}">Abrir</a>
+        <a class="btn sm ghost" href="/projetos/{{ project.id }}/video/planos/{{ sh.id }}">{{ i.icon("film", 13) }}Vídeo</a>
+        {{ m.op_button("delete_shot:%d" % sh.id, "trash", "Apagar o P%02d" % sh.number, confirm="Apagar o P%02d?" % sh.number, confirm_text="A câmara, os takes e as imagens deste plano são apagados (a encenação da cena fica). Os planos seguintes são renumerados.", confirm_ok="Apagar", form="scene-form") }}
+      </div>
+      <div class="sr-panels">
+        {% for r in s.moments %}
+        <a class="sr-panel" href="{{ url }}#momentos" title="Momento {{ r.n }}{% if r.view %}: {{ r.view.label }}{% endif %}">
+          {% set img = r.image or r.render %}
+          {% if img %}<span class="ph img-ph"><img src="{{ img.path|thumb }}" alt="P{{ '%02d' % sh.number }} · momento {{ r.n }}" loading="lazy"></span>{% else %}<span class="slot">Sem imagem</span>{% endif %}
+          <span class="sr-meta mono dim">{{ r.n }} · {{ fmt_seconds(r.t) }}</span>
+          <span class="sr-c">{{ r.view.label if r.image else (("previs · a vista «%s» não tem imagem" % r.view.label if r.view else "previs · falta a vista") if r.render else "previs por tirar: abre o plano") }}</span>
+        </a>
+        {% if not loop.last %}<span class="board-arrow" aria-hidden="true">→</span>{% endif %}
+        {% else %}<span class="hint">Ainda sem câmara.</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" style="padding: 26px 20px; flex-direction: row; text-align: left; gap: 16px">
+    <div class="ico" style="margin: 0">{{ i.icon("film", 22) }}</div>
+    <div class="col" style="gap: 4px; flex: 1"><h3>Ainda sem planos</h3><p style="max-width: none">Cria os planos à mão ou pede ao Assistente para os propor a partir do guião.</p></div>
+    {% if asst.enabled %}<button class="btn" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com o troço da encenação e a câmara.">Propor a cobertura</button>{% endif %}
+    <button class="btn pri" type="submit" form="scene-form" name="op" value="add_shot">Novo plano</button>
+  </div>
+  {% endif %}
+</div>

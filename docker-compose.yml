@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    image: director/app:latest
+    container_name: director-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CODEX_HOME: /data/codex
+    # A imagem traz binários x86-64 (Codex CLI); em ARM (Apple Silicon, Raspberry Pi) corre em emulação.
+    platform: linux/amd64
+    ports:
+      # Só neste computador por omissão; numa rede local: BIND_ADDRESS=0.0.0.0 no .env.
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8010}:8000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

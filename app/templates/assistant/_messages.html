@@ -1,0 +1,26 @@
+{% for entry in asst.messages %}
+{% set msg = entry.msg %}
+{% if msg.role == "user" %}
+<div class="msg u">{{ msg.text }}</div>
+{% elif msg.role == "error" %}
+<div class="msg a msg-err">{{ msg.text }}</div>
+{% else %}
+{% if msg.text %}<div class="msg a">{{ msg.text }}</div>{% endif %}
+{% for item in entry.proposals %}{% include "assistant/_proposal.html" %}{% endfor %}
+{% set open_props = entry.proposals|selectattr("p.status", "equalto", "pending")|list %}
+{% if open_props|length > 1 %}
+<form method="post" action="/projetos/{{ project.id }}/assistente/mensagens/{{ msg.id }}/aplicar-todas" class="apply-all" hx-boost="true">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ back or back_url }}">
+  <button class="btn sm ok" type="submit">Aplicar todas ({{ open_props|length }})</button>
+</form>
+{% endif %}
+{% endif %}
+{% else %}
+<div class="msg a asst-empty">Pede ajuda sobre este ecrã. As sugestões aparecem como cartões com <b>Aplicar</b>: nada é gravado sem a tua aprovação.</div>
+{% endfor %}
+{% if asst.busy %}
+<div class="msg a asst-thinking asst-busy" hx-get="/projetos/{{ project.id }}/assistente?ctx={{ asst.key|urlencode }}{% if asst.scene_hint %}&cena={{ asst.scene_hint }}{% endif %}&back={{ (back or back_url or '')|urlencode }}"
+     hx-trigger="every 2s" hx-target="#asst-msgs" hx-swap="innerHTML"><span class="dots"><i></i><i></i><i></i></span>
+  {%- if asst.busy.here %}A pensar… a resposta aparece aqui, mesmo que mudes de página.{% else %}A responder no ecrã «{{ asst.busy.label }}»…{% endif %}</div>
+{% endif %}
+<div class="msg a asst-thinking htmx-indicator" id="asst-thinking"><span class="dots"><i></i><i></i><i></i></span>A pensar…</div>

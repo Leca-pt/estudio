@@ -1,0 +1,20 @@
+{# Login do Codex por código (device code). Precisa de: codex (estado do login e conta). #}
+<div id="codex-login" class="col" style="gap: 8px"{% if codex.state == "waiting" %} hx-get="/configuracao/ligacoes/codex/estado" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {% if codex.state == "waiting" %}
+  <div class="alert info" style="flex-direction: column; align-items: flex-start; gap: 6px">
+    <span>1. Abre <a href="{{ codex.url }}" target="_blank" rel="noopener" hx-boost="false"><b>{{ codex.url }}</b></a> e entra com a tua conta ChatGPT.</span>
+    <span>2. Escreve este código: <b class="mono" style="font-size: 15px; letter-spacing: .08em">{{ codex.code }}</b> <span class="dim">(válido 15 minutos)</span></span>
+    <span class="row" style="gap: 8px; flex-wrap: wrap"><span class="dots"><i></i><i></i><i></i></span>À espera da autorização… esta página atualiza-se sozinha.
+      <button class="btn ghost sm" type="submit" form="prompts-form" formaction="/configuracao/ligacoes/codex/cancelar" formmethod="post">Cancelar</button></span>
+  </div>
+  {% else %}
+  <div class="row" style="gap: 10px; flex-wrap: wrap">
+    {% if codex.account and codex.account.email %}<span>{{ codex.account.email }}{% if codex.account.plan %} · plano {{ codex.account.plan|capitalize }}{% endif %}</span>
+    {% elif codex.logged_in %}<span>Ligado</span>{% else %}<span class="dim">Sem conta ligada</span>{% endif %}
+    <span class="sp"></span>
+    <button class="btn sm {{ 'pri' if not codex.logged_in }}" type="submit" formaction="/configuracao/ligacoes/codex/ligar" formmethod="post" data-busy-label="A preparar…">{{ "Voltar a ligar" if codex.logged_in else "Ligar ao ChatGPT" }}</button>
+    {% if codex.logged_in %}<button class="btn ghost sm" type="submit" formaction="/configuracao/ligacoes/codex/desligar" formmethod="post" data-confirm="Desligar o ChatGPT?" data-confirm-text="O GPT Image deixa de estar disponível até voltares a ligar." data-confirm-ok="Desligar">Desligar</button>{% endif %}
+  </div>
+  {% if codex.message %}<span class="hint">{{ codex.message }}</span>{% endif %}
+  {% endif %}
+</div>

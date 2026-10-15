@@ -1,0 +1,3 @@
+{% if b and b.creditsLeft is defined %}<span>{{ "{:,}".format(b.creditsLeft).replace(",", ".") }} de {{ "{:,}".format(b.planCredits).replace(",", ".") }} créditos · {{ b.planName }}{% if b.renewsOn %} · renovam a {{ b.renewsOn }}{% endif %}</span>
+{% elif b %}<span class="dim">{{ b.message or "Saldo indisponível." }}</span>
+{% else %}<span class="dim">Não foi possível ler o saldo agora.</span>{% endif %}

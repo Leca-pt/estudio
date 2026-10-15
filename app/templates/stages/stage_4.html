@@ -1,0 +1,147 @@
+{% import "_macros.html" as m with context %}
+{% set base = "/projetos/%d/etapa/4" % project.id %}
+{% macro url() -%}
+{%- set p = {"tipo": kind, "estado": state, "ep": ep, "vista": view if view == "lista" else none, "q": q or none} -%}
+{%- set _ = p.update(kwargs) -%}
+{{ base }}?{% for k, v in p.items() if v %}{{ k }}={{ v|urlencode }}{{ "&" if not loop.last }}{% endfor %}
+{%- endmacro %}
+<div class="phead">
+  <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Etapa {{ stage_pos }}</span></div><h1 class="h1">{{ stage_name }}</h1></div>
+  <span class="sp"></span>
+  {% if total %}
+  <span class="hint">{{ approved_n }} de {{ total }} aprovados</span>
+  <select class="in" aria-label="Filtrar por estado" data-nav style="width: 170px; height: 32px">
+    <option value="{{ url(estado=none) }}">Todos os estados</option>
+    {% for code, label in asset_states.items() %}<option value="{{ url(estado=code) }}" {% if state == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  {% if importable %}<button class="btn" type="button" data-open-dialog="import-assets">{{ i.icon("upload", 15) }}Importar de outro projeto</button>{% endif %}
+  <button class="btn" type="button" data-open-dialog="new-asset">{{ i.icon("plus", 15) }}Novo asset</button>
+</div>
+{% if importable %}
+<dialog class="dlg prompt-dlg" id="import-assets" aria-label="Importar assets de outro projeto">
+  <form method="post" action="/projetos/{{ project.id }}/importar-assets" class="col" style="min-height: 0; flex: 1">
+    {{ m.csrf() }}
+    <div class="zone-dlg-h"><h2 class="h2">Importar de outro projeto</h2><span class="sp"></span>
+      <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+    <div class="prompt-dlg-b">
+      <span class="hint">Cada asset é copiado com a ficha, as imagens aprovadas, a voz e os looks (personagens), ou a maquete 3D e as vistas (locais). O código passa para <span class="mono">{{ project.prefix }}_…</span>. São cópias: mudar aqui não mexe no original, e na ficha de cada cópia há «Atualizar a partir do original». Não gasta créditos.</span>
+      {% for g in importable %}
+      <details class="imp-proj" {% if loop.first %}open{% endif %}>
+        <summary><b>{{ g.project.name }}</b> <span class="mono dim">{{ g.project.prefix }}</span>{% if g.parent %} <span class="tag">projeto de origem</span>{% endif %} <span class="hint">· {{ g.assets|length }} asset(s)</span></summary>
+        <div class="imp-grid">
+          {% for r in g.assets %}{% set a = r.asset %}
+          <label class="imp-item{% if r.done %} off{% endif %}">
+            <input type="checkbox" name="asset" value="{{ a.id }}" {% if r.done %}disabled{% endif %}>
+            <span class="ph r169 img-ph imp-thumb">{% if r.thumb %}<img src="{{ r.thumb.path|thumb }}" alt="" loading="lazy">{% endif %}</span>
+            <span class="imp-t"><b>{{ a.label or a.name }}</b><span class="mono dim">{{ a.name }}</span>
+              <span class="hint">{{ kinds[a.kind] if kinds is defined and a.kind in kinds else a.kind }}{% if r.done %} · já importado{% endif %}</span></span>
+          </label>
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    <div class="dlg-f"><span class="sp"></span>
+      <button class="btn" type="button" data-close-dialog>Cancelar</button>
+      <button class="btn pri" type="submit">Importar os escolhidos</button></div>
+  </form>
+</dialog>
+{% endif %}
+{{ m.alerts(error, saved) }}
+<details class="sec world-sec" id="mundo" {% if not project.world or saved %}open{% endif %}>
+  <summary class="sec-h"><h2 class="h2">O mundo</h2>
+    <span class="world-peek dim">{{ (project.world or "Ainda por descrever.")|replace("\n", " ")|truncate(110, True, "…") }}</span>
+    <span class="sp"></span>{{ i.icon("chev-down", 14) }}</summary>
+  <form method="post" action="/projetos/{{ project.id }}/mundo" class="col" style="gap: 8px; padding: 12px 16px">
+    {{ m.csrf() }}
+    <textarea id="world" name="world" class="in" style="min-height: 160px" placeholder="O que é verdade neste mundo e tem de se manter em todos os episódios.
+· Época e lugar: quando e onde se passa.
+· Tecnologia: ex.: só há dinheiro digital; câmaras de vigilância em todo o lado; drones de entrega.
+· Sociedade e poder: quem manda, como vive a população, o que é crime.
+· Regras do fantástico: o que os poderes fazem, o que não conseguem, o que custam.
+· Aspeto visual recorrente: néon, chuva, publicidade holográfica, lixo nas ruas.">{{ project.world or '' }}</textarea>
+    <span class="hint">Texto livre, em português. O Assistente usa-o em todas as etapas para escrever, descrever locais, adereços e painéis coerentes com o mundo, e para avisar quando algo o contradiz.</span>
+    {% set wp_words = (project.world_prompt or "").split()|length %}
+    <label class="l" for="world_prompt" style="margin-top: 6px">O mundo nos prompts <span class="dim">· em inglês, só o que se vê · {{ wp_words }} palavra(s)</span></label>
+    <textarea id="world_prompt" name="world_prompt" class="in mono" lang="en" rows="3" placeholder="Ex.: Europe, near future: present-day streets and buildings, more physical advertising screens, many surveillance cameras, autonomous electric cars, delivery drones overhead, very clean streets; no holograms.">{{ project.world_prompt or '' }}</textarea>
+    <div class="row"><span class="hint">Entra sozinho nos prompts de ambiente (imagem geral e vistas dos locais, vistas da maquete, painéis, capa), antes do bloco de estilo. Não entra nas folhas de personagens e adereços. Ideal: até 30 palavras{% if wp_words > 30 %} — <b>este tem {{ wp_words }}, encurta-o</b> (cada imagem aguenta ~80 palavras){% endif %}. Pede ao Assistente: «Resume o mundo para os prompts».</span><span class="sp"></span>
+      <button class="btn pri sm" type="submit">Guardar o mundo</button></div>
+  </form>
+</details>
+<nav class="tabs">
+  <a class="tab {% if not kind %}on{% endif %}" href="{{ url(tipo=none) }}">Todos <span class="n">{{ total }}</span></a>
+  {% for code, label in kinds_plural.items() %}
+  <a class="tab {% if kind == code %}on{% endif %}" href="{{ url(tipo=code) }}">{{ label }} <span class="n">{{ counts[code] }}</span></a>
+  {% endfor %}
+</nav>
+{% if not total %}
+<div class="empty" style="margin-top: 8px">
+  <div class="ico">{{ i.icon("image", 22) }}</div>
+  <h3>Sem assets para desenhar</h3>
+  <p>Cria as personagens, os locais e os adereços com “Novo asset”, ou pede ao Assistente para os tirar do guião (em cada cena, “Quem e o que aparece”). Aparecem aqui como cartões à espera da folha aprovada.</p>
+</div>
+{% else %}
+<div class="asset-tools">
+  <input class="in asset-search" type="search" placeholder="Pesquisar código, nome, grupo ou descrição…" value="{{ q }}" data-asset-search aria-label="Pesquisar assets">
+  {% if ep_options %}
+  <select class="in" aria-label="Filtrar por {{ ep_label|lower }}" data-nav style="width: auto; max-width: 240px">
+    <option value="{{ url(ep=none) }}">Todos os {{ "episódios" if ep_label == "Episódio" else "atos" }}</option>
+    {% for eid, elabel in ep_options %}<option value="{{ url(ep=eid) }}" {% if ep == eid %}selected{% endif %}>{{ elabel }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <span class="sp"></span>
+  <div class="seg" role="group" aria-label="Vista">
+    <a href="{{ url(vista=none) }}" class="{{ 'on' if view != 'lista' }}">Cartões</a><a href="{{ url(vista='lista') }}" class="{{ 'on' if view == 'lista' }}">Lista</a><a href="{{ base }}?vista=cenas" title="Quem entra em cada cena, num quadro">Por cena</a>
+  </div>
+</div>
+{% if not cards %}
+<p class="muted">Nenhum asset com estes filtros.</p>
+{% endif %}
+<p class="muted asset-none" hidden>Nenhum asset corresponde à pesquisa.</p>
+{% for gname, gcards in sections %}
+<details class="asset-group" open data-group>
+  <summary><span class="h3">{{ gname or "Sem grupo" }}</span><span class="n">{{ gcards|length }}</span><span class="sp"></span>{{ i.icon("chev-down", 14) }}</summary>
+  {% if view == "lista" %}
+  <div class="asset-list">
+    {% for c in gcards %}{% set a = c.asset %}
+    <a class="al-row" href="/projetos/{{ project.id }}/assets/{{ a.id }}" data-search="{{ c.search }}">
+      {% set img = c.approved or c.portrait %}
+      {% if img %}<img class="al-thumb" src="{{ img.path|thumb }}" alt="" loading="lazy">{% else %}<span class="al-thumb slot"></span>{% endif %}
+      <span class="mono al-code">{{ a.name }}</span>
+      <span class="al-label">{{ a.label }}</span>
+      <span class="dim al-kind">{{ kinds[a.kind] }}</span>
+      <span class="dim al-scenes">{{ c.scenes }} cena(s)</span>
+      {{ m.status(c.state, c.label) }}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="grid asset-grid">
+    {% for c in gcards %}
+    {% set a = c.asset %}
+  <a class="card ac" href="/projetos/{{ project.id }}/assets/{{ a.id }}" data-search="{{ c.search }}">
+    {% if c.approved %}
+    <div class="ph r43 img-ph" style="border-radius: 0"><img src="{{ c.approved.path|thumb }}" alt="" loading="lazy"><span class="lb">{{ a.name }}{{ "" if a.kind == "location" else "_sheet." ~ c.approved.path.rsplit('.', 1)[-1] }}</span>{% if c.portrait %}<img class="card-portrait" src="{{ c.portrait.path|thumb }}" alt="Retrato de {{ a.label }}" loading="lazy">{% endif %}</div>
+    {% elif c.portrait %}
+    <div class="ph r43 img-ph" style="border-radius: 0"><img src="{{ c.portrait.path|thumb }}" alt="" loading="lazy" style="object-fit: contain; background: var(--bg)"><span class="lb">{{ a.name }}_portrait.{{ c.portrait.path.rsplit('.', 1)[-1] }}</span></div>
+    {% elif c.pending %}
+    <div class="slot r43" style="border-radius: 0; border-width: 0 0 1px; border-style: solid"><span class="st wip">{{ c.pending }} por decidir</span>Resultados carregados</div>
+    {% elif c.state == "no" %}
+    <div class="slot r43" style="border-radius: 0; border-width: 0 0 1px; border-style: solid">{{ i.icon("image", 20) }}Última imagem rejeitada</div>
+    {% else %}
+    <div class="slot r43" style="border-radius: 0; border-width: 0 0 1px; border-style: solid">{{ i.icon("image", 20) }}Sem folha</div>
+    {% endif %}
+    <div class="card-b">
+      <div class="row"><span class="mono" style="font-size: 12px; font-weight: 600">{{ a.name }}</span><span class="sp"></span>{{ m.status(c.state, c.label) }}</div>
+      <span class="dim" style="font-size: 12px">{{ kinds[a.kind] }} · {{ a.label }}</span>
+    </div>
+  </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</details>
+{% endfor %}
+{% endif %}
+{% set next_url = "/projetos/%d/etapa/4" % project.id %}
+{% include "assets/_new_dialog.html" %}

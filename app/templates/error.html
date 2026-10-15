@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Erro {{ status }} · Estúdio{% endblock %}
+{% block body %}
+<main class="main">
+  <div class="content content-lg">
+    {% call m.empty_state("Erro " ~ status, message, "alert") %}
+      <a class="btn" href="/projetos">Voltar aos projetos</a>
+    {% endcall %}
+  </div>
+</main>
+{% endblock %}

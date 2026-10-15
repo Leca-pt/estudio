@@ -1,0 +1,26 @@
+{# Cartão de proposta. Precisa de: item (present()), back (ou back_url, na página completa) #}
+{% set p = item.p %}
+<div class="sug{% if p.status == 'ignored' %} sug-off{% endif %}" id="sug-{{ p.id }}">
+  <div class="sug-h"><span>Campo</span><span class="f">{{ p.field_label }}</span><span class="sp"></span>
+    {% if item.words %}<span class="dim mono" style="font-size: 10.5px">{{ item.words }} palavras</span>{% endif %}
+    {% if p.status == "applied" %}<span class="st ok">Aplicado</span>{% elif p.status == "ignored" %}<span class="st">Ignorado</span>{% elif p.status == "failed" %}<span class="st no">Não aplicado</span>{% endif %}
+  </div>
+  {% if p.status in ("pending", "applied") %}
+  <div class="sug-v{% if item.mono %} mono{% endif %}">{{ item.display }}</div>
+  {% if p.status == "pending" and p.old_value and not p.field_key.startswith(("new_", "link:")) %}<div class="sug-old{% if item.mono %} mono{% endif %}">{{ p.old_value|truncate(280) }}</div>{% endif %}
+  {% if p.reason and p.status == "pending" %}<div class="sug-why">{{ p.reason }}</div>{% endif %}
+  {% endif %}
+  {% if p.status == "pending" %}
+  <div class="sug-a">
+    <form method="post" action="/projetos/{{ project.id }}/assistente/propostas/{{ p.id }}/aplicar" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ back or back_url }}">
+      <button class="btn pri sm" type="submit">Aplicar</button>
+    </form>
+    <form method="post" action="/projetos/{{ project.id }}/assistente/propostas/{{ p.id }}/ignorar" class="inline-form"
+          hx-post="/projetos/{{ project.id }}/assistente/propostas/{{ p.id }}/ignorar" hx-target="#sug-{{ p.id }}" hx-swap="outerHTML">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}"><input type="hidden" name="back" value="{{ back or back_url }}">
+      <button class="btn ghost sm" type="submit">Ignorar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>

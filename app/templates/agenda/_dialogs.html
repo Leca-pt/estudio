@@ -1,0 +1,39 @@
+<dialog id="ag-new" class="dlg wide">
+  <form method="post" action="/agenda/itens">
+    {{ m.csrf() }}
+    <div class="dlg-b" style="gap: 12px">
+      <h3 class="h2">Novo na agenda</h3>
+      <div class="f"><label for="agn-title">O quê</label><input id="agn-title" name="title" class="in" required placeholder="ex.: E04 · Guiões do E05 e E06 · Postar o trailer"></div>
+      <div class="ag-form2">
+        <div class="f"><label for="agn-project">Projeto</label><select id="agn-project" name="project_id" class="in"><option value="">Nenhum</option>{% for p in projects %}<option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}</select></div>
+        <div class="f"><label for="agn-kind">Tipo</label><select id="agn-kind" name="kind" class="in">{% for k, lbl in KINDS.items() %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}</select></div>
+        <div class="f"><label for="agn-start">Começa <span class="dim" style="font-weight: 400">(opcional)</span></label><input id="agn-start" name="start" type="date" class="in"></div>
+        <div class="f"><label for="agn-due">Prazo / dia</label><input id="agn-due" name="due" type="date" class="in" required value="{{ today.isoformat() }}"></div>
+      </div>
+      <span class="hint">Um bloco de trabalho tem início e prazo (ex.: «E04» de 1 a 15/11). Uma publicação ou entrega é só um dia: deixa «Começa» vazio.</span>
+      <div class="f"><label for="agn-notes">Notas <span class="dim" style="font-weight: 400">(opcional)</span></label><textarea id="agn-notes" name="notes" class="in" rows="2"></textarea></div>
+      <div class="f"><label for="agn-link">Ligação na app <span class="dim" style="font-weight: 400">(opcional)</span></label><input id="agn-link" name="link" class="in mono" placeholder="/projetos/2/sala?f=5"><span class="hint">Copia o endereço de uma página da app (a parte depois do domínio) para o botão «Abrir».</span></div>
+    </div>
+    <div class="dlg-f"><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Acrescentar</button></div>
+  </form>
+</dialog>
+
+<dialog id="ag-rec" class="dlg wide">
+  <form method="post" action="/agenda/recorrencias">
+    {{ m.csrf() }}
+    <div class="dlg-b" style="gap: 12px">
+      <h3 class="h2">Publicações recorrentes</h3>
+      <div class="f"><label for="agr-title">Título</label><input id="agr-title" name="title" class="in" required value="Postar Short {n}"><span class="hint">{n} é o número de cada publicação.</span></div>
+      <div class="ag-form2">
+        <div class="f"><label for="agr-project">Projeto</label><select id="agr-project" name="project_id" class="in"><option value="">Nenhum</option>{% for p in projects %}<option value="{{ p.id }}" {% if pid == p.id %}selected{% endif %}>{{ p.prefix }} · {{ p.name }}</option>{% endfor %}</select></div>
+        <div class="f"><label for="agr-n">Primeiro número</label><input id="agr-n" name="first_number" type="number" min="1" value="1" class="in"></div>
+        <div class="f"><label for="agr-start">De</label><input id="agr-start" name="start" type="date" class="in" required value="{{ today.isoformat() }}"></div>
+        <div class="f"><label for="agr-end">Até</label><input id="agr-end" name="end" type="date" class="in" required></div>
+      </div>
+      <div class="f"><label>Dias da semana</label><div class="row" style="flex-wrap: wrap">{% for d in WEEKDAYS %}<label class="ck-row" style="border: 0; padding: 0 6px 0 0"><input type="checkbox" name="weekdays" value="{{ loop.index0 }}"><span>{{ d }}</span></label>{% endfor %}</div></div>
+      <input type="hidden" name="kind" value="post">
+      {% if recurrences %}<span class="hint">Já tens {{ recurrences|length }} recorrência(s); vê-as e apaga-as em Visão geral.</span>{% endif %}
+    </div>
+    <div class="dlg-f"><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Criar publicações</button></div>
+  </form>
+</dialog>

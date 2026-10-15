@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set has_side = True %}
+{% block title %}{{ stage_name }} · {{ project.name }} · Estúdio{% endblock %}
+{% block body_class %}with-asst{% endblock %}
+{% block body %}
+<aside class="side" aria-label="Estrutura do projeto">
+  <div class="side-h">
+    <span class="lbl">Estrutura</span><span class="sp"></span>
+    <button class="ib sm" type="button" data-toggle-side aria-label="Recolher estrutura">{{ i.icon("panel-left", 15) }}</button>
+  </div>
+  <nav class="tree">
+    {% for n in tree.nodes %}
+      {% if n.empty %}
+      <span class="tn l{{ n.level }} dim tn-empty">{{ n.empty }}</span>
+      {% else %}
+      <a class="tn l{{ n.level }} {% if n.on %}on{% endif %}" href="{{ n.href }}">
+        {% if n.prefix %}<span class="pfx tn-pfx">{{ n.prefix }}</span>
+        {% elif n.chevron == "none" %}<span class="tn-sp"></span>
+        {% elif n.chevron %}{{ i.icon("chev-" ~ n.chevron, 12) }}
+        {% endif %}
+        {% if n.code %}<span class="c">{{ n.code }}</span>{% endif %}
+        <span class="t">{{ n.title }}</span>
+        {% if n.dot %}<span class="dot {{ n.dot }}"></span>{% endif %}
+      </a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <div class="side-f">{{ type_short[project.type] }} · {{ tree.footer }}</div>
+</aside>
+<div class="side-scrim" data-toggle-side></div>
+<main class="main">
+  <div id="live" hidden data-p="{{ project.id }}" data-v="{{ live_version(project.id) }}"></div>
+  <nav class="stepper" aria-label="Etapas" style="grid-template-columns: repeat({{ steps|length }}, minmax(0, 1fr))">
+    {% for st in steps %}
+    <a class="step{% if st.on %} on{% endif %}{% if st.episode %} ep-step{% endif %}" href="{{ st.href }}" {% if st.on %}aria-current="page"{% endif %}>
+      <span class="k">{{ st.pos }}<span class="dot {{ st.state }}"></span>{% if st.episode and loop.previtem and not loop.previtem.episode %}<span class="ep-tag">episódio</span>{% endif %}</span>
+      <span class="t" title="{{ st.name }}">{{ st.short if steps|length > 7 else st.name }}</span><span class="ts">{{ st.short }}</span>
+      <span class="s c-{{ st.state }}"><span class="dot {{ st.state }}"></span>{{ st.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+  {% if episode_options %}
+  <div class="ep-bar">
+    <label for="ep-select" class="dim">Episódio</label>
+    <select id="ep-select" class="in" data-ep-select>
+      {% for eid, elabel in episode_options %}<option value="{{ eid }}" {% if cur_episode and cur_episode.id == eid %}selected{% endif %}>{{ elabel }}</option>{% endfor %}
+    </select>
+    <span class="hint">As etapas marcadas com «episódio» mostram só este episódio.</span>
+  </div>
+  {% endif %}
+  <div class="m-step">
+    <div class="row">
+      <label for="m-etapa" class="dim">Etapa</label>
+      <select id="m-etapa" class="in" data-nav>
+        {% for st in steps %}
+        <option value="{{ st.href }}" {% if st.on %}selected{% endif %}>{{ st.pos }} · {{ st.name }} — {{ st.label|lower }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="bar7" style="grid-template-columns: repeat({{ steps|length }}, minmax(0, 1fr))">{% for st in steps %}<i class="{{ st.state if st.state != 'pend' else '' }}"></i>{% endfor %}</div>
+  </div>
+  <div class="content" id="content">
+    {% if notice %}<div class="alert info notice-gpt" role="status"><span class="dots"><i></i><i></i><i></i></span>{{ notice }}</div>{% endif %}
+    {% include content_template %}
+  </div>
+  <div class="m-bar">
+    <button class="btn m-btn" type="button" data-toggle-asst>{{ i.icon("chat", 15) }}Assistente</button>
+    {% if main_form is defined and main_form %}<button class="btn pri m-btn" type="submit" form="{{ main_form }}">Guardar</button>{% endif %}
+  </div>
+</main>
+{% include "assistant/_panel.html" %}
+{% include "gpt/_edit_dialog.html" %}
+{% endblock %}

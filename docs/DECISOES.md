@@ -1,0 +1,444 @@
+# Decisões do produto
+
+Registo das decisões do utilizador que mudam a forma da app. Lê isto antes de mexer em fluxos. Quando uma decisão
+muda, atualiza a entrada (não apagues o histórico: marca-a como substituída).
+
+## 2026-10-02 — Fluxo simplificado: tudo pela maquete 3D, todos os prompts pelo Assistente
+
+1. **Acabam as vistas A–D.** Todos os locais usam a Maquete 3D. A maquete dá mais vistas, cria e define o ambiente à
+   volta, e permite pôr a câmara onde for preciso. As vistas A–D (e o método "A partir da folha") são removidas,
+   incluindo os dados que já existiam (o utilizador escolheu apagar, não esconder).
+2. **Nenhum prompt é montado pela app.** Todos os prompts (folhas, retratos, vistas da maquete, vídeo, capa) são
+   escritos pelo escritor de prompts (Assistente). Os prompts montados por regras falhavam e acabavam sempre refeitos
+   pelo Assistente. Ao carregar em Gerar sem prompt escrito (ou com o prompt desatualizado), o escritor escreve e a
+   geração entra na fila logo a seguir, num só clique. O utilizador pode ver e editar o prompt antes ou depois.
+   A app só troca os marcadores `@CÓDIGO` pela sintaxe do modelo no envio (ver `ref_tokens.py`).
+3. **O modelo do escritor de prompts é configurável** (Configuração → Assistente → "Modelo para escrever prompts":
+   Claude ou OpenRouter).
+4. **O storyboard usa sempre a maquete 3D do local.** Deixa de usar as vistas A–D.
+5. **Acabam os painéis.** O vídeo de cada plano recebe:
+   - a vista do local (gerada a partir da maquete) mais próxima da câmara do plano em cada momento;
+   - as folhas do elenco;
+   - o vídeo-guia da cena 3D, quando o modelo aceita vídeo.
+
+   Se nenhuma vista serve, o plano cria uma vista nova do local a partir da sua câmara. Fica guardada na maquete do
+   local e serve para outros planos. As imagens vão indexadas (marcador único por imagem) e anexadas ao prompt de
+   vídeo. Painéis, imagens de painéis e imagens mestras existentes são apagados.
+6. **O escritor de prompts tem o contexto completo.** Recebe a bíblia (ideia, tom, estilo, exclusões, formato), o
+   mundo, as regras de prompt, a cena (guião, local, luz), o plano (enquadramento, câmara, falas, som), as descrições
+   de quem e o que aparece, e as imagens que vão ser enviadas, por ordem e com o marcador de cada uma.
+
+Também nesta data: as 23 lacunas de `ARCHITECTURE.md` §8 são para resolver (remover ou corrigir). As que deixam de
+existir com os pontos acima ficam resolvidas por eles.
+
+## 2 de outubro de 2026 (noite): prompts de vídeo por secções, pelo modelo de cada plano
+
+Depois de ler os guias oficiais (Seedance 2.0 e 2.5 da ByteDance, Veo 3.1 da Google, Kling 3.0):
+
+- O prompt de vídeo monta-se **por secções**, sempre pela mesma ordem: References (cada marcador com o seu papel),
+  Summary (uma frase), Scene and look (sítio, luz, cor, estilo), Action, Dialogue, Sound, Constraints (as negativas
+  só aqui).
+- **O formato vem do modelo do plano**, não do modelo por omissão: etiquetas ou parágrafo, linha de tempo ou não, a
+  forma das falas e do som, e os limites de palavras e caracteres (`model_profiles.video_format`). Mudar o modelo de
+  um plano deixa o prompt desatualizado; o escritor reescreve-o ao Gerar.
+- **Tempos só no Seedance 2.5** (o guia oficial diz que os segue ao segundo), sempre como o mesmo take contínuo. No
+  Seedance 2.0 e nos outros, sem tempos: no 2.0 fizeram cortar a meio do take.
+
+## 3 de outubro de 2026: as falas de um plano são as linhas do guião marcadas para ele
+
+As ações e falas que vão num plano marcam-se no Storyboard (linhas do guião → plano) e isso é respeitado em todo o
+lado: o escritor de prompts, o Assistente, as vozes de referência que seguem e a página Vídeo (que as mostra só para
+leitura) usam essas linhas (`prompt_context.shot_talk`). A antiga escolha de uma só «Fala» na página Vídeo deixou de
+existir; só um plano sem linhas marcadas usa a fala antiga que tinha guardada.
+
+## 3 de outubro de 2026: guarda-roupa por personagem, escolhido por cena
+
+- Cada personagem tem um guarda-roupa de **looks** (`CharacterLook`): nome, roupa e acessórios (EN) e uma folha. Os
+  acessórios fazem parte do look; os adereços ficam para objetos usados na ação.
+- A folha de um look gera-se **a partir da folha aprovada e do retrato** (guia «Folha de look»): o rosto, o corpo e
+  o cabelo ficam, muda a roupa.
+- O look escolhe-se **por cena** (`Scene.looks`, na página da cena no Storyboard) e vale para todos os planos dela.
+  Sem escolha (ou sem folha aprovada do look), segue a folha base.
+- Nos vídeos, a folha do look substitui a folha base (marcador `@CÓDIGO.look<id>`); o retrato mantém-se. O escritor
+  recebe a roupa do look e o Assistente pode criar looks e escolhê-los por cena.
+
+## 3 de outubro de 2026: maquetes com formas inclinadas, mais objetos e sempre editadas por partes
+
+- Tipos novos na maquete: `prism` (prisma triangular: `gable` para telhados de duas águas e empenas, `ramp` para
+  rampas e telhados de uma água) e `extrude` (qualquer polígono em planta levantado: prédios de esquina, praças).
+- Limite de objetos por maquete: 1500 (era 400).
+- Uma maquete que já existe muda-se sempre por partes (só o que muda). A reescrita completa só é oferecida ao
+  Assistente quando o utilizador pede para refazer a maquete de raiz (`contexts.limit_rewrites`).
+- O equipamento de telhado dos quarteirões (`roof_bits`) só entra quando o utilizador o pede.
+
+## 3 de outubro de 2026: projetos ligados e importação de assets (cópias)
+
+- Um projeto pode ser **parte de** outro (`Project.parent_id`), ex.: um spot da série. Ao criar, herda a bíblia
+  visual, o formato e o mundo (não a história); o Assistente vê a logline e a sinopse do projeto de origem.
+- **Importar de outro projeto** (etapa dos assets) faz **cópias** (decisão do utilizador: copiar, não ligar): ficha,
+  imagens aprovadas, voz, looks, maquete, vistas e fotos, com os ficheiros copiados e os códigos (também nos prompts
+  e nos marcadores @CÓDIGO.v/.r/.look) passados ao prefixo do destino (`app/asset_import.py`).
+- Cada cópia guarda a origem (`Asset.source_asset_id`, `source_map`) e tem «Atualizar a partir do original», que traz
+  as mudanças sem duplicar ficheiros; o que só existe na cópia fica.
+
+## 3 de outubro de 2026: a ação 3D é da cena; os planos são câmaras sobre ela
+
+- A **encenação 3D** (quem está onde e o que se mexe, ao longo de toda a cena) pertence à **cena**, com o local da
+  maquete e as cores do elenco. Monta-se uma vez (o Assistente, a partir do guião e das notas de blocking).
+- Cada **plano** é uma câmara sobre essa encenação num **troço de tempo** (início + duração); mapeia para uma ou mais
+  linhas do guião. Vários planos podem mostrar o mesmo troço (plano geral, campo/contracampo, grande plano).
+- Cada plano **gera o seu vídeo**, sem cortes dentro da geração (decisão do utilizador); a montagem junta-os.
+- Seguem para o vídeo as folhas de **quem a câmara vê** nesse plano; as vozes de quem fala nas linhas dele.
+- Dados antigos: a encenação de cada cena passou a ser a do primeiro plano com cena 3D; cada plano ficou com a sua
+  câmara a começar no segundo 0 (migração 0045).
+
+## 4 de outubro de 2026: sem blocos de tempo no vídeo, e o texto nunca contradiz o vídeo-guia
+
+- Testado com o Seedance 2.5 (Artlist): os blocos de tempo no prompt («0s-1s: …») fazem cortar, mesmo com «same
+  continuous take». Nenhum perfil usa blocos de tempo; a ação é um movimento contínuo.
+- O escritor recebe, para cada momento da câmara, o que o vídeo-guia mostra de cada personagem (de frente ou de
+  costas, lado do ecrã, para onde anda — `scene3d.moment_notes`) e não pode contradizê-lo: com texto e vídeo-guia em
+  conflito, o modelo segue o texto.
+- O editor da câmara avisa das passagens bruscas (rodar > 45°/s ou andar > 3 m/s), que os modelos leem como cortes.
+
+## 5 de outubro de 2026: o vídeo-guia é normalizado no servidor
+
+- O que o navegador grava (MP4 fragmentado ou WebM, com ritmo variável e uns décimos a mais) é convertido com o
+  ffmpeg para MP4 H.264 a 24 imagens/s, sem som e cortado à duração exata do plano (`media.normalize_guide`). Uma
+  gravação mais curta do que o plano é recusada.
+- Um guia acabado de gravar aparece à frente do aprovado, para se poder ver e aprovar. A versão da encenação fica
+  guardada por guia (`moments.guide_hash`): o aviso de «versão anterior» diz respeito ao guia que segue.
+
+## Decisões anteriores que continuam em vigor
+
+- **Capacidades, não modelos.** Nenhum processo é construído à volta de um modelo ou fornecedor. Decide-se pelo que
+  o modelo declara (texto→imagem, referências, edição, estrutura, vídeo de referência). Os modelos que não suportam
+  algo ficam só marcados ou escondidos.
+- **Uma só passagem** nas vistas da maquete (o método de duas passagens foi rejeitado por ser caro).
+- **As fotos reais não vão para o gerador** junto com um render: o escritor vê-as e descreve o aspeto em texto.
+- **Custos:** gerações pagas só depois de o utilizador aprovar o custo indicado.
+- **Deploy** só por `scripts/deploy.sh`, com a fila de geração vazia.
+- **Sem saltos de scroll**: navegação por morph, seleções em modal, gravação em segundo plano.
+- **Ordem das etapas por tipo de projeto**: a série e o filme fazem o mundo antes das cenas; a curta mantém a ordem
+  clássica.
+
+## 5 de outubro de 2026: duração dos takes
+
+- Não há folga de tempo extra: o plano já tem margem para cortar. (Experimentou-se gravar 1 s antes e depois; o
+  utilizador não quis.) «Folga» quer dizer margem criativa para o modelo, não segundos a mais.
+- Um take mais comprido do que o plano não é erro (corta-se na montagem); só um take mais curto do que o plano é avisado.
+- **Fixo e livre no prompt de vídeo.** Prende-se só a identidade das personagens, a câmara e o enquadramento (do
+  vídeo-guia), os momentos principais da ação, as falas e a voz, um só plano sem cortes e sem texto. Os figurantes,
+  os elementos do mundo (sem número nem posição), os gestos entre momentos, a luz e a vida de fundo ficam livres;
+  as Constraints são curtas. Prompts que querem controlar tudo dão takes piores.
+
+## 5 de outubro de 2026: o prompt de vídeo é verificado contra o vídeo-guia
+
+- `guide_check.check` compara cada prompt de vídeo com o vídeo-guia: de frente / de perfil / de costas de cada
+  personagem pela ordem do guia (`scene3d.moment_facts`), os marcadores de quem está em plano e de cada imagem que
+  segue, o @Video1, e que não se contam figurantes nem se lhes chama manequins.
+- Os três caminhos que escrevem o prompt usam-no: o escritor (Reescrever) e o mini chat voltam a tentar até 2 vezes
+  com os erros; o Assistente do chat tem a revisão automática da app; a página do vídeo avisa antes de gerar.
+- O escritor e o Assistente veem o próprio vídeo-guia numa tira de imagens (`media.guide_sheet`), além dos factos
+  de cada momento.
+- Testado com 27 escritas reais do plano P08 (escritor, mini chat, Assistente): todas acabaram de acordo com o guia.
+
+## 5 de outubro de 2026 (tarde): de volta à receita do take 3
+
+- Os takes com o prompt «fixo e livre» e com o «andar natural» ficaram piores (Seedance 2.0 e 2.5). A guia do vídeo
+  voltou ao texto com que se escreveu o take 3 (4 de outubro): «@Video1 = camera movement, framing, lens, timing and
+  the positions of everyone», figurantes «following exactly the positions and movements of @Video1», elementos do
+  mundo pela cor e «exactly as in @X». Única diferença: «figures» em vez de «mannequins» (deu manequins no take 4).
+- Fica o verificador do guia (ordem de frente/perfil/costas, marcadores, cores) e a ligação versão → take.
+- Testado (takes 11–13): a rigidez vem do Seedance 2.0, que copia o andar do previs; o 2.5 fica fluido. O excesso de
+  figurantes no guia não causou a rigidez. Afinações à receita do take 3: quem se mexe vai «moving with fluid,
+  natural, realistic body motion» (a app junta-o na Action se faltar); nunca «stiff animation» (a app tira-o);
+  figurantes «in varied, colourful everyday clothes» (sem isso vestem-se da cor da figura do guia).
+
+## 5 de outubro de 2026: poucas figuras no vídeo-guia
+
+- Teste controlado no Seedance 2.5 (mesmo prompt, só muda o guia): guia limpo (1 figura além do elenco) → 6 s, sem
+  cortes, segue o caminho; guia cheio (9 figuras) → 14–15 s, manequins e cores do previs, ação repetida; sem guia →
+  6 s, sem cortes.
+- O utilizador põe poucos ou nenhuns figurantes na encenação. A app avisa (Storyboard e Vídeo do plano) quando a
+  câmara vê mais de `scene3d.MAX_GUIDE_FIGURES` (3) figuras além das personagens principais.
+- Gravar um guia novo já não apaga os anteriores; um take cujo ficheiro de entrada desapareceu falha antes de pagar.
+
+## 5 de outubro de 2026: teste completo do prompt de vídeo (projeto «TESTE vídeo-guia (Claude)», TVG)
+
+- 12 planos (de frente, de costas, de perfil, vira-se, a falar com voz e sotaque, modelo sem vídeo de referência,
+  plano a dois, campo e contracampo com falas, grupo com alguém a entrar, rua cheia, sem 3D) × escritor (2×), mini chat
+  (Revê, Encurta, pedido contra o guia) e Assistente: todas as escritas finais seguem o guia.
+- Corrigido no caminho: quem a câmara vê passou a contar pessoas tapadas por outras (por cima do ombro, grupos), a
+  câmara metida numa parede e a mobília alta (prateleiras); o verificador liga cada «de frente/de costas» a quem é
+  nomeado (não aos figurantes nem a todos os nomes da frase) e verifica as vozes (@X.voice sem voz que siga = erro).
+- Guias gravados num computador lento: até 0,5 s em falta completa-se com a última imagem.
+
+## 5 de outubro de 2026: as pessoas da maquete são cápsulas (boneco B)
+
+- Teste de luta no Seedance 2.0 com dois guias da mesma coreografia: com bonecos articulados (A) o modelo copiou o
+  guia à letra, incluindo golpes no ar; com cápsulas (B) fez uma luta credível, com contacto, mantendo posições,
+  quedas e tempos. Leitura do utilizador: quanto mais o boneco parece real, mais o modelo o segue como um corpo.
+- Todas as pessoas (elenco, figurantes, elementos do mundo com corpo) são cápsulas lisas com viseira escura na frente
+  (`scene3d_parts.mannequin`); elenco num tom da sua cor, figurantes cinzento-claro. Poses: stand, walk, run, sit,
+  point, bend (dobrado), kneel (de joelhos), lie (deitado). A encenação marca só posições, orientação e momentos-chave;
+  os golpes e gestos vão na descrição e no prompt (STAGE_HELP). RENDER_VERSION 3: os guias antigos ficam marcados.
+- Correções da auditoria do P08: elementos do mundo com corpo (kind person com code) ficavam cinzentos como figurantes;
+  agora têm a cor deles (tom mais forte, 70%). Cabeça da cápsula encostada ao corpo. Figuras com menos de 6% da altura
+  do quadro não contam como «na imagem» (`scene3d.MIN_SCREEN`). A página do vídeo avisa a vermelho, com botão para
+  repor a escolha automática, quando a câmara vê alguém cuja folha não segue no pedido (`video.left_out`).
+
+## 6 de outubro de 2026: conector MCP (Claude chat e Cowork)
+
+- A app é um servidor MCP em `<PUBLIC_URL>/mcp` (`app/mcp_server.py`, SDK `mcp` 2.3, HTTP sem
+  estado, respostas JSON). Autenticação OAuth com registo dinâmico; a autorização faz-se na página `/mcp/autorizar`,
+  com o login da app. Códigos e tokens guardados só em hash (`McpGrant`); acesso 8 h, renovação 90 dias.
+- Ferramentas: list_projects, project_map, open_screen (o mesmo ecrã e os mesmos campos do Assistente), view_images,
+  set_field (valida e grava como uma proposta aplicada). Sem gerações pagas, aprovações nem apagar.
+- A app MCP está montada em `/` depois de todas as rotas: só recebe os endereços que a app não reconhece.
+- O conector também cria projetos (create_project, opcionalmente ligado a outro, com a bíblia copiada), lista e copia
+  assets de outros projetos (importable_assets, import_assets, a mesma importação da app) e apaga cenas e planos para a
+  Reciclagem (delete_scene, delete_shot; `app/trash.py`): fotografia completa + ficheiros movidos para
+  media/_reciclagem/<id>; a página /projetos/<id>/reciclagem recupera tudo (ids novos, ligações e versões acertadas);
+  passados 30 dias apaga-se de vez. A ligação «Reciclagem (n)» aparece na barra de topo quando há algo.
+- O guião de uma cena edita-se pelo conector no screen `scene:<id>` (o ecrã do episódio/ato/curta com a cena em foco,
+  como na app): `new_lines:<id>` acrescenta linhas, `line:<id>.text` altera uma. O project_map mostra-o em cada cena.
+- Campos novos do Assistente (e do conector, no screen `scene:<id>`): `scene_location:<id>` (o local do cabeçalho,
+  pelo código do local) e `scene_order:<id>` (a posição da cena no episódio/ato/curta; as outras renumeram).
+- Campo `line_edit:<id>` (Assistente e conector): muda o tipo de uma linha do guião (ação/diálogo), quem fala e o
+  texto, mantendo o número. Apagar linhas fica de fora: os números das linhas estão na encenação e nos planos.
+- Mais campos (Assistente e conector): `script:<cena>` (o guião completo pela ordem final; as linhas com id mantêm os
+  planos e os tempos da encenação, as sem id são novas, as que faltam apagam-se), `sheet_refs:<asset>` (lista completa),
+  `asset_code:<asset>` (via `rename_asset`, que agora também troca o código na encenação 3D e nas cores da cena) e
+  `asset_kind:<asset>`. Ferramenta `delete_asset`: o asset vai para a Reciclagem com os mesmos ids e com o registo de
+  onde era usado; recuperar repõe tudo.
+
+## 6 de outubro de 2026: imagens pelo conector MCP (`app/mcp_images.py`)
+
+- A) gerar na app: write_prompt (o escritor, como «Escrever»), generate_image (prompt_targets.enqueue, como «Gerar»;
+  count até 4; confirm_cost só depois de o utilizador aceitar o custo do Artlist), generation_status, list_models.
+  B) gerar fora: get_reference_images (prompt_targets.inputs, só aprovadas; endereços /pub/ref de 1 h ou base64),
+  upload_image (png/jpg/webp até 20 MB, convertida para PNG, guardada por jobs.store_result como «por decidir», com um
+  ImageJob provider «mcp» que regista o prompt e o modelo). Comum: list_candidates, view_candidates, approve_image
+  (approve_media) e reject_image (reject_media: apaga o ficheiro).
+- Tipos: sheet, portrait, look (look_id), view (vista de um local, view_id), previs (vista do local num momento do
+  plano, sb_shot:N + view_id: a app não gera imagens de planos à parte), cover. Os locais não têm folha.
+- Diferença em relação ao botão Gerar: com o prompt por escrever ou desatualizado, o botão escreve-o e gera; o
+  generate_image pede write_prompt primeiro (para o cliente ver o prompt antes de gastar).
+- Testado no projeto 1: pedido e candidata do MCP iguais aos do botão Gerar, campo a campo; aprovar pelo MCP e pela
+  interface com o mesmo efeito; rejeitadas fora das referências e das imagens.
+
+## 6 de outubro de 2026: nada fica perdido no disco
+
+- `media.delete_file` apaga também os derivados sem registo (`media.companions`: a tira do vídeo-guia) e remove as
+  pastas que ficam vazias, sem subir acima da pasta do projeto (`media.prune_empty_dirs`). A reciclagem faz o mesmo ao
+  mudar ficheiros. Vale para rejeitar, apagar planos, cenas e assets, e para a reciclagem.
+- Limpeza feita: 6 tiras órfãs do antigo P08 e 82 pastas vazias acumuladas; nenhum ficheiro sem registo no disco.
+
+## 6 de outubro de 2026: ver e verificar maquetes pelo conector
+
+- view_layout (`app/mcp_layout.py`): imagens tiradas com o mesmo visualizador da app (buildLayer/actorMesh exportados
+  de scene3d.js e usados por `static/js/maquete_still.js`) num Chromium sem ecrã dentro do contentor (Playwright 1.63,
+  instalado no Dockerfile; `app/maquete_render.py` abre /interno/maquete/<chave>, só de 127.0.0.1). Vistas: top
+  (grelha de 1 m, mais forte a cada 5 m, eixos, zonas, #n, seta da vista A), A/B… (vistas do local), eye, orbit,
+  floor:<z> (corte acima do piso), camera; focus aproxima as plantas a uma divisão ou retângulo. Nas perspetivas os #n
+  têm tamanho fixo e escondem-se atrás do que os tapa.
+- check_layout (`app/layout_check.py`, só lê): sobreposições (mobília a mais de 10 cm dentro de paredes finas),
+  portas tapadas por paredes (falta o vão) e portas/janelas soltas em divisões interiores, peças fora das divisões e
+  divisões sem área, peças a flutuar ou enterradas (as encostadas a paredes contam como penduradas), assentos com
+  frente virada para o lado errado de uma mesa/TV/balcão próximo, medidas (portas fora de 0,7–1,5 m, pé-direito < 2,3 m).
+- Instruções do conector: depois de gravar uma maquete, view_layout ["top", "A"] e check_layout antes de reportar.
+
+## 2026-10-07 — MCP: criar temporadas, episódios e atos
+O ecrã `story` passa a ter `new_season` e `new_episode:<season_id>` (séries) e `new_act` (filmes), como os botões da app
+(ficam no fim; o episódio herda a duração-alvo da série). A resposta do set_field diz o ecrã onde continuar
+(`episode:<id>` para criar cenas com new_scene). Também disponível no Assistente da app.
+
+## 2026-10-07 — MCP: vistas, renders e vídeo-guia
+O conector faz nas maquetes o que o utilizador faz na app: auto_views, add_view (= «Guardar vista aqui»), rename_view,
+delete_view, campo zonerefs:<asset>:<zona> (referências de cada divisão), render_maquete (asset:N → renders das vistas
+com profundidade; sb_shot:N → previs dos momentos e vistas novas do local), record_guide (em segundo plano, quadro a
+quadro a 24 fps, ~2 min para 15 s), list_guides, approve_guide, reject_guide. Os renders e a gravação usam o próprio
+visualizador (scene3d.js mount, ganchos el.m3dCapture / el.m3dFrames) na página interna /interno/maquete/<chave> (só
+127.0.0.1, chave de uso único) e são guardados pelas mesmas funções das rotas (save_view_render, save_moment_render,
+save_guide). Sem sessão de login para o Chromium. write_prompt/generate_image de uma vista recusam com render desatualizado.
+
+## 2026-10-07 — ByteDance (BytePlus ModelArk): Seedance direto e registo de personagens
+Fornecedor de vídeo «bytedance» (app/bytedance.py), fila própria, pago (não se repete sozinho; depois de um reinício
+retoma a espera pelo task_id guardado em job.params, sem pagar outra vez). Modelos: Seedance 2.0, 2.0 Fast, 2.0 Mini e
+2.5 (ids dreamina-seedance-…; têm de estar ativados na consola). Chaves em Configuração → Chaves de API → BytePlus:
+chave de API (Bearer, gera), Access Key + Secret Key (assinatura OpenAPI V4, biblioteca de assets).
+Registo de personagens (app/character_registry.py, tabela characterregistration, migração 0049): cada imagem aprovada
+de uma personagem (folha, retrato, looks) vira um asset AIGC num grupo por personagem e segue como asset://<id> — o
+Seedance recusa caras realistas por URL. Regista-se à mão (página da personagem → «Registo na ByteDance») ou sozinho
+quando um vídeo da ByteDance as leva; as outras imagens, o vídeo-guia e as vozes vão por links /pub/ref (6 h).
+Custo mostrado é estimativa (tokens ≈ L×A×24×s/1024; 2.0 $7/M, 2.5 $10.7/M — por confirmar na consola).
+
+## 2026-10-08 — Navegação da cena
+Barra igual no guião (cena aberta no episódio/ato/curta), no storyboard (cena e plano) e no vídeo (plano):
+cena anterior/seguinte no mesmo contentor, separadores Guião · Storyboard · Vídeo da mesma cena/plano e os planos
+da cena com o estado do passo atual (app/scene_nav.py, templates/_scene_nav.html). Com uma cena aberta, o bloco do
+episódio/ato fica dobrado. Desempenho: o estado dos planos no progresso das etapas já não monta a cena 3D
+(moments.rows(renders=False)) e é calculado uma vez por pedido.
+
+## 2026-10-08 — Modelo e resolução de vídeo por plano
+Projeto: video_model + video_resolution (padrão; etapa Vídeo → «Padrão do projeto»; MCP: project.video_model /
+project.video_resolution no screen bible). Plano: Shot.model None = padrão do projeto; Shot.video_resolution None =
+padrão (limitada às resoluções do modelo). Migração 0050 pôs os planos com o modelo da Configuração a seguir o padrão.
+A Configuração passa a ser só o padrão dos projetos novos. Cada take guarda resolução, modelo e (Artlist) o
+generationId em job.params; o rótulo do take mostra modelo · resolução · créditos, e «Prompt e definições».
+Custo: app/video_cost.py — Artlist get_generation_cost (exato, guardado 7 dias em video_quotes), fal pela API de
+preços, ByteDance estimativa. Rascunho: take Seedance 2.5 Artlist a 480p com generationId, até 7 dias → «Passar a
+1080p (mesmo take)» (render_draft, ImageJob kind draft_render). Shot.video_prompt_model avisa «escrito para outro
+modelo» com Reescrever. Páginas: campos data-only-if-changed (prompt, som) só seguem se mexidos — uma página antiga
+apagava o que o MCP gravara entretanto.
+
+## 2026-10-08 — O que segue no pedido de vídeo, por plano
+app/video_inputs.py: cada plano escolhe o vídeo-guia (ligado/desligado), cada imagem candidata (ligada, como
+referência, frame inicial ou final) e cada voz. Guardado em Shot.video_refs (imagens ligadas; None = automática) e
+Shot.video_inputs (migração 0051: guide=false, voices_off, modes). Com frame inicial o pedido passa a
+imagem-para-vídeo (kind video_frames): seguem só as frames e o prompt — não se mistura com referências, guia ou vozes
+(conservador: nenhum fornecedor confirmou a mistura). Página: secção «O que segue no pedido» (só segue se mexida —
+data-unless-touched). MCP: lista com estado e modo no open_screen e campo shot:N.video_inputs (JSON; erros com as
+opções válidas; notas quando a escolha implica algo). O escritor só usa o que segue (sem guia descreve a câmara);
+guide_check avisa quando o prompt cita algo desligado, com Reescrever. Cada take guarda params.sent e params.guide.
+
+## 2026-10-08 — Resolução das imagens
+Project.image_resolution (1K/2K/4K, migração 0052, 2K por omissão; etapa 1 e MCP project.image_resolution). Seletor
+ao lado do modelo em cada Gerar de imagem (só as resoluções do modelo; GPT Image pela subscrição e modelos sem
+chave: tamanho fixo, seletor desligado). Job.params.resolution. Artlist: artlist.RESOLUTIONS (chave e valores de cada
+modelo, lidos do get_model_config — antes ia sempre «1k»); fal: image_models.request(res=…) põe "resolution" (Nano
+Banana) ou image_size em píxeis dentro dos limites de cada família. MCP: generate_image(resolution) com erro e opções
+válidas; list_models com as resoluções e o custo por resolução (cotações do Artlist numa só passagem, guardadas).
+As imagens guardam-se no tamanho que o modelo devolve (a v243 tem 1088×608 porque o pedido era ~1K); o MCP mostra
+miniaturas de 768 px. Nos vídeos da fal, as imagens seguem como o ficheiro original.
+
+## 2026-10-08 — Custo do take com os inputs reais
+O Artlist cota pela variante que os inputs escolhem (com vídeo de referência é «multi-to-video», bem mais caro) e
+só cota com os ficheiros: video_cost.shot_args/shot_quote sobem as mesmas imagens, guia e vozes do pedido
+(artlist.quote_request, sem gerar) e cotam com e sem o vídeo → «1340 créditos (460 + vídeo-guia 880)». Chave da
+cotação = modelo, resolução, duração, som, tipo de pedido e inputs (nunca valor antigo). Ecrã e MCP usam a mesma.
+A confirmação do Artlist avisa se o pedido difere do ecrã; o take mostra «o ecrã mostrava X». Links /pub/ref passam a
+ficar também em disco (servem noutro processo e depois de um reinício; só ficheiros de media).
+
+## 2026-10-08 — Duração dos planos pelo MCP
+storyboard.change_duration: só durações que o modelo do plano aceita (erro com as opções, sem arredondar); os planos
+seguintes da cena andam com a diferença (stage_start); erro com os segundos em falta se o fim passar a encenação.
+Campos: shot:N.duration (video_shot e sb_shot) e scene_duration:N (sb_scene; só muda o fim, as chaves das
+personagens ficam). O open_screen mostra a duração, o troço, as durações aceites e o estado do vídeo-guia (aprovado ou
+por aprovar) e dos previs; list_guides marca os guias com outra duração. A página de vídeo usa a mesma regra; os
+seletores de modelo, resolução e duração só seguem se mexidos (uma página antiga não desfaz o que o MCP gravou).
+
+## 2026-10-08 — MCP: takes, frames, campos inteiros, vários campos, voz
+app/mcp_takes.py: list_takes (estado, modelo, resolução, duração, créditos, links de 2 h para o vídeo e a miniatura
+`<take>_thumb.jpg`, prompt e o que seguiu), frame_from_take (ffmpeg; shot_ref:N → MediaFile role «shotref», token
+@SHOT<N>.f<id>, aparece nas video_inputs do plano, desligado; view:a:v → imagem aprovada da vista), get_field (valor
+inteiro), set_fields (uma transação: valida tudo, grava tudo ou nada), quote_shot. set_field passa pela mesma
+transação e as gravações do mesmo projeto fazem-se uma de cada vez. list_guides devolve dados. Asset.voice_note (EN,
+migração 0053): a app junta-o à voz em cada fala no envio («…@X.voice, speaking English with a clear Spanish accent»).
+
+## 2026-10-08 — Planos pela ordem na encenação; páginas ao vivo
+Shot.number segue o início do troço (stage_start; empate pelo id): um before_flush (models._renumber_shots) renumera a
+cena sempre que um plano é criado, apagado ou muda de início (migração 0054 renumerou o que havia). Vale em toda a app
+(storyboard, vídeo, montagem, MCP); os ids, ficheiros, takes e referências (@SHOT<id>) não mudam; os botões de mover
+planos saíram. Páginas ao vivo (app/live.py): cada commit sobe o contador do projeto (exceto estados de pedidos, chat,
+configuração); a página pergunta /interno/versao/<projeto> a cada 3 s (só visível, sem pedido em curso) e faz morph
+se mudou — os campos mexidos não são tocados.
+
+## 2026-10-09 — Takes rejeitados ficam guardados
+Rejeitar um take (role clip) já não apaga o ficheiro: sai de escolhido e de por decidir e fica em «Rejeitados» na
+página do plano (Repor → por decidir; Escolher). As imagens rejeitadas continuam a ser apagadas. list_takes mostra os
+rejeitados com o link do vídeo. Os takes rejeitados antes disto já tinham o ficheiro apagado.
+
+## 2026-10-09 — Desempenho (definitivo)
+app/memo.py: @memo guarda por pedido (na sessão) as contas caras que as páginas repetiam dezenas de vezes
+(video_candidates, request_plan, guide_for_video, moments.rows/location/view_images/cast_images/render_hash,
+scene3d.compose/scene_cast/in_frame, video_inputs.pool/frames/items, get_config, model_profiles.active, video_models);
+limpa-se a cada flush/commit/rollback e não se usa com mudanças por gravar. memo.across guarda entre páginas, pela
+versão do projeto (app/live.py): o estado dos planos no progresso das etapas e o resumo do painel do Assistente.
+Vídeos nas páginas: preload="none" com capa JPG (/media/capa/<vídeo>, <nome>_thumb.jpg); só o leitor do take
+escolhido carrega (para guardar fotogramas). Páginas GET com mais de 1 s ficam no log («página lenta»).
+
+## 2026-10-12 — Sala de argumentistas
+/projetos/<id>/sala (app/writing.py, app/routes/room.py, app/mcp_writing.py): ficheiros de texto livres do projeto
+(caminhos com pastas) onde o utilizador e as IAs do conector MCP (ChatGPT, Claude — o autor é o client_name do registo
+OAuth) escrevem e discutem a história e os guiões sem tocar nos dados de produção. Cada gravação é uma versão (texto
+inteiro, autor, mensagem); write_file exige base_version (sem sobrepor o trabalho do outro), edit_file muda partes
+(texto exato e único). Comentários por ficheiro e conversa geral. Só o utilizador aprova: o texto passa para o destino
+(campos de texto: premissa, logline, sinopse, mundo, arcos/resumos, sinopse de episódio, perfil de personagem; ou
+scenes:<episódio/ato/projeto> = cenas e linhas do guião) e o ficheiro fica trancado; só o utilizador destranca, e a app
+fica com a versão aprovada até nova aprovação. Guião em texto (writing.SCRIPT_FORMAT): «## Título», Local/Hora/Resumo,
+parágrafos de ação, NOME + fala. Ao aprovar, as cenas emparelham-se por semelhança (a ordem não conta) e as linhas
+iguais, mudadas ou só movidas mantêm o id (planos, encenação); antes de aprovar mostra-se o plano (novas, mudadas,
+para a Reciclagem, planos que perdem falas); personagens desconhecidas impedem aprovar.
+
+## 2026-10-12 — MCP: vídeo, takes e vozes
+app/mcp_video.py: generate_video (o mesmo pedido que «Gerar vídeo»; sem confirm_cost só devolve o custo cotado, com
+confirm_cost=true o pedido segue com confirmCost — só depois de o utilizador aceitar), write_video_prompt (o escritor da
+app), upload_take (link https ou base64, MP4/MOV; fica por decidir, com o prompt e o modelo indicados num ImageJob
+provider "mcp"), approve_take / reject_take / restore_take (como Escolher / Rejeitar / Repor), list_voices,
+upload_voice (áudio para a ficha da personagem, normalizado como no carregamento da app), approve_voice / reject_voice.
+
+## 2026-10-12 — Sala de argumentistas: discussão, propostas, conflitos e tarefas
+Participantes com nome: o utilizador assina com AUTHOR_NAME (writing.USER), as IAs o client_name do conector (Claude,
+ChatGPT). Comentários em fios (reply_to), menções (@Claude, @ChatGPT, @<utilizador>, @todos) e notificações por participante
+(WritingNotice; my_notifications no MCP; «Notificações» na sala e contador na barra de topo). Propostas (WritingProposal,
+#n por projeto): título, justificação, impactos na continuidade, decisões para o utilizador, texto proposto sobre uma versão
+de base; pareceres approve/contest por revisão (uma revisão nova anula os anteriores); alternativas (alternative_to);
+uma IA aplica só com parecer favorável de outro participante e sem contestações; o utilizador aplica ou rejeita sempre.
+Conflitos: fusão a três (writing.merge3) em write_file com base antiga e ao aplicar propostas; mudanças no mesmo sítio
+são recusadas com as linhas em choque. Tarefas (WritingTask): título, detalhes, responsável (ou quem pegar), estado
+(por fazer, em curso, feita com resultado obrigatório, cancelada), ligadas a um ficheiro ou proposta, com discussão.
+
+## 2026-10-12 — Sala: modo de leitura
+Os ficheiros abrem em «Ler» (app/reading.py): markdown composto em Literata (markdown-it-py, sem HTML do texto) e os
+guiões com aspeto de guião de cinema em Courier Prime (cabeçalhos de cena, nome da personagem ao centro, indicação entre
+parênteses, falas numa coluna estreita, transições à direita). Reconhece o formato da sala («## Título» + Local/Hora) e
+o clássico em markdown («**1. EXT. …**», «**NOME** *(indicação)*» e a fala como citação «> …»). Os códigos dos assets
+aparecem pelo nome. «Editar» (em escrita) e «Texto simples» mostram o texto tal como está.
+
+## 2026-10-12 — Sala: correção das tabelas na leitura dos guiões
+Causas: (1) o renderizador dos guiões deitava fora as linhas em branco do texto antes da primeira cena, e o markdown
+recebia a tabela colada aos parágrafos seguintes (no GFM, uma linha não vazia a seguir a uma tabela é mais uma linha):
+as continuidades do E2 entravam na tabela; (2) num ficheiro com «Local:/Hora:», qualquer «## …» era tratado como cena:
+a ficha e as continuidades do E3 viravam cenas e o conteúdo era composto como ação, com os «|» à vista. Correção em
+app/reading.py: segmentação explícita (reading.segment) que não perde linhas; uma cena só começa num cabeçalho clássico
+ou num «## Título» seguido de Local/Hora/Resumo (ou em qualquer «##» quando o destino é «cenas», como na aprovação);
+um título markdown que não é cena fecha a cena; o que não é cena vai inteiro ao parser; dentro das cenas é o parser que
+classifica tabelas, listas, código e citações; os códigos dos assets trocam-se pelos nomes só no texto corrido (não no
+código). Testes: tests/test_reading.py (python -m unittest tests.test_reading).
+Falas soltas: numa cena, uma citação «> …» sem nome antes (a seguir a uma linha de ação) continua a fala de quem falou
+por último na cena e aparece com o nome e «(cont.)», como num guião; sem ninguém antes, é uma fala sem nome. Um ficheiro
+é guião se tiver pelo menos uma cena fora de blocos de código (antes eram precisos dois cabeçalhos clássicos).
+
+## 2026-10-13 — Sala: apagar ficheiros e scroll da barra
+Apagar (botão no cabeçalho do ficheiro; MCP delete_file) manda o ficheiro para «Apagados» (deleted_at; o caminho passa a
+.apagados/<id>/…, para o original ficar livre), com versões, discussão e propostas (as abertas ficam retiradas), e
+notifica os participantes. As IAs só apagam ficheiros em escrita; o utilizador apaga também os aprovados (o que passou para
+a app fica na app). Repor (app ou MCP restore_file; com o caminho ocupado fica «… (reposto)»). Apagar de vez só na app,
+a partir de Apagados. Um ficheiro apagado só se lê. A barra dos ficheiros rola sozinha quando não cabe no ecrã.
+Sala: a barra mostra os ficheiros numa árvore de pastas (subpastas incluídas) que abrem e fecham; cada pasta lembra o
+estado neste browser (localStorage, por projeto); a pasta do ficheiro aberto abre sempre; botões para abrir/fechar
+todas; o morph da página ao vivo não mexe no «open» das pastas.
+
+## 2026-10-13 — Agenda
+/agenda (fora dos projetos; ligação no topo com o número de itens para hoje e atrasados): itens = blocos de tempo
+(start → due) ou um dia (só due), de qualquer projeto ou de nenhum, sem subtarefas (decisão do utilizador: «alocar
+tempo para um episódio»; o resto é microgestão). Tipos: episódio, guiões, short, publicação, outro. Vistas: Hoje
+(atrasado, hoje, próximos 7 dias, feito hoje), Quadro (por fazer / em curso / feito, arrastar), Linha do tempo (faixa
+por projeto, barras e pontos, 4–26 semanas, abre em hoje) e Visão geral (progresso por projeto, atrasos, a decorrer,
+próximo prazo). Publicações recorrentes (dias da semana, período, numeradas {n}; apagar tira as por fazer). MCP:
+agenda_today, list_agenda, add_agenda_item, update_agenda_item, delete_agenda_item, add_recurring_posts (app/mcp_agenda.py).
+Agenda › Calendário: modo Mês (semanas de segunda a domingo; os blocos atravessam os dias e continuam na semana
+seguinte; os itens de um dia são etiquetas com ponto da cor do tipo) e modo Ano (12 meses pequenos; em cada dia as
+cores do que lá há, com o resumo ao passar o rato; clicar abre o mês). Setas para o mês/ano anterior e seguinte e
+«Hoje». Linha do tempo: opção «1 ano» (52 semanas).
+Sala: limite de cada ficheiro subiu de 400 000 para 2 000 000 caracteres (o maior já tinha 394 989) e o de cada
+comentário de 20 000 para 100 000. Com ~1,9 M caracteres: leitura 0,9 s, fusão e diff instantâneos (diff_rows usa
+autojunk nos ficheiros grandes: 2 s → 0,04 s).
+
+## 2026-10-14 — Sala: PDF dos ficheiros
+Botão de download no cabeçalho de cada ficheiro (também numa versão antiga aberta): /projetos/<id>/sala/<f>/pdf[?ver=N]
+(app/room_pdf.py). Usa o HTML do modo de leitura com uma folha de estilos de papel (A4; texto em Literata; guião em
+Courier Prime 12 pt com as margens de um argumento, nome da personagem ao centro, falas recuadas) e imprime com o
+Chromium do servidor (Playwright), com o rodapé «prefixo · ficheiro · versão» e «página / total». ~2 s por ficheiro.

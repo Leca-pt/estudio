@@ -1,0 +1,58 @@
+{% extends "config/shell.html" %}
+{% set main_form = "list-form" %}
+{% block content %}
+<div class="phead"><div><div class="crumbs">Configuração</div><h1 class="h1">Listas</h1></div></div>
+{{ m.alerts(error, saved) }}
+<div class="cfg-lists">
+  <div class="sec" style="padding: 8px">
+    {% for group, keys in groups %}
+    <div class="cap" style="padding: {{ '6px' if loop.first else '12px' }} 10px 4px">{{ group }}</div>
+    {% for k in keys %}
+    <a class="li {% if k == key %}on{% endif %}" href="/configuracao/listas?lista={{ k }}">{{ labels[k] }}<span class="n">{{ counts.get(k, 0) }}</span></a>
+    {% endfor %}
+    {% endfor %}
+  </div>
+
+  <form id="list-form" method="post" action="/configuracao/listas/{{ key }}" class="sec" style="overflow: hidden">
+    {{ m.csrf() }}
+    <div class="sec-h">
+      <h2 class="h2">{{ labels[key] }}</h2><span class="tag">{{ rows|length }} itens</span><span class="sp"></span>
+      <details class="rename">
+        <summary class="btn ghost sm">Renomear lista</summary>
+        <div class="rename-box"><input class="in" name="list_label" value="{{ labels[key] }}" aria-label="Nome da lista"><button class="btn sm pri" type="submit">Guardar</button></div>
+      </details>
+      <button class="btn pri sm save" type="submit">Guardar</button>
+    </div>
+    {% if fixed_size %}<div class="alert info" style="margin: 12px 16px 0">Os três tipos têm comportamento fixo (curta, série, filme, por esta ordem). Só os nomes mudam.</div>{% endif %}
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th style="width: 76px">Ordem</th><th>Rótulo{% if numeric %} ({{ unit }}){% endif %}</th><th>Texto no prompt (EN)</th><th style="width: 70px">Em uso</th><th style="width: 44px"></th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="it">
+            <td><div class="row" style="gap: 2px">
+              {{ m.op_button("up:%d" % r.id, "chev-up", "Subir", disabled=loop.first) }}
+              {{ m.op_button("down:%d" % r.id, "chev-down", "Descer", disabled=loop.last) }}
+            </div></td>
+            <td><input type="hidden" name="item_id" value="{{ r.id }}"><textarea class="in in-line" name="item_value" aria-label="Rótulo" required rows="1"{% if numeric %} inputmode="numeric"{% endif %}>{{ r.value }}</textarea></td>
+            <td><textarea class="in in-line mono" name="item_prompt" aria-label="Texto no prompt" lang="en" rows="1">{{ r.prompt_text or '' }}</textarea></td>
+            <td class="mono {% if not usage[r.id] %}dim{% endif %}">{{ usage[r.id] }}</td>
+            <td>{% if not fixed_size %}{{ m.op_button("del:%d" % r.id, "trash", "Remover (só se não estiver em uso)" if usage[r.id] else "Remover", disabled=usage[r.id] > 0, confirm="Remover “%s”?" % r.value, confirm_ok="Remover") }}{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="height: 60px; color: var(--tx3)">Lista vazia.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not fixed_size %}
+    <div class="row add-row">
+      <input class="in" name="new_value" aria-label="Novo rótulo" placeholder="{{ (unit|capitalize ~ (' (ex.: 5)' if unit == 'minutos' else ' (ex.: 60)')) if numeric else 'Novo rótulo' }}" style="width: 200px">
+      <textarea class="in in-line mono" name="new_prompt" aria-label="Texto no prompt" placeholder="prompt text (EN)" style="flex: 1" lang="en" rows="1"></textarea>
+      <button class="btn" type="submit" name="op" value="add">Adicionar</button>
+    </div>
+    {% endif %}
+  </form>
+</div>
+<span class="hint">Itens em uso não podem ser removidos; podem ser renomeados (os projetos que os usam acompanham). O rótulo aparece nos dropdowns, o texto em inglês entra nos prompts.</span>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Autorizar acesso · Estúdio{% endblock %}
+{% block app %}
+<div class="auth-wrap">
+  <form method="post" action="/mcp/autorizar" class="auth-form" hx-boost="false">
+    {{ m.csrf() }}
+    <input type="hidden" name="pedido" value="{{ pedido }}">
+    <div class="auth-logo">
+      <span class="logo-m">{{ i.icon("logo-lg", 22) }}</span>
+      <h1 class="h1">Ligar ao Estúdio</h1>
+    </div>
+    <p><b>{{ client_name }}</b> pede acesso à app.</p>
+    <p class="hint">Vai poder ler os teus projetos (bíblia, mundo, história, cenas, planos e prompts) e alterar textos e
+      campos, com as mesmas regras do Assistente. Não pode gerar imagens nem vídeos pagos, aprovar resultados nem apagar
+      nada.</p>
+    {% if redirect %}<p class="hint">Volta para: <span class="mono">{{ redirect }}</span></p>{% endif %}
+    <div class="row" style="gap: 8px">
+      <button class="btn pri lg" type="submit" name="decisao" value="permitir">Permitir</button>
+      <button class="btn lg" type="submit" name="decisao" value="recusar">Recusar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

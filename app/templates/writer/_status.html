@@ -1,0 +1,6 @@
+{# Estado do escritor de prompts (task = PromptTask). Enquanto escreve, pergunta o estado a cada 3 s; quando termina,
+   a página atualiza-se. #}
+<span class="writer-st{% if task.status == 'failed' %} err{% endif %}" id="writer-{{ kind }}-{{ ref|replace('-', '_') }}"{% if task.status == 'running' %} hx-get="/projetos/{{ pid }}/escritor/{{ kind }}/{{ ref }}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {% if task.status == 'failed' %}{{ task.error or "Não foi possível escrever." }}
+  {% else %}<span class="dots"><i></i><i></i><i></i></span> A escrever com {{ task.model }}{% if task.generate is not none %} (gera a seguir){% endif %}… {{ writer_elapsed(task) }} s{% endif %}
+</span>

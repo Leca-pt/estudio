@@ -1,0 +1,100 @@
+{% import "_macros.html" as m with context %}
+<form id="story-form" method="post" action="{{ action }}" class="col" style="gap: 16px">
+  {{ m.csrf() }}
+  {% include "_scene_nav.html" %}
+  <div class="phead">
+    <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Etapa {{ stage_pos }}</span></div><h1 class="h1">{{ stage_name }}</h1></div>
+    <span class="sp"></span>
+    {{ m.status(stage_state[0], stage_state[1]) }}
+    <a class="btn" href="/projetos/{{ project.id }}/sala">{{ i.icon("doc", 14) }}Sala de argumentistas</a>
+    <button class="btn pri save" type="submit">Guardar</button>
+  </div>
+  {{ m.alerts(error, saved) }}
+  {% include "story/_durations.html" %}
+
+  {% if project.logline %}<p class="hint" style="margin: 0"><span class="dim">Logline:</span> {{ project.logline }} · <a href="/projetos/{{ project.id }}/etapa/1#ideia">editar na Bíblia</a></p>{% endif %}
+
+  {% if project.type == "short" %}
+    {% include "story/_scenes.html" %}
+
+  {% elif project.type == "series" %}
+    {% for season in seasons %}
+    {% set key = "season-%d-" % season.id %}
+    {% set episodes = episodes_by_season[season.id] %}
+    <section class="sec" id="temporada-{{ season.id }}">
+      <div class="sec-h"><span class="n">T{{ season.number }}</span><h2 class="h2">Temporada {{ season.number }}</h2><span class="sp"></span>
+        <div class="acts">
+          {{ m.op_button("season_up:%d" % season.id, "chev-up", "Subir temporada", disabled=loop.first) }}
+          {{ m.op_button("season_down:%d" % season.id, "chev-down", "Descer temporada", disabled=loop.last) }}
+          {{ m.op_button("del_season:%d" % season.id, "trash", "Apagar temporada", confirm="Apagar a temporada %d?" % season.number, confirm_text="Os episódios e as cenas desta temporada também são apagados. Esta ação não se desfaz.") }}
+        </div>
+      </div>
+      <div class="sec-b">
+        {{ m.input(key ~ "title", "Título da temporada", season.title, cls="span2", placeholder="Opcional") }}
+        {{ m.select(key ~ "planned", "Episódios previstos", range(1, 31)|map("string")|list, season.planned_episodes) }}
+        {{ m.textarea(key ~ "arc", "Arco da temporada", season.arc, cls="span3", placeholder="O que muda do primeiro ao último episódio.") }}
+        {{ m.textarea(key ~ "summary", "Resumo", season.summary, cls="span3", placeholder="Opcional") }}
+      </div>
+      {% if episodes %}
+      <div class="sec-list" style="border-top: 1px solid var(--line)">
+        {% for e in episodes %}
+        <div class="row ep-row" style="gap: 0">
+          <a class="row-link" style="flex: 1; min-width: 0" href="/projetos/{{ project.id }}/historia/episodios/{{ e.id }}">
+            <span class="c">E{{ '%02d' % e.number }}</span><span class="sp" style="flex: 1">{{ e.title or 'Episódio %d' % e.number }}</span>
+            <span class="dim">{{ scene_counts.get(e.id, 0) }} cena(s)</span>
+            {{ i.icon("chev-right", 14) }}
+          </a>
+          <span class="acts" style="padding-right: 10px">
+            {{ m.op_button("episode_up:%d" % e.id, "chev-up", "Subir episódio", disabled=loop.first) }}
+            {{ m.op_button("episode_down:%d" % e.id, "chev-down", "Descer episódio", disabled=loop.last) }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="sec-f"><button class="btn sm" type="submit" name="op" value="add_episode:{{ season.id }}">{{ i.icon("plus", 13) }}Novo episódio</button></div>
+      {% else %}
+      <div style="padding: 0 16px 16px">
+        {% call m.empty_state("Ainda sem episódios", "Cada episódio tem logline, sinopse e as suas próprias cenas.", "film") %}
+          <button class="btn" type="submit" name="op" value="add_episode:{{ season.id }}">{{ i.icon("plus", 13) }}Novo episódio</button>
+        {% endcall %}
+      </div>
+      {% endif %}
+    </section>
+    {% else %}
+    {% call m.empty_state("Ainda sem temporadas", "Uma série organiza-se em temporadas, episódios e cenas.", "film") %}
+      <button class="btn pri" type="submit" name="op" value="add_season">{{ i.icon("plus", 13) }}Nova temporada</button>
+    {% endcall %}
+    {% endfor %}
+    {% if seasons %}<div class="row"><button class="btn sm" type="submit" name="op" value="add_season">{{ i.icon("plus", 13) }}Nova temporada</button></div>{% endif %}
+
+  {% else %}
+    {% for act in acts %}
+    {% set key = "act-%d-" % act.id %}
+    <section class="sec" id="ato-{{ act.id }}">
+      <div class="sec-h"><span class="n">A{{ act.number }}</span><h2 class="h2">Ato {{ act.number }}</h2><span class="sp"></span>
+        <div class="acts">
+          {{ m.op_button("act_up:%d" % act.id, "chev-up", "Subir ato", disabled=loop.first) }}
+          {{ m.op_button("act_down:%d" % act.id, "chev-down", "Descer ato", disabled=loop.last) }}
+          {{ m.op_button("del_act:%d" % act.id, "trash", "Apagar ato", confirm="Apagar o ato %d?" % act.number, confirm_text="As cenas deste ato também são apagadas. Esta ação não se desfaz.") }}
+        </div>
+      </div>
+      <div class="sec-b">
+        {{ m.input(key ~ "title", "Título do ato", act.title, cls="span3", placeholder="Opcional") }}
+        {{ m.textarea(key ~ "arc", "Arco", act.arc, cls="span3") }}
+        {{ m.textarea(key ~ "summary", "Resumo", act.summary, cls="span3") }}
+      </div>
+      <div class="sec-list" style="border-top: 1px solid var(--line)">
+        <a class="row-link" href="/projetos/{{ project.id }}/historia/atos/{{ act.id }}">
+          <span class="sp" style="flex: 1">Cenas do ato {{ act.number }}</span>
+          <span class="dim">{{ scene_counts.get(act.id, 0) }} cena(s)</span>{{ i.icon("chev-right", 14) }}
+        </a>
+      </div>
+    </section>
+    {% else %}
+    {% call m.empty_state("Ainda sem atos", "Um filme organiza-se em atos e cenas.", "film") %}
+      <button class="btn pri" type="submit" name="op" value="add_act">{{ i.icon("plus", 13) }}Novo ato</button>
+    {% endcall %}
+    {% endfor %}
+    {% if acts %}<div class="row"><button class="btn sm" type="submit" name="op" value="add_act">{{ i.icon("plus", 13) }}Novo ato</button></div>{% endif %}
+  {% endif %}
+</form>

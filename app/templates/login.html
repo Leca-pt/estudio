@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Entrar · Estúdio{% endblock %}
+{% block app %}
+<div class="auth-wrap">
+  <form method="post" action="/login" class="auth-form" hx-boost="false">
+    {{ m.csrf() }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="auth-logo">
+      <span class="logo-m">{{ i.icon("logo-lg", 22) }}</span>
+      <h1 class="h1">Estúdio</h1>
+    </div>
+    {% if error %}<div class="alert err" role="alert">{{ i.icon("alert") }}{{ error }}</div>{% endif %}
+    <div class="f"><label for="email">Email</label><input id="email" class="in auth-in{% if error %} err{% endif %}" type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus></div>
+    <div class="f"><label for="password">Palavra-passe</label><input id="password" class="in auth-in{% if error %} err{% endif %}" type="password" name="password" autocomplete="current-password" required></div>
+    <button class="btn pri lg auth-btn" type="submit">Entrar</button>
+  </form>
+</div>
+{% endblock %}

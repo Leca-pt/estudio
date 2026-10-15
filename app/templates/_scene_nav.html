@@ -1,0 +1,23 @@
+{# Barra da cena (app/scene_nav.py): cena anterior/seguinte, Guião · Storyboard · Vídeo e os planos. #}
+{% if nav %}
+<nav class="scn-nav" aria-label="Navegar na cena">
+  <div class="scn-nav-r">
+    {% if nav.prev %}<a class="btn sm ghost" href="{{ nav.prev.url }}" title="Cena anterior: {{ nav.prev.title }}">{{ i.icon("chev-left", 13) }}{{ nav.prev.code }}</a>
+    {% else %}<span class="btn sm ghost" aria-disabled="true" style="opacity:.35">{{ i.icon("chev-left", 13) }}</span>{% endif %}
+    <span class="scn-nav-t"><span class="mono">{{ nav.code }}</span> · {{ nav.title }}</span>
+    {% if nav.next %}<a class="btn sm ghost" href="{{ nav.next.url }}" title="Cena seguinte: {{ nav.next.title }}">{{ nav.next.code }}{{ i.icon("chev-right", 13) }}</a>
+    {% else %}<span class="btn sm ghost" aria-disabled="true" style="opacity:.35">{{ i.icon("chev-right", 13) }}</span>{% endif %}
+    <span class="sp"></span>
+    <div class="seg" role="group" aria-label="Passo">
+      {% for t in nav.tabs %}<a href="{{ t.url }}" class="{{ 'on' if t.on }}"{% if t.on %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+    </div>
+  </div>
+  {% if nav.shots %}
+  <div class="scn-nav-r scn-nav-shots">
+    <span class="dim">Planos</span>
+    {% if nav.mode != "script" %}<a class="scn-shot{{ ' on' if nav.scene_on }}" href="{{ nav.scene_url }}" title="{{ 'A cena no Storyboard (encenação e todos os planos)' if nav.mode == 'storyboard' else 'Os planos da cena na etapa Vídeo' }}">Cena</a>{% endif %}
+    {% for s in nav.shots %}<a class="scn-shot{{ ' on' if s.on }}" href="{{ s.url }}" title="{{ s.title }}"><span class="dot {{ s.state }}"></span>{{ s.code }}</a>{% endfor %}
+  </div>
+  {% endif %}
+</nav>
+{% endif %}

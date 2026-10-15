@@ -1,0 +1,33 @@
+{% set cur_project = project if project is defined else none %}
+<header class="top">
+  {% if has_side is defined and has_side %}
+  <button class="ib menu-btn" type="button" data-toggle-side aria-label="Abrir estrutura">{{ i.icon("menu", 20) }}</button>
+  {% endif %}
+  <a class="logo" href="/projetos"><span class="logo-m">{{ i.icon("logo", 14) }}</span><span class="logo-t">Estúdio</span></a>
+  <span class="vsep"></span>
+  <details class="psw-menu">
+    <summary class="psw">
+      {% if cur_project %}<span class="pfx">{{ cur_project.prefix }}</span><span class="psw-name">{{ cur_project.name }}</span><span class="dim psw-type">· {{ type_short[cur_project.type] }}</span>
+      {% else %}<span class="muted">Selecionar projeto</span>{% endif %}
+      {{ i.icon("chev-down", 14) }}
+    </summary>
+    <div class="menu">
+      {% for p in nav_projects() %}
+      <a href="/projetos/{{ p.id }}" class="{% if cur_project and p.id == cur_project.id %}on{% endif %}"><span class="pfx">{{ p.prefix }}</span><span class="t">{{ p.name }}</span><span class="dim">{{ type_short[p.type] }}</span></a>
+      {% else %}
+      <span class="dim menu-empty">Ainda não há projetos.</span>
+      {% endfor %}
+      <a href="/projetos" class="menu-all">Todos os projetos</a>
+    </div>
+  </details>
+  <span class="sp"></span>
+  {% if asst is defined %}<button class="btn asst-top" type="button" data-toggle-asst>{{ i.icon("chat", 15) }}Assistente</button>{% endif %}
+  {% if cur_project %}<a class="tlink {% if in_room is defined and in_room %}on{% endif %}" href="/projetos/{{ cur_project.id }}/sala" aria-label="Sala de argumentistas">{{ i.icon("doc") }}<span class="lbl">Sala</span>{% set ru = room_unread(cur_project.id) %}{% if ru %}<span class="badge-n">{{ ru }}</span>{% endif %}</a>{% endif %}
+  {% if cur_project and trash_count(cur_project.id) %}<a class="tlink" href="/projetos/{{ cur_project.id }}/reciclagem" aria-label="Reciclagem">{{ i.icon("trash") }}<span class="lbl">Reciclagem ({{ trash_count(cur_project.id) }})</span></a>{% endif %}
+  {% set ag = agenda_today() %}<a class="tlink {% if in_agenda is defined and in_agenda %}on{% endif %}" href="/agenda" aria-label="Agenda" title="{{ ag.tip or 'Agenda: nada atrasado nem a acabar hoje' }}">{{ i.icon("calendar") }}<span class="lbl">Agenda</span>{% if ag.n %}<span class="badge-n{% if not ag.late %} warn{% endif %}">{{ ag.n }}</span>{% endif %}</a>
+  <a class="tlink {% if in_config is defined and in_config %}on{% endif %}" href="/configuracao" aria-label="Configuração">{{ i.icon("settings") }}<span class="lbl">Configuração</span></a>
+  <form method="post" action="/logout" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button class="tlink" type="submit" aria-label="Sair">{{ i.icon("logout") }}<span class="lbl">Sair</span></button>
+  </form>
+</header>

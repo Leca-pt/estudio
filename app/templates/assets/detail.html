@@ -1,0 +1,602 @@
+{% import "_macros.html" as m with context %}
+<div class="phead">
+  <div>
+    <div class="crumbs"><a href="/projetos/{{ project.id }}/etapa/4">Design de assets</a>/<a href="/projetos/{{ project.id }}/etapa/4?tipo={{ asset.kind }}">{{ kinds_plural[asset.kind] }}</a></div>
+    <div class="row" style="gap: 10px; flex-wrap: wrap"><h1 class="h1">{{ asset.label }}</h1><span class="pfx">{{ asset.name }}</span>{{ m.status(state, state_label) }}</div>
+  </div>
+  <span class="sp"></span>
+  <button class="btn pri save" type="submit" form="asset-form">Guardar</button>
+</div>
+{{ m.alerts(error, saved) }}
+{% if source %}
+<div class="alert info src-note">{{ i.icon("upload", 14) }}
+  {% if source.gone %}<span>Importado de outro projeto, mas o original já não existe.</span>
+  {% else %}<span>Cópia de <b>{{ source.asset.label or source.asset.name }}</b> <span class="mono">{{ source.asset.name }}</span> do projeto <a href="/projetos/{{ source.project.id }}/assets/{{ source.asset.id }}">{{ source.project.name }}</a>. O que mudas aqui não mexe no original.</span>
+  <span class="sp"></span>
+  <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/atualizar-origem" class="inline-form">{{ m.csrf() }}
+    <button class="btn sm" type="submit" data-confirm="Atualizar a partir do original?" data-confirm-text="Os textos, as imagens aprovadas, a voz, os looks e a maquete passam a ser os do original. As imagens aprovadas aqui que mudarem voltam a «Por decidir»; o que só existe aqui fica." data-confirm-ok="Atualizar">Atualizar a partir do original</button></form>{% endif %}
+</div>
+{% endif %}
+
+<div class="asset-layout">
+  <div class="asset-side col" style="gap: 14px">
+    {% if asset.kind == "location" %}
+    <div class="sec" style="overflow: hidden">
+      <div class="sec-h"><h2 class="h2">O local</h2></div>
+      {% if key_image %}<a class="ph r169 img-ph" style="border-radius: 0" href="/media/{{ key_image.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ key_image.path|thumb }}" alt="{{ asset.label }}"></a>
+      {% elif maquete_thumb %}<span class="ph r43 img-ph" style="border-radius: 0"><img src="{{ maquete_thumb.path|thumb }}" alt="Maquete vista de cima"></span>
+      {% else %}<div class="slot r43" style="border-radius: 0; border-width: 0; margin: 0">{{ i.icon("image", 20) }}Ainda sem maquete</div>{% endif %}
+      <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 12px">
+        <div class="row"><span class="dim">Aparece em</span><span class="sp"></span><span>{{ scene_count }} cena(s)</span></div>
+        <div class="row"><span class="dim">Planos na maquete</span><span class="sp"></span><span>{{ layout_uses }}</span></div>
+        <span class="hint">O local fica pronto com a maquete e as vistas aprovadas. Os planos passam-se dentro da maquete.</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="sec" style="overflow: hidden">
+      <div class="sec-h"><h2 class="h2">{{ "Folha aprovada" if portrait else "Imagem aprovada" }}</h2><span class="sp"></span>
+        {% if approved %}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ approved.id }}/descarregar" hx-boost="false" aria-label="Descarregar imagem aprovada" title="Descarregar">{{ i.icon("download", 15) }}</a>{% endif %}
+      </div>
+      {% if approved %}
+      {% set ext = approved.path.rsplit('.', 1)[-1] %}
+      <a class="ph r43 img-ph" style="border-radius: 0" href="/media/{{ approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ approved.path|thumb }}" alt="Folha aprovada de {{ asset.label }}"><span class="lb">{{ asset.name }}_sheet.{{ ext }}</span></a>
+      <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 12px">
+        <div class="row"><span class="dim">Aprovada</span><span class="sp"></span><span>{{ approved.updated_at|relative }}</span></div>
+        <div class="row"><span class="dim">Aparece em</span><span class="sp"></span><span>{{ scene_count }} cena(s)</span></div>
+      </div>
+      <form method="post" action="/projetos/{{ project.id }}/media/{{ approved.id }}/rejeitar" class="row" style="padding: 0 14px 12px">{{ m.csrf() }}
+        {% if gpt_enabled %}<button class="btn sm" type="button" data-edit-image="{{ approved.id }}" data-edit-role="sheet" data-edit-src="{{ approved.path|thumb }}" data-edit-name="{{ asset.name }}_sheet">Editar imagem</button>{% endif %}
+        <button class="btn sm no" type="submit" data-confirm="Rejeitar a imagem aprovada?" data-confirm-text="O ficheiro é apagado e deixa de seguir para os vídeos e para as outras folhas. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button>
+      </form>
+      {% else %}
+      <div class="slot r43" style="border-radius: 0; border-width: 0; margin: 0">{{ i.icon("image", 20) }}Ainda sem imagem aprovada</div>
+      <div style="padding: 10px 14px; font-size: 12px; color: var(--tx3)">Enquanto não houver folha aprovada, {{ asset.label }} não segue como referência para os vídeos.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if portrait %}
+    <div class="sec portrait-img" style="overflow: hidden">
+      <div class="sec-h"><h2 class="h2">Retrato aprovado</h2><span class="sp"></span>
+        {% if portrait_approved %}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ portrait_approved.id }}/descarregar" hx-boost="false" aria-label="Descarregar retrato aprovado" title="Descarregar">{{ i.icon("download", 15) }}</a>{% endif %}
+      </div>
+      {% if portrait_approved %}
+      <a class="ph r11 img-ph" style="border-radius: 0" href="/media/{{ portrait_approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ portrait_approved.path|thumb }}" alt="Retrato aprovado de {{ asset.label }}"><span class="lb">{{ asset.name }}_portrait.{{ portrait_approved.path.rsplit('.', 1)[-1] }}</span></a>
+      <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 12px">
+        <div class="row"><span class="dim">Aprovado</span><span class="sp"></span><span>{{ portrait_approved.updated_at|relative }}</span></div>
+      </div>
+      <form method="post" action="/projetos/{{ project.id }}/media/{{ portrait_approved.id }}/rejeitar" class="row" style="padding: 0 14px 12px">{{ m.csrf() }}
+        {% if gpt_enabled %}<button class="btn sm" type="button" data-edit-image="{{ portrait_approved.id }}" data-edit-role="portrait" data-edit-src="{{ portrait_approved.path|thumb }}" data-edit-name="{{ asset.name }}_portrait">Editar imagem</button>{% endif %}
+        <button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato aprovado?" data-confirm-text="O ficheiro é apagado e deixa de seguir para os vídeos. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button>
+      </form>
+      {% else %}
+      <div class="slot r11" style="border-radius: 0; border-width: 0; margin: 0">{{ i.icon("image", 20) }}Ainda sem retrato aprovado</div>
+      <div style="padding: 10px 14px; font-size: 12px; color: var(--tx3)">A personagem só fica aprovada com a folha e o retrato aprovados.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if asset.kind == "character" %}
+    <section class="sec">
+      <div class="sec-h"><h2 class="h2">Voz</h2><span class="dim" style="font-size: 11.5px">só personagens</span></div>
+      <div class="sec-b" style="grid-template-columns: minmax(0, 1fr); gap: 12px">
+        <div class="f"><label for="voice_type">Tipo</label>
+          <select id="voice_type" name="voice_type" class="in" form="asset-form"><option value="">Escolher…</option>
+            {% if asset.voice_type and asset.voice_type not in options.voice_type %}<option selected>{{ asset.voice_type }}</option>{% endif %}
+            {% for v in options.voice_type %}<option {% if v == asset.voice_type %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select></div>
+        <div class="f"><label for="voice_timbre">Timbre</label>
+          <select id="voice_timbre" name="voice_timbre" class="in" form="asset-form"><option value="">Escolher…</option>
+            {% if asset.voice_timbre and asset.voice_timbre not in options.timbre %}<option selected>{{ asset.voice_timbre }}</option>{% endif %}
+            {% for v in options.timbre %}<option {% if v == asset.voice_timbre %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select></div>
+        <div class="f"><label for="key_features">Features-chave para o vídeo</label><textarea id="key_features" name="key_features" class="in in-line mono" lang="en" form="asset-form" placeholder="short copper-red hair, scar on the left eyebrow, leather jacket" rows="1">{{ asset.key_features or '' }}</textarea><span class="hint">Uma frase curta, em inglês: o que o Assistente põe no prompt de vídeo para a personagem se manter igual.</span></div>
+        <div class="f"><label for="voice">Descrição para o prompt</label><textarea id="voice" name="voice" class="in in-line mono" lang="en" form="asset-form" placeholder="warm, confident adult female voice, calm and clear" rows="1">{{ asset.voice or '' }}</textarea></div>
+        <div class="f"><label for="voice_note">Como fala nas falas</label><textarea id="voice_note" name="voice_note" class="in in-line mono" lang="en" form="asset-form" placeholder="speaking English with a clear Spanish accent" rows="1" data-only-if-changed>{{ asset.voice_note or '' }}</textarea><span class="hint">Em inglês. A app junta-o sozinha a cada fala desta personagem no prompt de vídeo, a seguir à voz de referência.</span></div>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="asset-main">
+    <form id="asset-form" method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}" class="col" style="gap: 14px">
+      {{ m.csrf() }}
+      <section class="sec">
+        <div class="sec-b">
+          {{ m.input("label", "Nome", asset.label, extra="required") }}
+          <div class="f"><label for="code">Código</label>
+            <div class="row" style="gap: 6px"><input id="code" class="in mono" value="{{ asset.name }}" readonly style="flex: 1; min-width: 0">
+              <button class="btn sm" type="button" data-open-dialog="rename-dlg">Mudar</button></div></div>
+          <div class="f"><label for="group_name">Grupo</label>
+            <input id="group_name" name="group_name" class="in" list="asset-groups-d" value="{{ asset.group_name or '' }}" placeholder="ex.: Cidade" autocomplete="off">
+            <datalist id="asset-groups-d">{% for g in groups or [] %}<option value="{{ g }}">{% endfor %}</datalist></div>
+          <div class="f"><label for="kind">Tipo</label>
+            <select id="kind" name="kind" class="in">{% for code, label in kinds.items() %}<option value="{{ code }}" {% if asset.kind == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          </div>
+          <div class="f span3">
+            <label for="canonical_description">Descrição canónica <span class="dim" style="font-weight: 400">· em inglês: o Assistente parte dela em todos os prompts onde {{ asset.label }} aparece</span></label>
+            <textarea id="canonical_description" name="canonical_description" class="in mono" lang="en" style="min-height: 84px" placeholder="{{ {'character': 'Describe the character: age, hair, eyes, clothing, distinctive marks with exact number and position…', 'location': 'Describe the location: layout, materials, landmarks and their screen positions…', 'prop': 'Describe the object: shape, size, materials, colours, exact number of parts…', 'element': 'Describe the family: the design language all variants share (shapes, proportions, materials, colours) and what varies between them.'}[asset.kind] }}">{{ asset.canonical_description or '' }}</textarea>
+            <span class="hint">Marcas distintivas com número e posição exatos (ex.: “only one scar: a short vertical scar on the left eyebrow”).</span>
+          </div>
+          {% if asset.kind == "character" %}
+          <div class="f span3">
+            <label for="profile">Perfil <span class="dim" style="font-weight: 400">· quem é {{ asset.label }}, não entra nos prompts</span></label>
+            <textarea id="profile" name="profile" class="in" style="min-height: 140px" placeholder="Quem é e o que faz. De onde vem, o que lhe aconteceu. O que quer e o que teme. Pontos fortes e fracos. Como fala, como se mexe, manias…">{{ asset.profile or '' }}</textarea>
+            <span class="hint">Texto livre, em português. O Assistente usa-o para escrever falas, ações e propor a aparência e a voz. A aparência em si vai na descrição canónica, acima.</span>
+          </div>
+          {% else %}
+          <div class="f span3">
+            <label for="profile">{{ "Notas do local" if asset.kind == "location" else "Notas do objeto" }} <span class="dim" style="font-weight: 400">· opcional, não entra nos prompts</span></label>
+            <textarea id="profile" name="profile" class="in" style="min-height: 90px" placeholder="{{ 'O que é este sítio na história: para que serve, quem o frequenta, o que lá aconteceu, o ambiente. Detalhes que têm de se manter (ex.: há uma porta escondida atrás do frigorífico).' if asset.kind == 'location' else 'De onde vem, o que faz, a quem pertence, porque importa na história. Detalhes que têm de se manter.' }}">{{ asset.profile or '' }}</textarea>
+            <span class="hint">Texto livre, em português. O Assistente usa-o nas cenas {{ "passadas aqui" if asset.kind == "location" else "onde aparece" }}.</span>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      {% if sheet_panel %}{{ m.prompt_panel(sheet_panel, "asset-form", height=170, gen=gpt_enabled, jobs=gpt_jobs, gen_label="Gerar folha") }}{% endif %}
+      {% if asset.kind != "location" %}
+      <section class="sec" id="referencias-folha">
+        <div class="sec-h"><h2 class="h2">Referências para gerar a folha</h2><span class="sp"></span><span class="hint">Outros assets que esta folha tem de respeitar (ex.: o interior usa a carrinha).</span></div>
+        <div style="padding: 12px 16px">
+          <div class="picked">
+            {% for r in sheet_refs %}{% for img in r.images %}<a class="ph img-ph" href="/media/{{ img.path }}" hx-boost="false" title="{{ r.asset.name }}{{ ' · retrato' if img.role == 'portrait' }}"><img src="{{ img.path|thumb }}" alt="{{ r.asset.name }}"></a>{% else %}<span class="tag">{{ r.asset.name }} · sem folha</span>{% endfor %}{% else %}<span class="hint">Nenhuma: a folha é gerada só a partir do prompt.</span>{% endfor %}
+            <button class="btn sm" type="button" data-open-dialog="pick-sheet-refs">Escolher assets</button>
+          </div>
+        </div>
+        <div class="sec-f"><span class="hint">Ao gerar, as imagens aprovadas destes assets vão como referência.</span></div>
+      {{ m.picker("pick-sheet-refs", "Referências para gerar a folha", sheet_ref_groups, asset.sheet_refs or [], "sheet_ref", "asset-form", hint="Outros assets que esta folha tem de respeitar (ex.: o interior de um veículo usa a folha do veículo).", sent_name="sheet_refs_sent") }}
+      </section>
+      {% endif %}
+    </form>
+
+    <section class="sec" id="fotos">
+      <div class="sec-h"><h2 class="h2">Fotos de referência</h2><span class="sp"></span><span class="hint">{{ {'location': 'Fotos de um sítio real em que este local se baseia.', 'prop': 'Fotos de um objeto real em que este se baseia.', 'character': 'Roupa, estilo, adereços. Evita caras de pessoas reais.', 'element': 'Fotos de coisas reais com o design que procuras.'}[asset.kind] }}</span></div>
+      <div class="results">
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/fotos" enctype="multipart/form-data" class="drop drop-compact {% if photos %}drop-sm{% endif %}" data-dropzone>
+          {{ m.csrf() }}
+          <div class="ico">{{ i.icon("upload", 18) }}</div>
+          <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar fotos</span><span class="hint">PNG, JPG ou WEBP, até {{ max_upload_mb }} MB.</span></div>
+          <span class="sp"></span>
+          <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
+        </form>
+        {% for ph in photos %}
+        <div class="res">
+          <a class="ph r43 img-ph" href="/media/{{ ph.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ ph.path|thumb }}" alt="Foto {{ loop.index }}" loading="lazy"><span class="lb">Foto {{ loop.index }}</span></a>
+          <div class="acts">
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ ph.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit" data-confirm="Tirar a foto {{ loop.index }}?" data-confirm-text="A foto é apagada e deixa de ir como referência." data-confirm-ok="Tirar e apagar">Tirar</button></form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="sec-f"><span class="hint">{% if asset.kind == "location" %}O Assistente vê-as ao montar a maquete e, nas zonas onde as escolheres, descreve o aspeto delas nos prompts das vistas (não vão para o gerador: ele copiaria a composição da foto).{% else %}Vão como referência ao gerar a folha, e o Assistente vê-as ao escrever o prompt.{% endif %}</span></div>
+    </section>
+
+    {% if asset.kind != "location" %}
+    <section class="sec" id="resultados">
+      <div class="sec-h"><h2 class="h2">{{ "Resultados da folha" if portrait else "Resultados" }}</h2><span class="sp"></span><span class="hint">Aprovar substitui a imagem aprovada atual. Rejeitar apaga o ficheiro.</span></div>
+      <div class="results">
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/resultados" enctype="multipart/form-data" class="drop drop-compact {% if results %}drop-sm{% endif %}" data-dropzone>
+          {{ m.csrf() }}
+          <div class="ico">{{ i.icon("upload", 18) }}</div>
+          <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP, até {{ max_upload_mb }} MB.</span></div>
+          <span class="sp"></span>
+          <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
+        </form>
+        {{ m.job_tiles(gpt_jobs) }}
+        {% for r in results %}
+        {% set fname = r.path.rsplit('/', 1)[-1] %}
+        <div class="res">
+          <a class="ph r43 img-ph" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="{{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">{{ fname }}</span></a>
+          {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="sheet" data-edit-src="{{ r.path|thumb }}" data-edit-name="{{ fname }}">Editar imagem</button>{% endif %}
+          <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if rejected_n %}<div class="sec-f"><span class="hint">{{ rejected_n }} resultado(s) rejeitado(s) e apagado(s).</span></div>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if asset.kind == "location" %}
+    <section class="sec" id="maquete">
+      <div class="sec-h"><h2 class="h2">Maquete 3D</h2><span class="sp"></span><span class="hint">O espaço do local, por zonas (divisões e espaços exteriores). Todos os planos passados aqui usam-na: a geografia fica sempre igual.</span></div>
+      {% if layout_spec %}
+      <div class="m3d-card">
+        <button type="button" class="ph img-ph m3d-thumb" data-open-dialog="maquete-dlg" aria-label="Abrir a maquete 3D">{% if maquete_thumb %}<img src="{{ maquete_thumb.path|thumb }}" alt="Maquete vista de cima" loading="lazy">{% else %}<span class="dim">{{ i.icon("image", 22) }}</span>{% endif %}</button>
+        <div class="col" style="gap: 6px; min-width: 0">
+          <b>Maquete 3D</b>
+          <span class="hint">{{ zone_meta|length }} zona(s){% if layout_uses %} · usada em {{ layout_uses }} plano(s){% endif %}. Abre para a rodar, ver por dentro piso a piso, ver cada vista pela câmara dela e guardar vistas novas.</span>
+          <span class="hint m3d-status-out"></span>
+          <div class="row" style="gap: 8px; flex-wrap: wrap"><button class="btn sm pri" type="button" data-open-dialog="maquete-dlg">Abrir maquete 3D</button>
+            {% if asst is defined and asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Revê a maquete 3D deste local contra a descrição canónica, as fotos de referência e o que se vê nas vistas de cima e a partir do centro. Propõe as correções por partes.">Pedir revisão ao Assistente</button>{% endif %}</div>
+        </div>
+      </div>
+      <dialog class="dlg zone-dlg m3d-dlg" id="maquete-dlg" data-keep-open {% if asst is defined and asst.enabled %}data-asst-dock{% endif %} aria-label="Maquete 3D">
+        <div class="zone-dlg-h"><h2 class="h2">Maquete 3D · {{ asset.label }}</h2><span class="sp"></span>
+          <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+        <div class="m3d-dlg-b">
+        <div class="lv-zone">
+      <div class="m3d" data-scene3d data-aspect="{{ project.aspect_ratio or '16:9' }}" data-preview="/projetos/{{ project.id }}/assets/{{ asset.id }}/maquete/previas"
+           data-preview-hash="{{ preview_hash or '' }}" data-preview-have="{{ preview_have }}" data-preview-views="1"
+           data-views-base="/projetos/{{ project.id }}/assets/{{ asset.id }}/vistas3d">
+        <script type="application/json" class="m3d-data">{{ layout_spec|tojson }}</script>
+        <script type="application/json" class="m3d-lviews">{{ views3d_js|tojson }}</script>
+        <div class="m3d-stage"></div>
+        <div class="m3d-bar row"></div>
+        <div class="m3d-chips row"></div>
+        <div class="m3d-legend row"></div>
+        <div class="m3d-actions row"><span class="hint">Para uma vista nova: «Câmara à mão» (ou duplo clique no chão onde queres a câmara), compõe o enquadramento e clica em «Guardar vista aqui». Para a vista oposta a uma que já existe: escolhe-a em «Vistas» e clica em «Virar 180°».{% if layout_uses %} Usada em {{ layout_uses }} plano(s).{% endif %}</span><span class="sp"></span>
+          <span class="hint m3d-status"></span></div>
+      </div>
+        </div>
+        {% if asst is defined and asst.enabled %}<div class="asst-dock"></div>{% endif %}
+        </div>
+      </dialog>
+      <form id="views3d-form" method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/vistas3d">{{ m.csrf() }}</form>
+      <div class="row" style="gap: 8px; padding: 0 16px 10px; flex-wrap: wrap">
+        <button class="btn sm" type="submit" form="views3d-form" name="op" value="lv_auto">{{ i.icon("plus", 13) }}Propor vistas automáticas</button>
+        <span class="hint">Por divisão: a referência (de um canto, grande angular) e 4 vistas a partir do centro. Depois ajustas, apagas ou juntas outras.</span>
+        <span class="sp"></span>
+        <a class="btn sm" href="/projetos/{{ project.id }}/assets/{{ asset.id }}/vistas.zip" hx-boost="false" download title="As imagens aprovadas de todas as vistas deste local, num zip">{{ i.icon("download", 13) }}Descarregar todas</a>
+        <button class="btn sm" type="submit" form="views3d-form">Guardar</button>
+      </div>
+      <div class="zone-cards">
+        {% for zone, rows in views3d %}{% set zm = zone_meta.get(zone) or {} %}
+        {% set ref = rows|selectattr("view.kind", "equalto", "ref")|first %}
+        {% set thumb = (ref.image if ref and ref.image else none) or (rows|selectattr("image")|map(attribute="image")|first) or (ref.render if ref else none) or (rows|map(attribute="render")|select|first) %}
+        {% set approved = rows|selectattr("image")|list|length %}
+        {% set busy = rows|selectattr("jobs")|list|length %}
+        {% set pending = rows|map(attribute="results")|sum(start=[])|length %}
+        {% set stale = rows|selectattr("state", "equalto", "stale")|list|length %}
+        {% set written = rows|selectattr("state", "equalto", "assistant")|list|length %}
+        <button type="button" class="zone-card" data-open-dialog="zona-{{ loop.index }}">
+          <span class="ph img-ph">{% if thumb %}<img src="{{ thumb.path|thumb }}" alt="" loading="lazy">{% endif %}</span>
+          <span class="zc-t"><b>{{ zone or "Espaço todo" }}</b>{% if zm.outdoor %} <span class="tag">ao ar livre</span>{% endif %}</span>
+          <span class="zc-s">{{ rows|length }} vista(s) · {{ approved }} aprovada(s){% if pending %} · <b>{{ pending }} por decidir</b>{% endif %}{% if busy %} · a gerar{% endif %}</span>
+          <span class="zc-s">{% if stale %}<span class="tag warn">prompts desatualizados</span>{% elif written %}<span class="tag">prompts escritos</span>{% endif %}{% if not zm.note %}<span class="tag warn">sem «Como é»</span>{% endif %}</span>
+        </button>
+        {% endfor %}
+      </div>
+      {% for zone, rows in views3d %}
+      {% set zm = zone_meta.get(zone) or {} %}{% set zi = loop.index %}
+      <dialog class="dlg zone-dlg" id="zona-{{ loop.index }}" data-keep-open aria-label="{{ zone or 'Espaço todo' }}">
+      <div class="zone-dlg-h"><h2 class="h2">{{ zone or "Espaço todo" }}{% if zm.outdoor %} <span class="tag">ao ar livre</span>{% endif %}</h2><span class="sp"></span>
+        <button class="btn sm" type="submit" form="views3d-form">Guardar</button>
+        <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+      <div class="lv-zone">
+        <div class="f lv-note"><label for="zn-{{ loop.index }}">Como é {{ "esta zona" if zm.outdoor else "esta divisão" }}</label>
+          <input type="hidden" name="zn_name:{{ loop.index }}" form="views3d-form" value="{{ zone or '' }}">
+          <textarea class="in" id="zn-{{ loop.index }}" name="zn:{{ loop.index }}" form="views3d-form" rows="2" lang="en" placeholder="{{ 'Ex.: narrow cobbled street, stone facade with a painted sign above the door, warm light from the bar windows' if zm.outdoor else 'Ex.: small storage room, bare plaster walls, metal shelving, a single bulb' }}">{{ zm.note }}</textarea>
+          {% set note_words = (zm.note or "").split()|length %}
+          <span class="hint">Em inglês, até ~50 palavras: o essencial do aspeto (o que cada vista mostra sai da maquete). O Assistente usa-o nos prompts das vistas {{ "desta zona" if zm.outdoor else "desta divisão" }}.{% if note_words > 60 %} <b>Tem {{ note_words }} palavras: encurta-o</b> (prompts longos fazem o modelo perder o que interessa).{% endif %}</span></div>
+        <div class="f lv-refs"><span class="l">Referências visuais {{ "desta zona" if zm.outdoor else "desta divisão" }}</span>
+          {% set chosen = zone_ref_options|selectattr("id", "in", zm.refs or [])|list %}
+          <div class="picked">
+            {% for o in chosen %}<a class="ph img-ph" href="/media/{{ o.path }}" hx-boost="false" title="{{ o.label }}"><img src="{{ o.path|thumb }}" alt="{{ o.label }}" loading="lazy"></a>{% else %}<span class="hint">Nenhuma.</span>{% endfor %}
+            <button class="btn sm" type="button" data-open-dialog="pick-zr-{{ zi }}">Escolher referências</button>
+            <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/fotos" enctype="multipart/form-data" class="inline-form">
+              {{ m.csrf() }}<input type="hidden" name="zone" value="{{ zone or '' }}">
+              <label class="btn sm ghost">{{ i.icon("upload", 13) }}Carregar imagens<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
+            </form>
+          </div>
+          <form id="zr-form-{{ zi }}" method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/vistas3d/refs">{{ m.csrf() }}<input type="hidden" name="zone" value="{{ zone or '' }}"></form>
+          {% set zr_groups = [] %}
+          {% for g in ["Fotos do local", "Referências das zonas", "Elementos do mundo", "Imagem geral"] %}
+            {% set _ = zr_groups.append((g, zone_ref_options|selectattr("group", "equalto", g)|map(attribute="item")|list)) %}
+          {% endfor %}
+          {{ m.picker("pick-zr-" ~ zi, "Referências visuais · " ~ (zone or "espaço todo"), zr_groups, zm.refs or [], "zr", "zr-form-" ~ zi,
+                      hint="Imagens que mostram como é " ~ ("esta zona (fotos de uma fachada ou de uma rua parecida, elementos do mundo que aparecem aqui)" if zm.outdoor else "esta divisão") ~ ". As fotografias reais servem ao «Escrever prompts»: o Assistente vê-as e descreve o aspeto delas no texto (se fossem para o gerador, ele copiava a composição da foto). As folhas dos elementos do mundo e as imagens aprovadas vão para o gerador, só para o design. Cabem até " ~ max_zone_refs ~ ".") }}
+
+          <span class="hint">Fotografias: entram no texto pelo «Escrever prompts desta zona». Folhas de elementos e imagens aprovadas: vão para o gerador. As carregadas aqui ficam logo escolhidas e também nas Fotos de referência do local.</span></div>
+        <div class="row" style="gap: 8px; flex-wrap: wrap">{{ m.writer_button("zona", asset.id ~ "-" ~ zi, "views3d-form", task=zone_tasks.get(zi), label="Escrever os prompts desta zona", title="O Assistente olha para o render de cada vista, a referência e as imagens escolhidas e escreve os prompts de todas as vistas desta zona. Não é obrigatório: o Gerar de cada vista escreve o prompt dela primeiro.") }}</div>
+        <div class="lv-grid">
+          {% for r in rows %}{% set v = r.view %}
+          <div class="lv-card" id="vista3d-{{ v.id }}">
+            <div class="row" style="gap: 6px">
+              <span class="tag{% if v.kind == 'ref' %} mono{% endif %}">{{ "Referência" if v.kind == "ref" else "Vista" }}</span>
+              <input class="in" name="lv_label:{{ v.id }}" form="views3d-form" value="{{ v.label }}" aria-label="Nome da vista" style="height: 28px; flex: 1; min-width: 0">
+              <button class="ib" type="submit" form="views3d-form" name="op" value="lv_del:{{ v.id }}" aria-label="Apagar vista" data-confirm="Apagar a vista «{{ v.label }}»?" data-confirm-text="A posição, o render e as imagens desta vista são apagados." data-confirm-ok="Apagar">{{ i.icon("trash", 14) }}</button>
+            </div>
+            <div class="lv-pair">
+              <div>{% if r.render %}<a class="ph img-ph" href="/media/{{ r.render.path }}" hx-boost="false"><img src="{{ r.render.path|thumb }}" alt="Render" loading="lazy"></a>{% else %}<span class="slot">render por tirar</span>{% endif %}<span class="hint">Maquete{% if r.stale and r.render %} · desatualizado{% endif %}{% if r.render %} <a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.render.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>{% endif %}</span></div>
+              <div>{% if r.image %}<a class="ph img-ph" href="/media/{{ r.image.path }}" hx-boost="false"><img src="{{ r.image.path|thumb }}" alt="Imagem" loading="lazy"></a>{% else %}<span class="slot">sem imagem</span>{% endif %}<span class="hint">{{ "Aprovada" if r.image else "Imagem" }}{% if r.image %} <a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.image.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>{% endif %}</span></div>
+            </div>
+            {% if r.results or r.jobs %}<div class="lv-results">
+              {{ m.job_tiles(r.jobs) }}
+              {% for res in r.results %}<div class="res"><a class="ph img-ph" href="/media/{{ res.path }}" hx-boost="false"><img src="{{ res.path|thumb }}" alt="Resultado" loading="lazy"></a>
+                <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ res.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a><form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+                <form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form></div></div>{% endfor %}
+            </div>{% endif %}
+            <button type="button" class="lv-prompt-btn" data-open-dialog="prompt-{{ v.id }}" title="Ler e editar o prompt desta vista, e gerar">
+              <span class="hint">Prompt · <span class="{{ 'warn-t' if r.state == 'stale' else '' }}">{{ r.panel.state_label }}</span></span>
+              <span class="lv-prompt-peek">{{ (r.panel.text or "O Assistente escreve-o ao gerar.")|truncate(140, True, "…") }}</span></button>
+            <dialog class="dlg prompt-dlg" id="prompt-{{ v.id }}" data-keep-open aria-label="Prompt da vista {{ v.label }}">
+              <div class="zone-dlg-h"><h2 class="h2">{{ zone or "espaço todo" }} · {{ v.label }}</h2><span class="sp"></span>
+                <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+              <div class="prompt-dlg-b">
+                {{ m.prompt_panel(r.panel, "views3d-form", height=220, jobs=r.jobs, gen_disabled=(none if r.render else "Falta o render: abre a maquete")) }}
+              </div>
+              <div class="dlg-f"><span class="sp"></span>
+                <button class="btn" type="button" data-close-dialog>Fechar</button>
+                <button class="btn pri" type="submit" form="views3d-form">Guardar</button>
+              </div>
+            </dialog>
+            {% set gens = image_generators("maquete") %}
+            {% if r.jobs|selectattr("job.status", "in", ["queued", "running"])|list %}<span class="hint">A gerar…</span>
+            {% elif r.panel.busy %}<span class="hint">A escrever o prompt…</span>
+            {% elif gens.options %}<span class="gen-split">
+              <select name="gen:vista:{{ v.id }}" form="views3d-form" class="gen-select" aria-label="Modelo para gerar">{% for val, l in gens.options %}<option value="{{ val }}" data-res="{{ gens.res.get(val, '') }}"{% if val == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % v.id, "views3d-form") }}
+              <button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgen:vista:{{ v.id }}" {% if not r.render %}disabled title="Falta o render (abre a maquete acima)"{% else %}title="{{ 'Gera com este prompt' if r.state in ('manual', 'assistant') else 'O Assistente escreve o prompt e a imagem gera-se logo a seguir' }}"{% endif %}>{{ i.icon("image", 13) }}Gerar</button>
+            </span>{% endif %}
+          </div>
+          {% else %}<span class="hint">Ainda sem vistas nesta zona: usa «Propor vistas automáticas» ou guarda uma vista na maquete.</span>{% endfor %}
+        </div>
+      </div>
+      </dialog>
+      {% endfor %}
+      {% else %}
+      <div class="m3d-empty"><p>Sem maquete. O Assistente monta-a a partir da descrição, das fotos de referência e das notas deste local: o espaço à escala real, em formas simples, com as zonas que pedires (ex.: sala, cozinha, arrumos e a rua da frente). Também podes começar com um espaço simples e pedir ajustes depois.</p>
+        <div class="row" style="gap: 8px; flex-wrap: wrap; justify-content: center">
+        {% if asst is defined and asst.enabled %}<button class="btn pri" type="button" data-asst-ask="Monta a maquete 3D deste local a partir da descrição canónica, das fotos de referência e das notas: o espaço à escala real, com peças para a mobília, portas e janelas, uma zona («zone») por cada divisão e, se o local tem exterior, as zonas ao ar livre (rua da frente, traseiras) com &quot;ceiling&quot;: 0.">{{ i.icon("sparkles", 14) }}Montar a maquete com o Assistente</button>{% endif %}
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/vistas3d" class="inline-form">{{ m.csrf() }}<button class="btn" type="submit" name="op" value="layout_blank" title="Uma sala de 10 × 8 m com paredes, porta e janela, para começar">Começar com um espaço simples</button></form>
+        </div>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if portrait %}
+    <div class="col" id="retrato" style="gap: 14px">
+      {{ m.prompt_panel(portrait.panel, "asset-form", height=140, gen=gpt_enabled, jobs=portrait_jobs, gen_label="Gerar retrato", gen_disabled=(none if approved else "Aprova primeiro a folha: o retrato parte dela")) }}
+      <section class="sec">
+        <div class="sec-h"><h2 class="h2">Resultados do retrato</h2><span class="sp"></span><span class="hint">Cabeça e ombros, de frente: a referência de cara para os grandes planos.</span></div>
+        <div class="results">
+          <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/retrato" enctype="multipart/form-data" class="drop drop-compact {% if portrait_results %}drop-sm{% endif %}" data-dropzone>
+            {{ m.csrf() }}
+            <div class="ico">{{ i.icon("upload", 18) }}</div>
+            <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP, até {{ max_upload_mb }} MB.</span></div>
+            <span class="sp"></span>
+            <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
+          </form>
+          {{ m.job_tiles(portrait_jobs) }}
+          {% for r in portrait_results %}
+          {% set fname = r.path.rsplit('/', 1)[-1] %}
+          <div class="res">
+            <a class="ph r11 img-ph" href="/media/{{ r.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.path|thumb }}" alt="Retrato {{ fname }}" loading="lazy">{% if r.source in ("gpt-image", "artlist") %}<span class="corner-r"><span class="pfx">{{ "GPT" if r.source == "gpt-image" else "Artlist" }}</span></span>{% endif %}<span class="lb">retrato {{ fname }}</span></a>
+            {% if gpt_enabled %}<button class="btn ghost sm edit-btn" type="button" data-edit-image="{{ r.id }}" data-edit-role="portrait" data-edit-src="{{ r.path|thumb }}" data-edit-name="retrato {{ fname }}">Editar imagem</button>{% endif %}
+            <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
+              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+              <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o retrato {{ fname }}?" data-confirm-text="O ficheiro é apagado e não pode ser usado como referência. Esta ação não se desfaz." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% if portrait_rejected_n %}<div class="sec-f"><span class="hint">{{ portrait_rejected_n }} retrato(s) rejeitado(s) e apagado(s).</span></div>{% endif %}
+      </section>
+    </div>
+    {% endif %}
+
+    {% if asset.kind == "character" %}
+    <section class="sec" id="looks">
+      <div class="sec-h"><h2 class="h2">Guarda-roupa</h2><span class="sp"></span><span class="hint">Cada look é a mesma pessoa com outra roupa e acessórios. Escolhe-se por cena, no Storyboard; sem escolha, vale a Base.</span></div>
+      <div class="looks">
+        <div class="look-card">
+          {% if approved %}<a class="ph r169 img-ph" href="/media/{{ approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ approved.path|thumb }}" alt="Folha base de {{ asset.label }}"></a>
+          {% else %}<div class="slot r169">{{ i.icon("image", 18) }}Sem folha aprovada</div>{% endif %}
+          <div class="look-body">
+            <div class="row" style="gap: 6px"><b>Base</b><span class="sp"></span>{{ m.status("ok" if approved else "pend", "Folha aprovada" if approved else "Sem folha") }}{% if approved %}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ approved.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>{% endif %}</div>
+            <span class="hint">A folha da personagem. Vale nas cenas sem look escolhido.</span>
+          </div>
+        </div>
+        {% for r in looks %}{% set lk = r.look %}
+        {% set busy = r.jobs|selectattr("job.status", "in", ["queued", "running"])|list %}
+        <div class="look-card" id="look-{{ lk.id }}">
+          {% if r.approved %}<a class="ph r169 img-ph" href="/media/{{ r.approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.approved.path|thumb }}" alt="Folha do look {{ lk.name }}"></a>
+          {% else %}<button class="slot r169 look-slot" type="button" data-open-dialog="look-dlg-{{ lk.id }}">{{ i.icon("image", 18) }}{% if busy or r.panel.busy %}A gerar…{% elif r.results %}{{ r.results|length }} por decidir{% else %}Sem folha{% endif %}</button>{% endif %}
+          <div class="look-body">
+            <div class="row" style="gap: 6px"><b>{{ lk.name }}</b><span class="sp"></span>
+              {% if r.approved %}{{ m.status("ok", "Folha aprovada") }}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.approved.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>{% elif busy or r.panel.busy %}{{ m.status("wip", "A gerar") }}{% elif r.results %}{{ m.status("wip", "%d por decidir" % r.results|length) }}{% else %}{{ m.status("pend", "Sem folha") }}{% endif %}</div>
+            <span class="look-desc">{{ lk.description or "Sem roupa descrita." }}</span>
+            <span class="hint">{% if r.scenes %}Usado em {% for sc in r.scenes %}C{{ "%02d"|format(sc.number) }}{{ ", " if not loop.last }}{% endfor %}{% else %}Ainda em nenhuma cena{% endif %}</span>
+          </div>
+          <div class="look-f">
+            <button class="btn sm" type="button" data-open-dialog="look-dlg-{{ lk.id }}">{{ "Editar" if r.approved else ("Ver resultados" if r.results else "Editar e gerar") }}</button>
+            {% if r.approved and r.results %}<span class="hint">{{ r.results|length }} por decidir</span>{% endif %}
+          </div>
+        </div>
+
+        <dialog class="dlg prompt-dlg" id="look-dlg-{{ lk.id }}" data-keep-open aria-label="Look {{ lk.name }}">
+          <div class="zone-dlg-h"><h2 class="h2">Look · {{ lk.name }}</h2><span class="sp"></span>
+            <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+          <div class="prompt-dlg-b">
+            <div class="look-edit">
+              <div class="col" style="gap: 10px; min-width: 0">
+                <div class="f"><label for="look-name-{{ lk.id }}">Nome</label><input id="look-name-{{ lk.id }}" class="in" name="look_name:{{ lk.id }}" form="asset-form" value="{{ lk.name }}" maxlength="60"></div>
+                <div class="f"><label for="look-desc-{{ lk.id }}">Roupa e acessórios <span class="dim" style="font-weight: 400">(em inglês)</span></label>
+                  <textarea id="look-desc-{{ lk.id }}" name="look_desc:{{ lk.id }}" form="asset-form" class="in" rows="3" style="min-height: 76px; height: 96px" lang="en" placeholder="ex.: brown leather jacket over a grey hoodie, dark jeans, worn white sneakers, steel wristwatch on the left wrist">{{ lk.description or '' }}</textarea></div>
+              </div>
+              <div class="col" style="gap: 6px; min-width: 0">
+                <span class="cap">Folha aprovada</span>
+                {% if r.approved %}<a class="ph r169 img-ph" href="/media/{{ r.approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ r.approved.path|thumb }}" alt="Folha do look {{ lk.name }}"></a>
+                <form method="post" action="/projetos/{{ project.id }}/media/{{ r.approved.id }}/rejeitar" class="row">{{ m.csrf() }}<a class="ib sm" href="/projetos/{{ project.id }}/media/{{ r.approved.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a><span class="sp"></span><button class="btn sm no" type="submit" data-confirm="Rejeitar a folha deste look?" data-confirm-text="O ficheiro é apagado; nas cenas com este look volta a seguir a Base até aprovares outra." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+                {% else %}<div class="slot r169">{{ i.icon("image", 18) }}Ainda sem folha aprovada</div>{% endif %}
+              </div>
+            </div>
+            <div class="col" style="gap: 8px">
+              <span class="cap">Resultados</span>
+              <div class="results">
+                <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/looks/{{ lk.id }}/ficheiros" enctype="multipart/form-data" class="drop drop-compact {% if r.results %}drop-sm{% endif %}" data-dropzone>{{ m.csrf() }}
+                  <div class="ico">{{ i.icon("upload", 18) }}</div>
+                  <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">Carregar do computador</span><span class="hint">Se geraste fora da app · PNG, JPG ou WEBP.</span></div>
+                  <span class="sp"></span>
+                  <label class="btn sm">Escolher ficheiros<input type="file" name="files" accept="image/png,image/jpeg,image/webp" multiple hidden data-autosubmit></label>
+                </form>
+                {{ m.job_tiles(r.jobs) }}
+                {% for x in r.results %}{% set fname = x.path.rsplit('/', 1)[-1] %}
+                <div class="res">
+                  <a class="ph r169 img-ph" href="/media/{{ x.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ x.path|thumb }}" alt="Look {{ lk.name }} {{ fname }}" loading="lazy"><span class="lb">{{ lk.name }} {{ fname }}</span></a>
+                  <div class="acts"><a class="ib sm" href="/projetos/{{ project.id }}/media/{{ x.id }}/descarregar" hx-boost="false" download title="Descarregar" aria-label="Descarregar">{{ i.icon("download", 13) }}</a>
+                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+                    <form method="post" action="/projetos/{{ project.id }}/media/{{ x.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar {{ fname }}?" data-confirm-text="O ficheiro é apagado." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% if r.rejected_n %}<span class="hint">{{ r.rejected_n }} rejeitada(s) e apagada(s).</span>{% endif %}
+            </div>
+            {{ m.prompt_panel(r.panel, "asset-form", height=120, gen=gpt_enabled, jobs=r.jobs, gen_label="Gerar folha do look", gen_disabled=(none if approved else "Aprova primeiro a folha: o look parte dela")) }}
+          </div>
+          <div class="dlg-f">
+            <button class="btn sm no" type="submit" form="asset-form" name="op" value="delete_look:{{ lk.id }}" data-confirm="Apagar o look «{{ lk.name }}»?" data-confirm-text="As folhas dele são apagadas e as cenas onde estava voltam à Base." data-confirm-ok="Apagar">Apagar look</button>
+            <span class="sp"></span>
+            <button class="btn" type="button" data-close-dialog>Fechar</button>
+            <button class="btn pri" type="submit" form="asset-form">Guardar</button>
+          </div>
+        </dialog>
+        {% endfor %}
+        <button class="look-card look-new" type="button" data-open-dialog="look-new-dlg">{{ i.icon("plus", 20) }}<b>Novo look</b><span class="hint">Outra roupa para {{ asset.label }}</span></button>
+      </div>
+      <dialog class="dlg" id="look-new-dlg" aria-label="Novo look">
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/looks">{{ m.csrf() }}
+          <div class="zone-dlg-h"><h2 class="h2">Novo look</h2><span class="sp"></span><button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+          <div class="dlg-b" style="gap: 12px">
+            <div class="f"><label for="look-new-name">Nome</label><input id="look-new-name" class="in" name="look_name" placeholder="ex.: Rua, Pijama, Fato de gala" maxlength="60" required></div>
+            <div class="f"><label for="look-new-desc">Roupa e acessórios <span class="dim" style="font-weight: 400">(em inglês)</span></label>
+              <textarea id="look-new-desc" class="in" name="look_description" rows="4" lang="en" placeholder="ex.: brown leather jacket over a grey hoodie, dark jeans, worn white sneakers, steel wristwatch on the left wrist"></textarea></div>
+            <span class="hint">A folha do look gera-se depois, a partir da folha aprovada: a mesma pessoa, com esta roupa.</span>
+          </div>
+          <div class="dlg-f"><span class="sp"></span><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Criar look</button></div>
+        </form>
+      </dialog>
+    </section>
+
+    <section class="sec" id="voz">
+      <div class="sec-h"><h2 class="h2">Voz de referência</h2><span class="sp"></span><span class="hint">Segue nos pedidos de vídeo dos planos onde {{ asset.label }} fala, para a voz ser a mesma em todos os takes.</span></div>
+      <div class="voice-box">
+        <div class="col" style="gap: 6px">
+          <span class="cap">Voz aprovada</span>
+          {% if voice_ref %}
+          <audio controls preload="none" src="/media/{{ voice_ref.path }}"></audio>
+          {% if voice_ref.duration_ms %}<span class="hint">{{ "%.1f"|format(voice_ref.duration_ms / 1000)|replace(".", ",") }} s</span>{% endif %}
+          <div class="row" style="gap: 6px">
+            <a class="btn sm" href="/projetos/{{ project.id }}/media/{{ voice_ref.id }}/descarregar" hx-boost="false">{{ i.icon("download", 13) }}Descarregar</a>
+            {{ m.voice_trim(project, asset, voice_ref, true, voice_budget) }}
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ voice_ref.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar a voz aprovada?" data-confirm-text="O ficheiro é apagado e deixa de seguir nos vídeos." data-confirm-ok="Rejeitar e apagar">Rejeitar</button></form>
+          </div>
+          {% else %}<span class="hint">Ainda sem voz aprovada: os vídeos inventam uma voz a partir da descrição (muda de take para take).</span>{% endif %}
+        </div>
+        {% if voice_jobs or voice_results %}
+        <div class="col" style="gap: 8px">
+          <span class="cap">Por decidir</span>
+          {{ m.job_tiles(voice_jobs) }}
+          {% for r in voice_results %}
+          <div class="voice-res">
+            <audio controls preload="none" src="/media/{{ r.path }}"></audio>
+            {% if r.duration_ms %}<span class="hint">{{ "%.1f"|format(r.duration_ms / 1000)|replace(".", ",") }} s</span>{% endif %}
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/aprovar" class="inline-form">{{ m.csrf() }}<button class="btn sm ok" type="submit">Aprovar</button></form>
+            {{ m.voice_trim(project, asset, r, false, voice_budget) }}
+            <form method="post" action="/projetos/{{ project.id }}/media/{{ r.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit">Rejeitar</button></form>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/voz" class="sec-b voice-form" data-voice-form>
+        {{ m.csrf() }}
+        {% if voice_options %}
+        {% set default_caps = (voice_options|selectattr("value", "equalto", voice_default)|first).caps %}
+        <div class="f span3"><span class="l">Como criar a voz</span>
+          <div class="seg" role="radiogroup" aria-label="Como criar a voz">
+            <label class="seg-opt{% if not voice_can_design %} off{% endif %}" title="{{ '' if voice_can_design else 'Nenhum modelo ligado cria vozes a partir de uma descrição (os da fal.ai fazem-no)' }}"><input type="radio" name="voice_how" value="design" data-voice-how {% if "design" in default_caps %}checked{% endif %} {% if not voice_can_design %}disabled{% endif %}><span>Descrever a voz</span></label>
+            <label class="seg-opt"><input type="radio" name="voice_how" value="catalog" data-voice-how {% if "design" not in default_caps %}checked{% endif %}><span>Escolher do catálogo</span></label>
+          </div>
+          <span class="hint">Descrever: escreves como é a voz (idade, timbre, sotaque, ritmo) e o modelo cria-a. Catálogo: escolhes uma voz pronta do fornecedor e ouves a amostra.</span></div>
+        <div class="f span3"><label for="voice_model">Modelo</label>
+          <select id="voice_model" name="voice_model" class="in" data-voice-model>
+            {% for o in voice_options %}<option value="{{ o.value }}" data-caps="{{ o.caps|join(' ') }}" data-hint="{{ o.voice_hint }}" {% if o.value == voice_default %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
+          </select></div>
+        <div class="f span3" data-voice-when="artlist">
+          <label for="voice_id_art">Voz do Artlist</label>
+          {% set av = artlist_voices %}
+          <div class="row" style="gap: 8px; flex-wrap: wrap">
+            {% if av.voices %}
+            <select id="voice_id_art" name="voice_id" class="in" style="flex: 1; min-width: 240px" data-voice-preview>
+              <option value="">Escolher…</option>
+              {% for v in av.voices %}<option value="{{ v.voiceId }}" data-preview="{{ v.previewUrl }}">{{ v.name }}{% if v.gender %} · {{ {"MALE": "masculina", "FEMALE": "feminina", "NEUTRAL": "neutra"}.get(v.gender, v.gender|lower) }}{% endif %}{% if v.age %} · {{ {"ADULT": "adulta", "MIDDLE AGED": "meia-idade", "YOUNG ADULT": "jovem", "YOUNG": "jovem", "SENIOR": "idosa", "OLD": "idosa"}.get(v.age|upper, v.age|lower) }}{% endif %}{% if v.accents %} · sotaques {{ v.accents }}{% endif %}{% if v.portuguese %} · fala português{% endif %}</option>{% endfor %}
+            </select>
+            <audio controls preload="none" data-voice-player style="height: 32px"></audio>
+            {% endif %}
+            <button class="btn sm" type="submit" formaction="/projetos/{{ project.id }}/vozes-artlist" {% if av.status == "loading" %}disabled{% endif %}>{{ "A carregar…" if av.status == "loading" else ("Atualizar a lista" if av.voices else "Carregar as vozes do Artlist") }}</button>
+          </div>
+          <span class="hint">{% if av.status == "loading" %}A ler o catálogo de vozes do Artlist (demora um ou dois minutos; recarrega a página).{% elif av.status == "error" %}Não foi possível ler as vozes: {{ av.error }}{% elif av.voices %}{{ av.voices|length }} vozes · lista de {{ av.updated }}. Ouve a amostra ao escolher.{% else %}A lista lê-se uma vez e fica guardada.{% endif %}</span>
+        </div>
+        <div class="f span3" data-voice-when="catalog-fal" hidden>
+          <label for="voice_id_fal">Voz do catálogo</label>
+          <input id="voice_id_fal" name="voice_id" class="in" disabled placeholder="">
+          <span class="hint" data-voice-hint></span>
+        </div>
+        <div class="f span3" data-voice-when="design" hidden>
+          <label for="voice_description">Como é a voz <span class="dim" style="font-weight: 400">(em inglês)</span></label>
+          <textarea id="voice_description" name="voice_description" class="in" rows="2" disabled placeholder="ex.: warm, relaxed baritone in his thirties, light Portuguese accent, unhurried">{{ voice_description }}</textarea>
+          <span class="hint">É a «Descrição para o prompt» da voz, na ficha: mudar aqui muda lá (e o contrário).</span>
+        </div>
+        <div class="f span3"><label for="voice_text">O que a voz diz</label>
+          <textarea id="voice_text" name="voice_text" class="in" rows="2" placeholder="Uma ou duas falas da personagem, na língua dos diálogos (4–6 s de fala).">{{ voice_sample }}</textarea>
+          <span class="hint">Fica guardado na ficha (o Assistente também o pode propor). Sem texto guardado, vêm as falas de {{ asset.label }} no guião. Curta: 4 a 6 s. As vozes de quem fala no mesmo take somam-se e há um máximo (no Seedance 2.0, 15 s e 3 vozes no total).</span></div>
+        <div class="span3 row" style="gap: 8px"><span class="sp"></span>
+          <button class="btn sm" type="submit" name="op" value="save">Guardar</button>
+          <button class="btn pri sm" type="submit" {% if voice_jobs|selectattr("job.status", "in", ["queued", "running"])|list %}disabled{% endif %}>{{ i.icon("sparkles", 13) }}Gerar voz</button></div>
+        {% else %}
+        <span class="span3 hint">Sem modelos de voz: liga o Artlist (Configuração → Ligações) ou guarda a chave da fal.ai.</span>
+        {% endif %}
+      </form>
+      <div style="padding: 0 16px 14px">{{ m.upload_zone("/projetos/%d/assets/%d/voz/ficheiros" % (project.id, asset.id), "audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,audio/ogg,audio/flac", "Ou carrega um áudio", "MP3, WAV, M4A, OGG ou FLAC, até 25 MB (fica em MP3) · 4 a 6 s de fala.", compact=True) }}</div>
+    </section>
+
+    {% if bd_rows is not none %}
+    <section class="sec" id="bytedance">
+      <div class="sec-h"><h2 class="h2">Registo na ByteDance</h2><span class="sp"></span><span class="hint">O Seedance da ByteDance recusa caras realistas enviadas como imagem; registadas aqui, as imagens de {{ asset.label }} seguem como personagem autorizada (asset). Os vídeos registam sozinhos as que faltam.</span></div>
+      {% if bd_rows %}
+      <div class="col" style="gap: 6px; padding: 10px 16px">
+        {% for r in bd_rows %}
+        <div class="row" style="gap: 10px">
+          <img src="/media/{{ r.media.path }}" alt="" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px">
+          <span style="min-width: 120px">{{ r.label }}</span>
+          {% if r.status == "active" %}<span class="st ok">Registada</span>
+          {% elif r.status == "processing" %}<span class="st wip">A processar</span>
+          {% elif r.status == "failed" %}<span class="st no">Recusada</span><span class="hint">{{ r.error }}</span>
+          {% else %}<span class="st pend">Por registar</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="sec-f"><span class="sp"></span>
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/bytedance" class="inline-form">{{ m.csrf() }}<button class="btn sm" type="submit">Registar na ByteDance</button></form>
+      </div>
+      {% else %}
+      <p class="hint" style="padding: 10px 16px">Aprova a folha (e o retrato e os looks) para registar a personagem.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% endif %}
+
+    <div class="danger-row">
+      <button class="btn ghost sm" type="submit" form="asset-form" name="op" value="delete" data-confirm="Apagar {{ asset.name }}?" data-confirm-text="O asset, os resultados carregados e as ligações às cenas são apagados. Esta ação não se desfaz.">{{ i.icon("trash", 13) }}Apagar asset</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="rename-dlg" class="dlg wide">
+  <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/codigo">
+    {{ m.csrf() }}
+    <div class="dlg-b" style="gap: 12px">
+      <h3 class="h2">Mudar o código de {{ asset.name }}</h3>
+      <div class="f"><label for="new_code">Novo código</label>
+        <input id="new_code" name="new_code" class="in mono" value="{{ suggested_code }}" required pattern="{{ project.prefix }}_[A-Za-z0-9_]+" style="text-transform: uppercase"></div>
+      <span class="hint">A app muda o código em todo o lado: a pasta e os nomes dos ficheiros, os prompts editados, estados, blocking, descrições e notas do projeto. As versões antigas dos prompts e o histórico do chat ficam como estavam. Imagens já geradas ou descarregadas para o Artlist com o nome antigo não mudam.</span>
+    </div>
+    <div class="dlg-f"><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Mudar código</button></div>
+  </form>
+</dialog>
