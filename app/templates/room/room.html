@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}Sala de argumentistas · {{ project.name }} · Estúdio{% endblock %}
-{% block body_class %}solo{% endblock %}
+{% block body_class %}with-asst no-side{% endblock %}
 {% set in_room = True %}
 {% macro who(a) %}{% set l = author_label(a) %}<span class="who {{ 'who-me' if l == me else 'who-' ~ (l|lower|replace(' ', '-')) }}">{{ l }}</span>{% endmacro %}
 {% macro comment_form(file_id=None, proposal=None, task=None, reply_to=None, placeholder="Escreve…", rows=3) %}
@@ -364,4 +364,5 @@
     </div>
   </div>
 </main>
+{% include "assistant/_panel.html" %}
 {% endblock %}

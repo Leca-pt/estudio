@@ -426,6 +426,11 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
     obj_id = int(raw) if raw.isdigit() else None
     base = project_summary(session, project)
 
+    if kind in ("room", "room_file"):  # Sala de argumentistas (app/assistant/room_ctx.py)
+        from app.assistant import room_ctx
+
+        return room_ctx.build(session, project, key, base)
+
     if kind == "bible":
         # A capa usa as personagens e o local do projeto: o Assistente precisa das fichas deles.
         ctx = Context(key, "Projeto · Bíblia", 1, "\n\n".join([base, assets_summary(session, project)]))

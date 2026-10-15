@@ -442,3 +442,11 @@ Botão de download no cabeçalho de cada ficheiro (também numa versão antiga a
 (app/room_pdf.py). Usa o HTML do modo de leitura com uma folha de estilos de papel (A4; texto em Literata; guião em
 Courier Prime 12 pt com as margens de um argumento, nome da personagem ao centro, falas recuadas) e imprime com o
 Chromium do servidor (Playwright), com o rodapé «prefixo · ficheiro · versão» e «página / total». ~2 s por ficheiro.
+
+## 2026-10-15 — Assistente na Sala de argumentistas
+O painel do Assistente aparece na sala (app/assistant/room_ctx.py). Contexto «room» (conversa geral: ficheiros,
+propostas, tarefas, comentários recentes) e «room_file:<id>» (o ficheiro inteiro até 150 000 caracteres, a discussão e
+as propostas dele). Pode propor, assinado «Assistente» e só gravado com «Aplicar»: comentários (gerais ou do ficheiro,
+com menções), ficheiros novos, tarefas, mudanças por partes, o texto inteiro (ficheiros até 60 000 caracteres) e
+propostas formais para os outros participantes darem parecer. A versão vai na chave do campo (room_edit:<f>:<v>…) e
+serve de base à fusão a três quando o ficheiro mudou entre a proposta e o «Aplicar».

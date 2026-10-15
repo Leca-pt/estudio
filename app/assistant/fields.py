@@ -261,6 +261,15 @@ def validate(session: Session, project: Project, key: str, value: str, allowed: 
     if key not in allowed:
         raise ProposalError("Campo fora do contexto atual.")
     fs = allowed[key]
+    if fs.kind.startswith("room_"):  # Sala de argumentistas
+        from app.assistant import room_ctx
+
+        from app.writing import WritingError
+
+        try:
+            return room_ctx.validate(session, project, fs.kind, key, value)
+        except (ValueError, KeyError, WritingError) as exc:
+            raise ProposalError(str(exc))
     if fs.kind == "new_lines":
         try:
             data = json.loads(value) if isinstance(value, str) else value
@@ -564,6 +573,14 @@ def apply(session: Session, project: Project, key: str, value: str, context_scen
     from app.routes.assets import asset_code
     from app.routes.storyboard import create_shot
 
+    if key.startswith("room_"):  # Sala de argumentistas
+        from app.assistant import room_ctx
+
+        try:
+            room_ctx.apply(session, project, key, value)
+        except ValueError as exc:
+            raise ProposalError(str(exc))
+        return
     if key == "new_asset":
         data = json.loads(value)
         label, kind = str(data["label"]).strip(), data["kind"]

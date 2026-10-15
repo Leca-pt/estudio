@@ -1206,3 +1206,7 @@ html[data-rd="paper"] .rd .rd-md, html[data-rd="paper"] .rd .rd-script { color: 
   .ag-month-h div { padding: 4px; font-size: 10px; }
 }
 .badge-n.warn { background: var(--wip); color: #111; }
+/* Páginas sem a árvore lateral mas com o Assistente (Sala de argumentistas) */
+.body.with-asst.no-side, .app.side-collapsed .body.with-asst.no-side { grid-template-columns: minmax(0, 1fr) 316px; }
+.app.asst-collapsed .body.with-asst.no-side, .app.asst-collapsed.side-collapsed .body.with-asst.no-side { grid-template-columns: minmax(0, 1fr) 52px; }
+@media (max-width: 1023px) { .body.with-asst.no-side, .app.asst-collapsed .body.with-asst.no-side { grid-template-columns: minmax(0, 1fr); } }

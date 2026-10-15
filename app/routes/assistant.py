@@ -37,6 +37,8 @@ KIND_HINTS = {
     "text": "PT", "en": "EN", "prompt": "EN, prompt completo", "select": "lista", "int": "número",
     "layout3d": "JSON completo", "layout3d_edit": "JSON só com as mudanças",
     "stage3d": "JSON da encenação (substitui)", "scene3d": "JSON da câmara do plano",
+    "room_comment": "texto", "room_text": "ficheiro inteiro", "room_edits": "JSON", "room_proposal": "JSON",
+    "room_new_file": "JSON", "room_task": "JSON",
     "new_asset": "JSON", "new_scene": "JSON", "new_shot": "JSON", "new_check": "JSON", "set3d_from": "asset:<id>", "moment_view": "id/auto/nova", "shot_lines": "JSON", "link": "0/1", "sheet_ref": "código", "new_lines": "JSON",
 }
 
@@ -48,8 +50,14 @@ def check_context(session: Session, project: Project, key: str) -> None:
     kind, _, raw = key.partition(":")
     obj_id = int(raw) if raw.isdigit() else None
     owners = {"episode": Episode, "act": Act, "asset": Asset, "sb_scene": Scene, "sb_shot": Shot, "video_shot": Shot}
-    if kind in ("bible", "story", "breakdown", "assets", "storyboard"):
+    if kind in ("bible", "story", "breakdown", "assets", "storyboard", "room"):
         return
+    if kind == "room_file" and obj_id:
+        from app.models import WritingFile
+
+        f = session.get(WritingFile, obj_id)
+        if f is not None and f.project_id == project.id:
+            return
     if kind == "stage" and obj_id in STAGE_NAMES:
         return
     if kind in owners and obj_id:
@@ -102,6 +110,40 @@ def messages_for(session: Session, project: Project, key: str, limit: int = 40) 
     return [{"msg": m, "proposals": [present(p) for p in props.get(m.id, [])]} for m in rows]
 
 
+def _present_room(p: ChatProposal) -> str:
+    """Proposta do Assistente na Sala de argumentistas, em texto legível (não o JSON)."""
+    from app import writing
+
+    def cut(t: str, n: int = 400) -> str:
+        t = str(t or "")
+        return t if len(t) <= n else t[:n] + "…"
+
+    kind = p.field_key.split(":")[0]
+    if kind in ("room_comment",):
+        return p.value
+    if kind == "room_text":
+        rows = [r for r in writing.diff_rows(p.old_value or "", p.value) if r["k"] in ("add", "del")]
+        head = f"Texto inteiro ({len(p.value)} caracteres) · {sum(r['k'] == 'del' for r in rows)} linha(s) tiradas, " \
+               f"{sum(r['k'] == 'add' for r in rows)} acrescentadas"
+        body = "\n".join(("− " if r["k"] == "del" else "+ ") + cut(r["t"], 200) for r in rows[:40])
+        return head + ("\n\n" + body if body else "") + ("\n…" if len(rows) > 40 else "")
+    try:
+        d = json.loads(p.value)
+    except json.JSONDecodeError:
+        return p.value
+    if kind == "room_new_file":
+        return f"Ficheiro novo: {d.get('path')}\n\n{cut(d.get('content'), 800)}"
+    if kind == "room_task":
+        return f"Tarefa: {d.get('title')}" + (f" · para {d['assignee']}" if d.get("assignee") else "") \
+            + (f"\n{d['details']}" if d.get("details") else "")
+    edits = "\n\n".join(f"− {cut(e.get('old'))}\n+ {cut(e.get('new'))}" for e in d.get("edits") or [])
+    if kind == "room_proposal":
+        return f"Proposta: {d.get('title')}\nPorquê: {d.get('rationale')}" \
+            + (f"\nImpactos: {d['impacts']}" if d.get("impacts") else "") \
+            + (f"\nPara decidires: {d['decisions']}" if d.get("decisions") else "") + "\n\n" + edits
+    return (f"{d.get('message')}\n\n" if d.get("message") else "") + edits
+
+
 def present(p: ChatProposal) -> dict:
     """Texto legível de uma proposta (os campos especiais guardam JSON)."""
     display, mono = p.value, p.field_key.split(".")[-1] in ("style_block", "exclusions", "canonical_description", "voice",
@@ -109,6 +151,9 @@ def present(p: ChatProposal) -> dict:
     try:
         data = json.loads(p.value) if p.field_key.startswith(("new_", )) else None
     except json.JSONDecodeError:
+        data = None
+    if p.field_key.startswith("room_"):  # Sala de argumentistas
+        display, mono = _present_room(p), True
         data = None
     if p.field_key == "new_asset" and data:
         from app.models import ASSET_KINDS

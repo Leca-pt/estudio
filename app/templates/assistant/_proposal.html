@@ -7,7 +7,7 @@
   </div>
   {% if p.status in ("pending", "applied") %}
   <div class="sug-v{% if item.mono %} mono{% endif %}">{{ item.display }}</div>
-  {% if p.status == "pending" and p.old_value and not p.field_key.startswith(("new_", "link:")) %}<div class="sug-old{% if item.mono %} mono{% endif %}">{{ p.old_value|truncate(280) }}</div>{% endif %}
+  {% if p.status == "pending" and p.old_value and not p.field_key.startswith(("new_", "link:", "room_")) %}<div class="sug-old{% if item.mono %} mono{% endif %}">{{ p.old_value|truncate(280) }}</div>{% endif %}
   {% if p.reason and p.status == "pending" %}<div class="sug-why">{{ p.reason }}</div>{% endif %}
   {% endif %}
   {% if p.status == "pending" %}

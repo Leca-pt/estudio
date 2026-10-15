@@ -138,6 +138,10 @@ def room_page(request: Request, project_id: int, f: int | None = None, tab: str 
                 ctx["preview"] = writing.preview(session, project, cur)
             except writing.WritingError as exc:
                 ctx["preview"] = {"kind": "none", "errors": [str(exc)], "warnings": []}
+    from app.routes.assistant import panel_data
+
+    ctx["asst"] = panel_data(session, project, f"room_file:{cur.id}" if cur else "room", None)
+    ctx["back_url"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     return templates.TemplateResponse(request, "room/room.html", ctx)
 
 
