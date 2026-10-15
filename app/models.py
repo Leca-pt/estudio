@@ -175,6 +175,8 @@ class Asset(TimestampedModel, table=True):
     portrait_image_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
     # Só personagens: voz de referência (áudio aprovado), que segue nos pedidos de vídeo dos planos onde a personagem fala.
     voice_ref_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
+    # modelo 3D importado (GLB, MediaFile role "model3d"): nas maquetes desenha-se esta forma, em cinzento
+    model3d_id: Optional[int] = Field(default=None, foreign_key="mediafile.id", ondelete="SET NULL")
     voice_note: Optional[str] = None  # EN; como fala (ex.: "speaking English with a clear Spanish accent"): vai com a voz em cada fala
     voice_sample: Optional[str] = None  # só personagens: o que a voz diz ao gerar a voz de referência (língua dos diálogos)
     layout3d: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # só locais: a maquete 3D (zonas, peças, câmaras das vistas)

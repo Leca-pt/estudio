@@ -33,6 +33,8 @@ NEUTRAL = {
     # tons por material (discretos: dão pistas ao modelo de imagem sem parecer um render realista)
     "wood_light": "#a89582", "metal": "#8f969e", "fabric": "#6f6a73", "tile": "#a7a39b", "floor": "#7d7770",
     "wall": "#b2aea6", "plant": "#6f8a6a",
+    # natureza (terreno, rochas, vegetação): cinzentos com um toque de cor, como o resto
+    "rock": "#8a857e", "rock_dark": "#6e6a64", "sand": "#a99d86", "dirt": "#80786b", "grass": "#78836c", "snow": "#d9dbdd",
 }
 ACCENT = {
     "red": "#e8202a", "orange": "#ff7a00", "yellow": "#ffd400", "green": "#18c24a", "cyan": "#00c2d6",
@@ -48,7 +50,13 @@ CAST_NAMES = {"orange": "laranja", "blue": "azul", "green": "verde", "magenta": 
               "lime": "lima", "pink": "rosa", "sky": "azul-céu", "teal": "verde-água", "brown": "castanho", "white": "branco"}
 LANDMARK_COLORS = ("red", "cyan", "yellow")
 
-OBJECT_TYPES = {"box", "blocks", "pillars", "beam", "cylinder", "piece", "zone", "prism", "extrude"}
+OBJECT_TYPES = {"box", "blocks", "pillars", "beam", "cylinder", "piece", "zone", "prism", "extrude", "terrain", "rock",
+                "scatter", "model"}
+TERRAIN_FEATURES = {"canyon", "hill", "mesa", "ridge", "flat"}
+ROCK_SHAPES = {"round", "sharp", "slab", "spire"}
+SCATTER_ITEMS = {"rock", "boulder", "pebble", "tree", "pine", "bush", "grass", "cactus"}
+MAX_SCATTER = 6000  # coisas espalhadas, no total da maquete (desenhadas em lote)
+MAX_PATH = 40  # pontos do caminho de um canyon ou de uma crista
 PRISM_SHAPES = {"gable", "ramp"}  # gable: pico ao meio (telhado de duas águas, empena); ramp: sobe de -X para +X
 ACTOR_KINDS = {"character", "person", "prop", "car", "vehicle", "train"}
 # Peças prontas (desenhadas no navegador com a forma certa): nome → (largura, profundidade, altura) por omissão, em
@@ -65,6 +73,15 @@ PIECES = {
     "stairs": ((1.2, 3.0, 2.8), "tile"), "column": ((0.5, 0.5, 3.0), "structure"), "ceiling_lamp": ((0.5, 0.5, 0.8), "metal"),
     "street_lamp": ((0.4, 1.4, 5.0), "metal"), "tree": ((3.0, 3.0, 6.0), "plant"), "car": ((1.8, 4.4, 1.5), "extra_car"),
     "motorbike": ((0.8, 2.0, 1.1), "metal"), "bin": ((0.6, 0.6, 1.0), "metal"), "crate": ((0.8, 0.8, 0.8), "wood"),
+    # interiores (casas, escritórios, casas de banho); as de parede (wall_cabinet, frame, mirror, curtain, radiator)
+    # têm o center z no chão e penduram-se à altura certa sozinhas, encostadas à parede pela traseira (-Y)
+    "bookshelf": ((1.0, 0.35, 2.0), "wood"), "wall_cabinet": ((1.2, 0.35, 0.7), "wood_light"), "toilet": ((0.4, 0.7, 0.8), "tile"),
+    "bathtub": ((1.7, 0.75, 0.6), "tile"), "shower": ((0.9, 0.9, 2.1), "glass"), "washbasin": ((0.6, 0.45, 0.85), "tile"),
+    "nightstand": ((0.45, 0.4, 0.55), "wood"), "dresser": ((1.2, 0.5, 0.85), "wood"), "coffee_table": ((1.1, 0.6, 0.42), "wood"),
+    "rug": ((2.0, 1.4, 0.02), "fabric"), "curtain": ((1.4, 0.12, 2.4), "fabric"), "frame": ((0.8, 0.04, 0.6), "wood"),
+    "mirror": ((0.6, 0.04, 0.9), "glass"), "floor_lamp": ((0.4, 0.4, 1.7), "metal"), "fireplace": ((1.4, 0.5, 1.1), "tile"),
+    "piano": ((1.5, 0.6, 1.3), "wood"), "washer": ((0.6, 0.6, 0.85), "metal"), "tv_stand": ((1.6, 0.45, 0.5), "wood"),
+    "radiator": ((1.0, 0.1, 0.6), "metal"), "office_chair": ((0.6, 0.6, 1.0), "fabric"), "boxes": ((0.8, 0.6, 1.2), "wood_light"),
 }
 POSES = {"stand", "walk", "run", "sit", "point", "bend", "kneel", "lie"}
 MAX_OBJECTS, MAX_LOTS, MAX_ACTORS, MAX_KEYS, LIMIT = 1500, 6000, 80, 40, 5000
@@ -107,7 +124,7 @@ def _objects(items, where: str) -> list[dict]:
         raise SceneError(f"{where}: \"objects\" tem de ser uma lista.")
     if len(items) > MAX_OBJECTS:
         raise SceneError(f"{where}: demasiados objetos ({len(items)}; máximo {MAX_OBJECTS}).")
-    out, lots = [], 0
+    out, lots, scattered = [], 0, 0
     for n, it in enumerate(items, 1):
         if not isinstance(it, dict) or it.get("type") not in OBJECT_TYPES:
             raise SceneError(f"{where}, objeto {n}: tipo tem de ser um de {', '.join(sorted(OBJECT_TYPES))}.")
@@ -120,6 +137,61 @@ def _objects(items, where: str) -> list[dict]:
             if it.get("ceiling") is not None:  # altura do teto (0 = sem teto: pátio, rua); por omissão 2,9 m nos interiores
                 zone["ceiling"] = _num(it["ceiling"], w, 0, 50)
             out.append(zone)
+            continue
+        if t == "terrain":
+            out.append(_terrain(it, w))
+            continue
+        if t == "rock":
+            c = it.get("center")
+            if not isinstance(c, (list, tuple)) or len(c) not in (2, 3):
+                raise SceneError(f"{w}: \"center\" é [x, y] (assenta no chão) ou [x, y, z] (z acima do chão).")
+            shape = str(it.get("shape") or "round")
+            if shape not in ROCK_SHAPES:
+                raise SceneError(f"{w}: \"shape\" tem de ser um de {', '.join(sorted(ROCK_SHAPES))}.")
+            o = {"type": "rock", "center": _vec(c, w, len(c)), "size": _vec(it.get("size", [2, 2, 1.5]), w, lo=0.05, hi=300),
+                 "rot_z": _num(it.get("rot_z", 0), w, -360, 360), "shape": shape,
+                 "seed": int(_num(it.get("seed", n), w, 0, 1e6)), "color": _color(it.get("color"), "rock")}
+            if it.get("label"):
+                o["label"] = str(it["label"])[:60]
+            out.append(o)
+            continue
+        if t == "model":  # modelo 3D importado de um asset (GLB), em cinzento
+            code = str(it.get("asset") or "").strip().upper()
+            c = it.get("center")
+            if not re.fullmatch(r"[A-Z0-9_]+", code):
+                raise SceneError(f"{w}: \"asset\" é o código do asset que tem o modelo 3D (ex.: PRJ_MOTA).")
+            if not isinstance(c, (list, tuple)) or len(c) not in (2, 3):
+                raise SceneError(f"{w}: \"center\" é [x, y, z da base] ou [x, y] (assenta no chão do relevo).")
+            o = {"type": "model", "asset": code, "center": _vec(c, w, len(c)), "rot_z": _num(it.get("rot_z", 0), w, -360, 360),
+                 "color": _color(it.get("color"), "structure")}
+            if it.get("size") is not None:
+                o["size"] = _vec(it["size"], w, lo=0.02, hi=500)
+            elif it.get("height") is not None:
+                o["height"] = _num(it["height"], w, 0.02, 500)
+            if it.get("label"):
+                o["label"] = str(it["label"])[:60]
+            out.append(o)
+            continue
+        if t == "scatter":
+            item = str(it.get("item") or "")
+            if item not in SCATTER_ITEMS:
+                raise SceneError(f"{w}: \"item\" tem de ser um de {', '.join(sorted(SCATTER_ITEMS))}.")
+            a, b = _vec(it.get("from"), w, 2), _vec(it.get("to"), w, 2)
+            size = _vec(it.get("size", [0.5, 2]), w, 2, 0.02, 60)
+            count = int(_num(it.get("count", 50), w, 1, MAX_SCATTER))
+            scattered += count
+            o = {"type": "scatter", "item": item, "from": [min(a[0], b[0]), min(a[1], b[1])],
+                 "to": [max(a[0], b[0]), max(a[1], b[1])], "count": count, "size": sorted(size),
+                 "seed": int(_num(it.get("seed", n), w, 0, 1e6)),
+                 "color": _color(it.get("color"), "rock" if item in ("rock", "boulder", "pebble") else "plant")}
+            if it.get("max_slope") is not None:
+                o["max_slope"] = _num(it["max_slope"], w, 0, 90)
+            avoid = it.get("avoid") or []
+            if not isinstance(avoid, list) or len(avoid) > 20:
+                raise SceneError(f"{w}: \"avoid\" é uma lista de retângulos [x0, y0, x1, y1] (até 20).")
+            if avoid:
+                o["avoid"] = [_vec(r, w, 4) for r in avoid]
+            out.append(o)
             continue
         if t == "piece":
             model = str(it.get("model") or "")
@@ -175,7 +247,55 @@ def _objects(items, where: str) -> list[dict]:
         out.append(o)
     if lots > MAX_LOTS:
         raise SceneError(f"{where}: os quarteirões dão {lots} edifícios (máximo {MAX_LOTS}); usa lotes maiores.")
+    if scattered > MAX_SCATTER:
+        raise SceneError(f"{where}: {scattered} coisas espalhadas (máximo {MAX_SCATTER} no total); baixa os \"count\".")
     return out
+
+
+def _path(v, w: str) -> list[list[float]]:
+    if not isinstance(v, list) or not 1 <= len(v) <= MAX_PATH:
+        raise SceneError(f"{w}: \"path\" é uma lista de 1 a {MAX_PATH} pontos [x, y].")
+    return [_vec(p, w, 2) for p in v]
+
+
+def _terrain(it: dict, w: str) -> dict:
+    """Terreno com relevo (app/terrain.py): o retângulo, a base, a ondulação e as formas, todas com os valores por
+    omissão escritos (o navegador e o servidor leem exatamente os mesmos números)."""
+    a, b = _vec(it.get("from"), w, 2), _vec(it.get("to"), w, 2)
+    if abs(b[0] - a[0]) < 2 or abs(b[1] - a[1]) < 2:
+        raise SceneError(f"{w}: o terreno tem de ter pelo menos 2 m de cada lado.")
+    o = {"type": "terrain", "from": [min(a[0], b[0]), min(a[1], b[1])], "to": [max(a[0], b[0]), max(a[1], b[1])],
+         "z": _num(it.get("z", 0), w, -2000, 2000), "relief": _num(it.get("relief", 1), w, 0, 500),
+         "scale": _num(it.get("scale", 40), w, 1, 5000), "seed": int(_num(it.get("seed", 1), w, 0, 1e6)),
+         "color": _color(it.get("color"), "rock"), "features": []}
+    if it.get("label"):
+        o["label"] = str(it["label"])[:60]
+    feats = it.get("features") or []
+    if not isinstance(feats, list) or len(feats) > 30:
+        raise SceneError(f"{w}: \"features\" é uma lista (até 30).")
+    for i, f in enumerate(feats, 1):
+        fw = f"{w}, forma {i}"
+        k = f.get("kind") if isinstance(f, dict) else None
+        if k not in TERRAIN_FEATURES:
+            raise SceneError(f"{fw}: \"kind\" tem de ser um de {', '.join(sorted(TERRAIN_FEATURES))}.")
+        if k == "canyon":
+            floor = _num(f.get("floor", 8), fw, 0.5, 2000)
+            o["features"].append({"kind": k, "path": _path(f.get("path"), fw), "floor": floor,
+                                  "width": _num(f.get("width", floor * 3), fw, 1, 5000),
+                                  "depth": _num(f.get("depth", 20), fw, 0.1, 3000),
+                                  "jagged": _num(f.get("jagged", 0.4), fw, 0, 1), "terraces": _num(f.get("terraces", 0), fw, 0, 1)})
+        elif k == "ridge":
+            o["features"].append({"kind": k, "path": _path(f.get("path"), fw), "width": _num(f.get("width", 30), fw, 1, 5000),
+                                  "height": _num(f.get("height", 15), fw, -3000, 3000)})
+        elif k in ("hill", "mesa"):
+            o["features"].append({"kind": k, "center": _vec(f.get("center"), fw, 2), "radius": _num(f.get("radius", 30), fw, 1, 5000),
+                                  "height": _num(f.get("height", 15), fw, -3000, 3000)})
+        else:
+            fa, fb = _vec(f.get("from"), fw, 2), _vec(f.get("to"), fw, 2)
+            o["features"].append({"kind": k, "from": [min(fa[0], fb[0]), min(fa[1], fb[1])],
+                                  "to": [max(fa[0], fb[0]), max(fa[1], fb[1])], "z": _num(f.get("z", 0), fw, -2000, 2000),
+                                  "blend": _num(f.get("blend", 4), fw, 0, 500)})
+    return o
 
 
 def validate_set(data) -> dict:
@@ -300,6 +420,8 @@ def _camera(cam, tmax: float = 60) -> list[dict]:
                "look_at": _vec(k.get("look_at"), f"Câmara {n} look_at"), "lens": _num(k.get("lens", 28), f"Câmara {n} lens", 8, 300)}
         if k.get("moment") or k.get("panel"):  # "panel": cenas antigas (o momento era um painel)
             key["moment"] = True
+        if k.get("ground"):  # z de pos e de look_at contados a partir do chão (com relevo); passa a absoluto ao gravar
+            key["ground"] = True
         out.append(key)
     out.sort(key=lambda k: k["t"])
     return out
@@ -343,10 +465,26 @@ def start_for_lines(scene: Scene, numbers: list[int]) -> float | None:
 
 
 def set_camera(shot: Shot, clean: dict) -> None:
-    """Guarda a câmara validada no plano (o início vai para stage_start)."""
+    """Guarda a câmara validada no plano (o início vai para stage_start). As posições marcadas "ground" (z a contar do
+    chão, para câmaras à altura dos olhos num terreno) passam a alturas absolutas: a câmara fica onde foi posta, mesmo
+    que o terreno mude depois (como os outros objetos)."""
+    from sqlmodel import Session as _S
+
     clean = dict(clean)
     if "start" in clean:
         shot.stage_start = float(clean.pop("start"))
+    if any(k.get("ground") for k in clean.get("camera") or []):
+        session = _S.object_session(shot)
+        ground = scene_ground(session, session.get(Scene, shot.scene_id)) if session is not None else None
+        cam = []
+        for k in clean["camera"]:
+            k = dict(k)
+            if k.pop("ground", False) and ground:
+                k["pos"] = [k["pos"][0], k["pos"][1], round(k["pos"][2] + ground(k["pos"][0], k["pos"][1]), 3)]
+                k["look_at"] = [k["look_at"][0], k["look_at"][1],
+                                round(k["look_at"][2] + ground(k["look_at"][0], k["look_at"][1]), 3)]
+            cam.append(k)
+        clean["camera"] = cam
     shot.scene3d = clean
 
 
@@ -448,6 +586,22 @@ def scene_set(session: Session, scene: Scene | None) -> tuple[dict | None, Asset
     return None, None
 
 
+@memo
+def scene_ground(session: Session, scene: Scene | None):
+    """O chão da cena (app/terrain.py): função (x, y) → altura, ou None se é plano. A maquete do local e os objetos da
+    encenação."""
+    from app import terrain
+
+    base, _loc = scene_set(session, scene)
+    stage = (scene.stage3d if scene is not None else None) or {}
+    return terrain.ground_fn([base or {}, {"objects": stage.get("objects", [])}])
+
+
+def _grounded(p: list[float], ground) -> list[float]:
+    """Com relevo, a altura das pessoas conta a partir do chão por baixo delas."""
+    return [p[0], p[1], p[2] + ground(p[0], p[1])] if ground else p
+
+
 def shot_window(shot: Shot) -> tuple[float, float]:
     """(início na encenação, duração) do plano."""
     return float(shot.stage_start or 0), float(shot.duration_s or 5)
@@ -460,7 +614,46 @@ def source_label(src) -> str:
     return "do próprio plano"
 
 
-def _actors_out(actors: list[dict], colors: dict, labels: dict) -> list[dict]:
+def model_urls(session: Session, project_id: int) -> dict[str, dict]:
+    """{código: {"url", "id"}} dos assets com modelo 3D aprovado."""
+    from app.models import MediaFile
+
+    out = {}
+    for a in session.exec(select(Asset).where(Asset.project_id == project_id, Asset.model3d_id.is_not(None))).all():
+        m = session.get(MediaFile, a.model3d_id)
+        if m is not None and m.status == "approved":
+            out[a.name] = {"url": f"/media/{m.path}", "id": m.id}
+    return out
+
+
+def models_line(session: Session, project_id: int) -> str:
+    """Para o Assistente: os assets com modelo 3D importado (usam-se com "type": "model")."""
+    models = model_urls(session, project_id)
+    if not models:
+        return ("MODELOS 3D IMPORTADOS: nenhum (o utilizador pode carregar um .glb na ficha de um adereço ou elemento do "
+                "mundo; até lá, peças da biblioteca e caixas).")
+    labels = {a.name: a.label or a.name for a in session.exec(select(Asset).where(Asset.name.in_(list(models)),
+                                                                                  Asset.project_id == project_id)).all()}
+    return ("MODELOS 3D IMPORTADOS (a forma exata destes assets; usa-os na maquete ou na encenação com {\"type\": "
+            "\"model\", \"asset\": código, \"center\": [x, y, z da base] ou [x, y] para assentar no relevo, \"rot_z\", "
+            "\"height\" (à escala) ou \"size\" [x, y, z], \"label\"}; um ator com este código também aparece com o modelo): "
+            + ", ".join(f"{c} ({labels.get(c, c)})" for c in models) + ".")
+
+
+def _with_models(layers: list[dict], models: dict) -> list[dict]:
+    """Os objetos "model" levam o endereço do ficheiro (sem modelo, o navegador desenha uma caixa com o nome)."""
+    out = []
+    for layer in layers:
+        if not any(o.get("type") == "model" for o in layer.get("objects") or []):
+            out.append(layer)
+            continue
+        objs = [o | ({"url": models[o["asset"]]["url"], "model_id": models[o["asset"]]["id"]} if o.get("type") == "model"
+                     and o.get("asset") in models else {}) for o in layer["objects"]]
+        out.append(layer | {"objects": objs})
+    return out
+
+
+def _actors_out(actors: list[dict], colors: dict, labels: dict, models: dict | None = None) -> list[dict]:
     out = []
     for a in actors:
         color = a.get("color")
@@ -468,7 +661,10 @@ def _actors_out(actors: list[dict], colors: dict, labels: dict) -> list[dict]:
             color = colors.get(a.get("code", ""), "extra_car" if a["kind"] in ("car", "vehicle") else "extra_person")
             if a["kind"] == "train":
                 color = "yellow"
-        out.append(a | {"hex": hex_color(color), "name": labels.get(a.get("code", ""), a.get("label") or "")})
+        extra = {}
+        if models and a.get("code") in models and a["kind"] not in ("character", "person"):  # adereço/veículo com modelo 3D
+            extra = {"model_url": models[a["code"]]["url"], "model_id": models[a["code"]]["id"]}
+        out.append(a | {"hex": hex_color(color), "name": labels.get(a.get("code", ""), a.get("label") or "")} | extra)
     return out
 
 
@@ -481,10 +677,11 @@ def compose(session: Session, project_id: int, shot: Shot | None = None, locatio
     - uma cena: a maquete + a encenação inteira, com a câmara de cada plano (para ver por ela no tempo do plano);
     - um local: só a maquete."""
     labels = {a.name: (a.label or a.name) for a in session.exec(select(Asset).where(Asset.project_id == project_id)).all()}
+    models = model_urls(session, project_id)
     if location is not None:
         if not location.layout3d:
             return None
-        layers = [{"offset": [0, 0, 0], "rot_z": 0, **location.layout3d}]
+        layers = _with_models([{"offset": [0, 0, 0], "rot_z": 0, **location.layout3d}], models)
         return {"layers": layers, "actors": [], "camera": [], "duration": 0, "legend": _legend(layers, [], {}, labels),
                 "palette": NEUTRAL | ACCENT}
     if shot is not None:
@@ -495,17 +692,18 @@ def compose(session: Session, project_id: int, shot: Shot | None = None, locatio
     layers = [{"offset": [0, 0, 0], "rot_z": 0, **base}] if base else []
     if stage.get("objects"):
         layers.append({"offset": [0, 0, 0], "rot_z": 0, "objects": stage["objects"], "seed": stage.get("seed", 11)})
+    layers = _with_models(layers, models)
     if shot is not None:
         cam = shot.scene3d or {}
         if not base and not cam:
             return None
         start, dur = shot_window(shot)
-        actors = _actors_out(slice_actors(stage.get("actors", []), start, dur), colors, labels)
+        actors = _actors_out(slice_actors(stage.get("actors", []), start, dur), colors, labels, models)
         return {"layers": layers, "actors": actors, "camera": list(cam.get("camera") or []), "duration": dur,
                 "start": start, "legend": _legend(layers, actors, colors, labels), "palette": NEUTRAL | ACCENT}
     if scene is None or (not base and not stage):
         return None
-    actors = _actors_out(stage.get("actors", []), colors, labels)
+    actors = _actors_out(stage.get("actors", []), colors, labels, models)
     shots = [{"id": sh.id, "n": sh.number, "start": shot_window(sh)[0], "duration": shot_window(sh)[1],
               "camera": (sh.scene3d or {}).get("camera") or []}
              for sh in session.exec(select(Shot).where(Shot.scene_id == scene.id).order_by(Shot.number)).all()]
@@ -670,6 +868,8 @@ def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
     base, _loc = scene_set(session, scene)
     walls, windows = _occluders(base)
     walls += _occluders({"objects": stage.get("objects", [])})[0]
+    ground = scene_ground(session, scene)
+    from app.terrain import blocks_sight
     best: dict[int, float] = {}
     steps = max(2, int(dur / 0.5) + 1)
     for i in range(steps):
@@ -681,7 +881,7 @@ def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
         fx, fy = look[0] - pos[0], look[1] - pos[1]
         norm = math.hypot(fx, fy) or 1e-6
         half = math.atan(18 / lens) + math.radians(6)
-        placed = {ai: _pos_at(a["keys"], start + t) for ai, a in enumerate(stage["actors"]) if a.get("keys")}
+        placed = {ai: _grounded(_pos_at(a["keys"], start + t), ground) for ai, a in enumerate(stage["actors"]) if a.get("keys")}
         bodies = {ai: (placed[ai], *_actor_top(stage["actors"][ai], placed[ai], start + t)) for ai in placed}
         for ai, a in enumerate(stage["actors"]):
             if ai not in placed:
@@ -697,6 +897,8 @@ def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
             if tall * lens / (20.25 * dist) < MIN_SCREEN:
                 continue  # um ponto ao fundo: não conta como estar na imagem
             if ang > half or _blocked(pos, [p[0], p[1], p[2] + h], walls, windows):
+                continue
+            if blocks_sight(ground, pos, [p[0], p[1], p[2] + h]):  # atrás de uma encosta ou de uma parede do canyon
                 continue
             if _covered(pos, (p, p[2] + h), [b for oi, b in bodies.items() if oi != ai]):
                 continue
@@ -834,19 +1036,22 @@ def moment_facts(session: Session, shot: Shot) -> list[dict]:
         fx, fy = fx / n, fy / n
         half = math.atan(18 / lens)
         people = []
-        bodies = {i: (_pos_at(b["keys"], start + t), *_actor_top(b, _pos_at(b["keys"], start + t), start + t))
+        ground = scene_ground(session, scene)
+        bodies = {i: (_grounded(_pos_at(b["keys"], start + t), ground), *_actor_top(b, _grounded(_pos_at(b["keys"], start + t), ground), start + t))
                   for i, b in enumerate(stage["actors"]) if b.get("keys")}
         for ai, a in enumerate(stage["actors"]):
             code = a.get("code")
             if not code or labels.get(code, ("", ""))[1] not in ("character", "prop") or not a.get("keys"):
                 continue
-            p = _pos_at(a["keys"], start + t)
+            p = _grounded(_pos_at(a["keys"], start + t), ground)
             dx, dy = p[0] - pos[0], p[1] - pos[1]
             dist = math.hypot(dx, dy)
             if dist < 0.3:
                 continue
             ang = math.atan2(fx * dy - fy * dx, fx * dx + fy * dy)  # + = à esquerda do ecrã
-            if abs(ang) > half + math.radians(4) or _blocked(pos, [p[0], p[1], p[2] + 1.5], walls, windows):
+            from app.terrain import blocks_sight
+            if (abs(ang) > half + math.radians(4) or _blocked(pos, [p[0], p[1], p[2] + 1.5], walls, windows)
+                    or blocks_sight(ground, pos, [p[0], p[1], p[2] + 1.5])):
                 continue
             if _covered(pos, (p, p[2] + 1.5), [b for oi, b in bodies.items() if oi != ai]):
                 continue  # tapado por quem está à frente (ex.: por cima do ombro)
@@ -1029,8 +1234,9 @@ def staging_plan(layout: dict | None) -> str:
     r = lambda v: round(float(v), 2)  # noqa: E731
     lines, walls, other = [], [], {}
     for z in location3d.zones(layout):
-        lines.append(f"zona «{z['name']}»: de [{r(z['from'][0])}, {r(z['from'][1])}] a [{r(z['to'][0])}, {r(z['to'][1])}], "
-                     f"chão a {r(z['z'])} m" + (" (ao ar livre)" if z["outdoor"] else ""))
+        lines.append(f"zona «{z['name'] or 'o espaço todo'}»: de [{r(z['from'][0])}, {r(z['from'][1])}] a [{r(z['to'][0])}, {r(z['to'][1])}], "
+                     + (f"chão a {r(z['z'])} m" if not any(o.get("type") == "terrain" for o in layout.get("objects", [])) else "chão: o do relevo")
+                     + (" (ao ar livre)" if z["outdoor"] else ""))
     for o in layout.get("objects", []):
         t = o.get("type")
         if t == "piece":
@@ -1050,6 +1256,14 @@ def staging_plan(layout: dict | None) -> str:
             half = (sz[0] if sz[0] >= sz[1] else sz[1]) / 2
             dx, dy = (math.cos(a) * half, math.sin(a) * half) if sz[0] >= sz[1] else (-math.sin(a) * half, math.cos(a) * half)
             walls.append(f"[{r(c[0] - dx)}, {r(c[1] - dy)}]→[{r(c[0] + dx)}, {r(c[1] + dy)}] (chão {r(c[2] - sz[2] / 2)} m)")
+        elif t == "terrain":
+            from app import terrain
+
+            lines.append("RELEVO (as pessoas têm a altura a contar do chão: z = 0 é estar de pé no chão; a câmara tem z "
+                         "absoluto, ou \"ground\": true para contar do chão): " + terrain.summary(o, f"«{o['label']}» " if o.get("label") else ""))
+        elif t == "rock" and o.get("label"):
+            c = o["center"]
+            lines.append(f"rocha «{o['label']}» em [{r(c[0])}, {r(c[1])}] ({'×'.join(str(r(x)) for x in o['size'])} m)")
         elif t != "zone":
             other[t] = other.get(t, 0) + 1
     out = "\n".join(f"- {x}" for x in lines)
@@ -1158,6 +1372,29 @@ SET_HELP = (
     '("escada" ou "patamar"). Só modela por dentro os pisos onde há cenas; os outros andares e os prédios à volta '
     'ficam como volumes (caixas building*), com a fachada a ganhar janelas sozinha. Na vista livre o utilizador vê '
     'por dentro piso a piso. '
+    'NATUREZA (canyons, montanhas, desertos, campos, praias): terrain (chão com relevo) {from [x,y], to [x,y], z '
+    '(altura de base), relief (ondulação suave em m, 0–5 num chão natural), scale (tamanho da ondulação em m, 20–80), '
+    'seed, color (rock, rock_dark, sand, dirt, grass, snow), label, features [...]} com features: '
+    '{"kind": "canyon", "path": [[x,y], …], "floor": largura do fundo, "width": largura de borda a borda, "depth": '
+    'profundidade, "jagged": 0–1 (paredes irregulares), "terraces": 0–1 (degraus de estratos)}; {"kind": "hill"|"mesa", '
+    '"center": [x,y], "radius", "height"} (mesa = planalto de topo plano e encostas a pique); {"kind": "ridge", "path", '
+    '"width", "height"} (crista, dique, duna comprida); {"kind": "flat", "from", "to", "z", "blend"} (aplana uma zona: '
+    'estrada, praça, onde há prédios). O terreno cobre tudo o que a câmara vê (fora dele o chão é plano). Paredes de '
+    'canyon quase a pique: "width" pouco maior do que "floor". rock (uma rocha irregular, assente no chão) {center [x,y] '
+    'ou [x,y,z acima do chão], size [x,y,z], shape round|sharp|slab|spire, rot_z, seed, color, label} para as rochas '
+    'que contam (a rocha onde alguém se senta ou se esconde); scatter (muitas coisas iguais espalhadas no chão, desenhadas '
+    'em lote) {item ' + "|".join(sorted(SCATTER_ITEMS)) + ', from [x,y], to [x,y], count, size [min, max] (altura em m), seed, '
+    'color, max_slope (graus: só onde o chão é menos inclinado, ex.: 25 para não pôr árvores nas paredes), avoid '
+    '[[x0,y0,x1,y1], …] (retângulos sem nada: o caminho, onde a ação acontece)} — até ' + str(MAX_SCATTER) + ' no '
+    'total. Tudo assente no chão do terreno sozinho. Rochas e vegetação ficam lisas e cinzentas (só a forma): o aspeto '
+    'vem das folhas e das vistas. Exemplo (canyon com um rio seco e rochas): ' + '{"seed": 3, "objects": [{"type": '
+    '"terrain", "from": [-150, -200], "to": [150, 200], "z": 0, "relief": 3, "scale": 50, "color": "rock", "features": '
+    '[{"kind": "canyon", "path": [[-20, -200], [10, -60], [-15, 60], [20, 200]], "floor": 14, "width": 40, "depth": 45, '
+    '"jagged": 0.6, "terraces": 0.5}, {"kind": "mesa", "center": [90, 120], "radius": 45, "height": 25}]}, {"type": '
+    '"scatter", "item": "boulder", "from": [-40, -200], "to": [40, 200], "count": 120, "size": [0.6, 3], "max_slope": 20, '
+    '"avoid": [[-6, -40, 6, 40]]}, {"type": "scatter", "item": "bush", "from": [-150, -200], "to": [150, 200], "count": '
+    '300, "size": [0.4, 1.2], "max_slope": 15}, {"type": "rock", "center": [3, 10], "size": [3, 2.5, 2.2], "shape": '
+    '"sharp", "label": "rocha do esconderijo"}]}. MODELOS 3D IMPORTADOS: model {asset (código de um asset com modelo 3D, ver MODELOS 3D IMPORTADOS), center [x,y,z da base] ou [x,y] (assenta no relevo), rot_z, height (altura, à escala) ou size [x,y,z], color, label} — a forma exata de um objeto importante (uma mota concreta, uma estátua, uma nave), em cinzento. '
     'Silhuetas claras e reconhecíveis, sem pormenor a mais: o modelo de imagem trata dos materiais e da decoração. '
     'Exemplo (cidade com avenida, monorail, rio e a rua de um bar): ' + SET_EXAMPLE
 )
@@ -1186,7 +1423,7 @@ STAGE_HELP = (
     'corpo do boneco, por isso a encenação marca só onde está cada um, para onde está virado e os momentos-chave. Numa '
     'luta ou noutra ação física, marca só esses momentos (quem avança, quem se dobra, quem cai e quando, a distância de '
     'um braço entre quem luta) e deixa os golpes para a descrição do plano e o prompt. Usa "facing" para os olhares (quem '
-    'fala para quem). O que se move tem várias posições no tempo (linha reta entre elas). "pos" é a base (no chão; o '
+    'fala para quem). O que se move tem várias posições no tempo (linha reta entre elas). Com relevo (terrain), o z de "pos" conta a partir do chão por baixo (0 = de pé no chão; quem anda segue as subidas e descidas sozinho). "pos" é a base (no chão; o '
     'comboio com a base em cima da via). Ninguém atravessa paredes nem mobília. Põe figurantes e veículos quando a cena '
     'os pede ou quando um sítio vazio não faria sentido. Figurantes que são elementos do mundo do projeto (robots, '
     'peace keepers, táxis autónomos, drones…) levam SEMPRE "code" do elemento (kind "person" para quem anda, "car" '
@@ -1198,7 +1435,7 @@ CAMERA_HELP = (
     'começa>, "camera": [{"t": s desde o início do plano, "pos": [x,y,z], "look_at": [x,y,z], "lens": mm, "moment": '
     'true}]}. O plano dura a DURAÇÃO DO PLANO e mostra a encenação de "start" a "start" + duração: escolhe "start" pelos '
     'segundos das linhas que o plano cobre (ENCENAÇÃO › lines). Não mexas nas pessoas: estão na encenação (vês as '
-    'posições delas no troço do plano). A câmara nunca atravessa paredes. Lente: 18–24 mm plano geral, 28–35 mm plano '
+    'posições delas no troço do plano). A câmara nunca atravessa paredes nem o terreno. Com relevo, "ground": true numa posição faz o z de "pos" e de "look_at" contar a partir do chão (ex.: pos [x, y, 1.6] à altura dos olhos no fundo do canyon); sem ele o z é absoluto (vistas aéreas). Lente: 18–24 mm plano geral, 28–35 mm plano '
     'médio, 50–85 mm grande plano. Por cima do ombro (campo/contracampo): a câmara atrás e um pouco ao lado de quem '
     'ouve, à altura dos ombros (~1,5 m), a olhar para a cara de quem fala, com o ombro e a nuca de quem ouve em '
     'primeiro plano, de um dos lados do quadro; o contracampo fica do MESMO lado do eixo entre os dois (regra dos 180°). '

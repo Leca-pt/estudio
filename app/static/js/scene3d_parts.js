@@ -93,6 +93,38 @@ const BUILD = {
   },
   bin: (k, c) => { k.cyl(0, 0, 0.5, 0.3, 1.0, c, 0.27); k.cyl(0, 0, 1.02, 0.31, 0.04, DARK); },
   crate: (k, c) => { k.box(0, 0, 0.4, 0.8, 0.8, 0.8, c); for (const z of [0.2, 0.6]) k.box(0, 0.405, z, 0.82, 0.01, 0.06, DARK); },
+  // interiores
+  bookshelf: (k, c) => {
+    for (const s of [-1, 1]) k.box(s * 0.48, 0, 1.0, 0.04, 0.35, 2.0, c);
+    k.box(0, -0.16, 1.0, 1.0, 0.03, 2.0, c);
+    const BOOKS = ['#6d5a52', '#5a6470', '#7a6e5a', '#646a5c', '#70605e'];
+    [0.04, 0.42, 0.82, 1.22, 1.62, 1.97].forEach((z, i) => {
+      k.box(0, 0, z, 0.96, 0.33, 0.03, c);
+      if (i > 4) return;
+      let x = -0.44;
+      for (let b = 0; x < 0.4; b++) { const w = 0.03 + ((b * 7 + i * 3) % 4) * 0.012, h = 0.22 + ((b * 5 + i) % 3) * 0.04; k.box(x + w / 2, 0.02, z + 0.015 + h / 2, w, 0.24, h, BOOKS[(b + i) % 5]); x += w + 0.004; }
+    });
+  },
+  wall_cabinet: (k, c) => { k.box(0, 0, 0.35, 1.2, 0.35, 0.7, c); k.box(0, 0.176, 0.35, 0.01, 0.01, 0.66, DARK); for (const s of [-1, 1]) k.box(s * 0.06, 0.18, 0.12, 0.02, 0.02, 0.1, DARK); },
+  toilet: (k, c) => { k.box(0, -0.28, 0.58, 0.4, 0.16, 0.42, c); k.cyl(0, 0.06, 0.2, 0.17, 0.4, c, 0.14); k.cyl(0, 0.08, 0.41, 0.19, 0.04, c); k.box(0, -0.2, 0.8, 0.42, 0.2, 0.03, c); },
+  bathtub: (k, c) => { k.box(0, 0, 0.3, 1.7, 0.75, 0.6, c); k.box(0, 0, 0.42, 1.5, 0.55, 0.4, DARK); k.cyl(-0.72, -0.28, 0.72, 0.02, 0.25, '#c9c9c9'); },
+  shower: (k, c) => { k.box(0, 0, 0.04, 0.9, 0.9, 0.08, '#a7a39b'); for (const s of [-1, 1]) k.box(s * 0.44, 0, 1.05, 0.02, 0.9, 2.0, c); k.box(0, 0.44, 1.05, 0.9, 0.02, 2.0, c); k.cyl(0, -0.4, 1.9, 0.08, 0.03, '#c9c9c9'); },
+  washbasin: (k, c) => { k.cyl(0, 0, 0.36, 0.08, 0.72, c); k.box(0, 0, 0.8, 0.6, 0.45, 0.1, c); k.box(0, 0.02, 0.83, 0.42, 0.3, 0.06, DARK); k.cyl(0, -0.18, 0.92, 0.02, 0.14, '#c9c9c9'); },
+  nightstand: (k, c) => { k.box(0, 0, 0.3, 0.45, 0.4, 0.5, c); k.box(0, 0.2, 0.36, 0.38, 0.01, 0.14, DARK); legs4(k, 0.43, 0.38, 0.05, 0.04, c); },
+  dresser: (k, c) => { k.box(0, 0, 0.45, 1.2, 0.5, 0.8, c); for (const z of [0.2, 0.45, 0.7]) k.box(0, 0.252, z, 1.1, 0.01, 0.01, DARK); for (const z of [0.3, 0.55, 0.8]) for (const s of [-1, 1]) k.box(s * 0.3, 0.26, z - 0.05, 0.12, 0.02, 0.02, DARK); legs4(k, 1.15, 0.45, 0.05, 0.04, c); },
+  coffee_table: (k, c) => { k.box(0, 0, 0.4, 1.1, 0.6, 0.04, c); k.box(0, 0, 0.12, 1.0, 0.5, 0.02, c); legs4(k, 1.05, 0.55, 0.38, 0.04, c); },
+  rug: (k, c) => { k.box(0, 0, 0.01, 2.0, 1.4, 0.02, c); },
+  curtain: (k, c) => { k.box(0, 0, 2.38, 1.6, 0.04, 0.04, DARK); for (let i = 0; i < 7; i++) k.cyl(-0.6 + i * 0.2, 0, 1.18, 0.09, 2.34, c); },
+  frame: (k, c) => { k.box(0, 0, 0.3, 0.8, 0.03, 0.6, c); k.box(0, 0.01, 0.3, 0.68, 0.02, 0.48, '#9a9488'); },
+  mirror: (k, c) => { k.box(0, 0, 0.45, 0.6, 0.02, 0.9, DARK); k.box(0, 0.011, 0.45, 0.54, 0.01, 0.84, c); },
+  floor_lamp: (k, c) => { k.cyl(0, 0, 0.02, 0.16, 0.04, DARK); k.cyl(0, 0, 0.75, 0.015, 1.45, DARK); k.cyl(0, 0, 1.55, 0.14, 0.3, c, 0.2); },
+  fireplace: (k, c) => { k.box(0, 0, 0.55, 1.4, 0.5, 1.1, c); k.box(0, 0.06, 0.4, 0.8, 0.4, 0.6, DARK); k.box(0, 0.02, 1.12, 1.55, 0.6, 0.06, c); },
+  piano: (k, c) => { k.box(0, -0.12, 0.7, 1.5, 0.36, 1.2, c); k.box(0, 0.12, 0.72, 1.4, 0.3, 0.06, c); k.box(0, 0.15, 0.76, 1.3, 0.2, 0.02, LIGHT); k.box(0, 0.12, 0.35, 1.4, 0.04, 0.5, c); for (const s of [-1, 1]) k.box(s * 0.68, 0.18, 0.35, 0.05, 0.05, 0.7, c); },
+  washer: (k, c) => { k.box(0, 0, 0.42, 0.6, 0.6, 0.84, c); k.cyl(0, 0.3, 0.4, 0.2, 0.02, DARK).rotation.x = Math.PI / 2; k.box(0, 0.3, 0.76, 0.5, 0.01, 0.1, DARK); },
+  tv_stand: (k, c) => { k.box(0, 0, 0.27, 1.6, 0.45, 0.42, c); for (const s of [-1, 0, 1]) k.box(s * 0.53, 0.226, 0.27, 0.01, 0.01, 0.36, DARK); legs4(k, 1.55, 0.4, 0.06, 0.04, DARK); },
+  radiator: (k, c) => { for (let i = 0; i < 10; i++) k.box(-0.45 + i * 0.1, 0, 0.3, 0.06, 0.1, 0.6, c); k.box(0, 0, 0.03, 1.0, 0.06, 0.03, c); },
+  office_chair: (k, c) => { k.box(0, 0, 0.48, 0.5, 0.5, 0.08, c); k.box(0, -0.22, 0.78, 0.46, 0.06, 0.5, c); k.cyl(0, 0, 0.26, 0.03, 0.4, DARK); for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; k.box(Math.sin(a) * 0.15, Math.cos(a) * 0.15, 0.04, 0.05, 0.3, 0.03, DARK).rotation.y = a; } },
+  boxes: (k, c) => { k.box(0, 0, 0.2, 0.8, 0.6, 0.4, c); k.box(0.05, -0.02, 0.6, 0.6, 0.5, 0.4, c); k.box(-0.08, 0.04, 0.95, 0.45, 0.4, 0.3, c); },
 };
 export const PIECE_DIMS = {
   table_rect: [1.4, 0.8, 0.75], table_round: [0.9, 0.9, 0.75], chair: [0.45, 0.48, 0.9], bar_stool: [0.4, 0.4, 0.75],
@@ -101,14 +133,18 @@ export const PIECE_DIMS = {
   kitchen_counter: [2.4, 0.6, 0.9], stove: [0.6, 0.6, 0.9], sink: [0.8, 0.6, 0.9], bed: [1.6, 2.0, 0.55], wardrobe: [1.2, 0.6, 2.1],
   desk: [1.4, 0.7, 0.75], tv: [1.2, 0.1, 0.7], plant: [0.5, 0.5, 1.2], door: [0.9, 0.12, 2.1], window: [1.2, 0.12, 1.3],
   stairs: [1.2, 3.0, 2.8], column: [0.5, 0.5, 3.0], ceiling_lamp: [0.5, 0.5, 0.8], street_lamp: [0.4, 1.4, 5.0], tree: [3.0, 3.0, 6.0],
-  car: [1.8, 4.4, 1.5], motorbike: [0.8, 2.0, 1.1], bin: [0.6, 0.6, 1.0], crate: [0.8, 0.8, 0.8],
+  car: [1.8, 4.4, 1.5], motorbike: [0.8, 2.0, 1.1], bin: [0.6, 0.6, 1.0], crate: [0.8, 0.8, 0.8],  bookshelf: [1.0, 0.35, 2.0], wall_cabinet: [1.2, 0.35, 0.7], toilet: [0.4, 0.7, 0.8], bathtub: [1.7, 0.75, 0.6], shower: [0.9, 0.9, 2.1], washbasin: [0.6, 0.45, 0.85], nightstand: [0.45, 0.4, 0.55], dresser: [1.2, 0.5, 0.85], coffee_table: [1.1, 0.6, 0.42], rug: [2.0, 1.4, 0.02], curtain: [1.4, 0.12, 2.4], frame: [0.8, 0.04, 0.6], mirror: [0.6, 0.04, 0.9], floor_lamp: [0.4, 0.4, 1.7], fireplace: [1.4, 0.5, 1.1], piano: [1.5, 0.6, 1.3], washer: [0.6, 0.6, 0.85], tv_stand: [1.6, 0.45, 0.5], radiator: [1.0, 0.1, 0.6], office_chair: [0.6, 0.6, 1.0], boxes: [0.8, 0.6, 1.2],
 };
+
+// Peças de parede: a que altura do chão fica a base (metros, não muda com o tamanho)
+const HANG = { wall_cabinet: 1.45, frame: 1.3, mirror: 1.05, radiator: 0.12 };
 
 export function piece(model, color, size) {
   const k = new Kit();
   (BUILD[model] || ((kk, c) => kk.box(0, 0, 0.5, 1, 1, 1, c)))(k, color);
   const d = PIECE_DIMS[model] || [1, 1, 1], s = size || d;
   k.g.scale.set(s[0] / d[0], s[2] / d[2], s[1] / d[1]); // three: x, altura, profundidade
+  k.g.position.y = HANG[model] || 0; // peças de parede: penduradas à altura certa (o center z é o chão)
   const outer = new THREE.Group();
   outer.add(k.g);
   return outer;

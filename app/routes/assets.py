@@ -690,6 +690,9 @@ def _detail(request: Request, session: Session, project: Project, asset: Asset, 
         "bd_rows": _bytedance_rows(session, asset),
         "sheet_refs": sheet_ref_assets(session, asset),
         "photos": asset_photos(session, asset),
+        "model3d": (lambda m: m if m is not None and m.status == "approved" else None)(
+            session.get(MediaFile, asset.model3d_id) if asset.model3d_id else None),
+        "model_kinds": MODEL_KINDS,
         **_layout_ctx(session, project, asset),
         "suggested_code": _suggest_code(session, project, asset),
         "source": _source_ctx(session, asset),
@@ -1184,3 +1187,55 @@ async def portrait_upload(request: Request, project_id: int, asset_id: int, sess
         raise HTTPException(status_code=400, detail="Só as personagens têm retrato.")
     await save_uploads(request, session, project, f"assets/{asset.name}/retrato", "image", "portrait", asset_id=asset.id)
     return RedirectResponse(f"/projetos/{project.id}/assets/{asset.id}#retrato", status_code=303)
+
+
+# ── Modelo 3D (GLB) ───────────────────────────────────────────
+
+MAX_MODEL_BYTES = 60 * 1024 * 1024
+MODEL_KINDS = ("prop", "element")  # as personagens ficam cápsulas; os locais são a própria maquete
+
+
+@router.post("/assets/{asset_id}/modelo3d")
+async def model3d_upload(request: Request, project_id: int, asset_id: int, session: Session = Depends(get_session)):
+    """Modelo 3D importado (.glb, um só ficheiro com tudo dentro): passa a ser a forma do asset nas maquetes e na
+    encenação. O anterior fica em «Rejeitados»."""
+    from app.media import UploadError, read_limited, safe_segment, write_file
+    from app.media_service import approve_media
+    from app.models import MediaFile
+    from app.routes.files import flash
+
+    project = get_project(session, project_id)
+    asset = _asset(session, project, asset_id)
+    url = f"/projetos/{project.id}/assets/{asset.id}#modelo3d"
+    if asset.kind not in MODEL_KINDS:
+        flash(request, "Só os adereços e os elementos do mundo têm modelo 3D.")
+        return RedirectResponse(url, status_code=303)
+    form = await request.form()
+    upload = form.get("file") or (form.getlist("files") or [None])[0]
+    try:
+        if upload is None or not hasattr(upload, "read"):
+            raise UploadError("Escolhe um ficheiro .glb.")
+        data = await read_limited(upload, MAX_MODEL_BYTES)
+        if data[:4] != b"glTF":
+            raise UploadError(f"{upload.filename}: não é um modelo .glb (glTF binário). Exporta como .glb, com tudo "
+                              "dentro de um só ficheiro (no Blender: Exportar → glTF 2.0 → formato .glb).")
+    except UploadError as exc:
+        flash(request, str(exc))
+        return RedirectResponse(url, status_code=303)
+    previous = session.get(MediaFile, asset.model3d_id) if asset.model3d_id else None
+    folder = f"{safe_segment(project.prefix)}/assets/{safe_segment(asset.name)}/modelo3d"
+    n = session.exec(select(func.count()).select_from(MediaFile).where(MediaFile.asset_id == asset.id,
+                                                                       MediaFile.role == "model3d")).one() + 1
+    rel = f"{folder}/v{n}.glb"
+    write_file(rel, data)
+    media = MediaFile(project_id=project.id, path=rel, kind="model", role="model3d", source="upload", status="pending",
+                      asset_id=asset.id)
+    session.add(media)
+    session.flush()
+    approve_media(session, media)
+    if previous is not None and previous.id != media.id:
+        reject_media(session, previous)
+    session.commit()
+    flash_info(request, f"Modelo 3D de {asset.label or asset.name} carregado ({len(data) / 1048576:.1f} MB): passa a "
+                        "ser a forma dele nas maquetes, em cinzento.")
+    return RedirectResponse(url, status_code=303)

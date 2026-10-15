@@ -171,6 +171,30 @@
       </div>
     {% endcall %}
 
+    {% if asset.kind in model_kinds %}
+    {% set md %}{% if model3d %}<span class="ok-t">✓ modelo carregado</span> · nas maquetes aparece com esta forma, em cinzento{% else %}nenhum · nas maquetes é uma caixa (ou uma peça da biblioteca){% endif %}{% endset %}
+    {% call m.fold("modelo3d", "Modelo 3D", md, tip="Um modelo 3D (.glb) dá a forma exata deste " ~ ("adereço" if asset.kind == "prop" else "elemento") ~ " nas maquetes e na encenação (parado ou a mexer-se), sempre em cinzento: o aspeto vem da folha. Serve um modelo de uma biblioteca gratuita ou feito no Blender (Exportar → glTF 2.0 → .glb). Sem compressão Draco.") %}
+      <div class="sec-b" style="grid-template-columns: minmax(0, 1fr)">
+        {% if model3d %}
+        <div class="model3d-prev" data-model-url="/media/{{ model3d.path }}"><span class="hint" data-model-info>A carregar o modelo…</span></div>
+        <div class="row" style="gap: 6px; flex-wrap: wrap">
+          <span class="mono dim" style="font-size: 11px">{{ asset.name }}_model.glb</span><span class="sp"></span>
+          <a class="btn sm" href="/projetos/{{ project.id }}/media/{{ model3d.id }}/descarregar" hx-boost="false">{{ i.icon("download", 13) }}Descarregar</a>
+          <form method="post" action="/projetos/{{ project.id }}/media/{{ model3d.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Tirar o modelo 3D?" data-confirm-text="Nas maquetes volta a ser uma caixa. O ficheiro fica em «Rejeitados»." data-confirm-ok="Tirar">Tirar</button></form>
+        </div>
+        <span class="hint">Na maquete ou na encenação: <span class="mono">{"type": "model", "asset": "{{ asset.name }}", "center": [x, y, z], "rot_z": 0, "height": 1.1}</span> — o Assistente sabe usá-lo; numa encenação, um ator com o código {{ asset.name }} também aparece com esta forma.</span>
+        {% endif %}
+        <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/modelo3d" enctype="multipart/form-data" class="drop drop-compact" data-dropzone>
+          {{ m.csrf() }}
+          <div class="ico">{{ i.icon("upload", 18) }}</div>
+          <div class="col drop-txt" style="gap: 2px"><span style="font-weight: 500">{{ "Trocar o modelo 3D" if model3d else "Carregar modelo 3D" }}</span><span class="hint">Ficheiro .glb (tudo num só ficheiro), até 60 MB.</span></div>
+          <span class="sp"></span>
+          <label class="btn sm">Escolher ficheiro<input type="file" name="file" accept=".glb,model/gltf-binary" hidden data-autosubmit></label>
+        </form>
+      </div>
+    {% endcall %}
+    {% endif %}
+
     {% if asset.kind != "location" %}
     {% set busy_sheet = gpt_jobs|selectattr("job.status", "in", ["queued", "running"])|list %}
     {% set rs %}{% if results %}<span class="warn-t">{{ results|length }} por decidir</span>{% elif busy_sheet %}a gerar…{% else %}nada por decidir · carregar do computador{% endif %}{% endset %}

@@ -21,6 +21,39 @@ _lock = asyncio.Semaphore(1)  # um Chromium de cada vez (o servidor tem 2 CPUs)
 ARGS = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 
 
+def _local_models(spec):
+    """Os modelos 3D (GLB) vêm em /media/…, que pede sessão; o Chromium do servidor não a tem e lê-os pela rota interna."""
+    if isinstance(spec, dict):
+        out = {k: _local_models(v) for k, v in spec.items()}
+        for key, ident in (("url", "model_id"), ("model_url", "model_id")):
+            if isinstance(out.get(key), str) and out[key].startswith("/media/") and out.get(ident):
+                out[key] = f"/interno/modelo/{int(out[ident])}"
+        return out
+    if isinstance(spec, list):
+        return [_local_models(v) for v in spec]
+    return spec
+
+
+@router.get("/interno/modelo/{media_id}", include_in_schema=False)
+def local_model(request: Request, media_id: int):
+    """O ficheiro de um modelo 3D, só para o Chromium do próprio servidor (renders da maquete e vídeo-guia)."""
+    from fastapi.responses import FileResponse
+    from sqlmodel import Session
+
+    from app.db import engine
+    from app.media import media_root
+    from app.models import MediaFile
+
+    if (request.client.host if request.client else "") not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=404)
+    with Session(engine) as s:
+        m = s.get(MediaFile, media_id)
+        path = media_root() / m.path if m is not None and m.role == "model3d" else None
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(path, media_type="model/gltf-binary")
+
+
 @router.get("/interno/maquete/{token}", include_in_schema=False)
 def still_page(request: Request, token: str):
     if (request.client.host if request.client else "") not in ("127.0.0.1", "::1"):
@@ -34,7 +67,7 @@ def still_page(request: Request, token: str):
     return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8"><style>body{{margin:0}}</style></head><body>
 <script type="application/json" id="job">{payload}</script>
 <script type="module">
-import {{ renderStills }} from '/static/js/maquete_still.js?v=4';
+import {{ renderStills }} from '/static/js/maquete_still.js?v=7';
 const job = JSON.parse(document.getElementById('job').textContent);
 try {{ window.__result = await renderStills(job.spec, job.opts); }} catch (e) {{ window.__error = String(e && e.stack || e); }}
 </script></body></html>""")
@@ -45,7 +78,7 @@ async def render(spec: dict, opts: dict, timeout_s: int = 120) -> list[dict]:
     from playwright.async_api import async_playwright
 
     token = secrets.token_urlsafe(24)
-    _jobs[token] = ({"spec": spec, "opts": opts}, time.time() + timeout_s)
+    _jobs[token] = ({"spec": _local_models(spec), "opts": opts}, time.time() + timeout_s)
     async with _lock:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(args=ARGS)
@@ -81,7 +114,7 @@ VIEWER_PAGE = """<!doctype html><html><head><meta charset="utf-8"><style>body{ma
 const job = JSON.parse(document.getElementById('job').textContent);
 const el = document.querySelector('[data-scene3d]');
 el.querySelector('.m3d-data').textContent = JSON.stringify(job.spec);
-try { const { mount } = await import('/static/js/scene3d.js?v=40'); mount(el); window.__ready = true; }
+try { const { mount } = await import('/static/js/scene3d.js?v=45'); mount(el); window.__ready = true; }
 catch (e) { window.__error = String(e && e.stack || e); }
 </script></body></html>"""
 
@@ -101,7 +134,7 @@ async def capture(spec: dict, aspect: str = "16:9", views: list[dict] | None = N
         return base64.b64decode(url.split(",", 1)[1])
 
     token = secrets.token_urlsafe(24)
-    _jobs[token] = ({"viewer": True, "spec": spec, "aspect": aspect if re.fullmatch(r"\d+:\d+", aspect or "") else "16:9"},
+    _jobs[token] = ({"viewer": True, "spec": _local_models(spec), "aspect": aspect if re.fullmatch(r"\d+:\d+", aspect or "") else "16:9"},
                     time.time() + timeout_s)
     out: dict = {"views": {}, "moments": [], "video": None}
     end = time.time() + timeout_s

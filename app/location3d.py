@@ -89,8 +89,15 @@ def location_views(session: Session, asset: Asset) -> list[LocationView]:
 def auto_views(session: Session, asset: Asset) -> int:
     """Propõe as vistas de cada divisão: a referência (de um canto para o canto oposto, grande angular) e 4 vistas a
     partir do centro, à altura dos olhos, a rodar 90°. Só junta as que faltam (não mexe nas que já existem)."""
+    from app import terrain
+
     existing = {(v.zone, v.label) for v in location_views(session, asset)}
     added = 0
+    ground = terrain.ground_fn([asset.layout3d or {}])
+    # com relevo, cada câmara fica à altura dos olhos acima do chão por baixo dela (e olha para o chão do outro ponto)
+    on = (lambda c: {**c, "pos": [c["pos"][0], c["pos"][1], c["pos"][2] + ground(c["pos"][0], c["pos"][1])],
+                     "look_at": [c["look_at"][0], c["look_at"][1], c["look_at"][2] + ground(c["look_at"][0], c["look_at"][1])]}
+          ) if ground else (lambda c: c)
     for z in zones(asset.layout3d):
         (x0, y0), (x1, y1) = z["from"], z["to"]
         cx, cy, fz = (x0 + x1) / 2, (y0 + y1) / 2, z["z"]  # fz: chão do piso desta divisão
@@ -109,6 +116,7 @@ def auto_views(session: Session, asset: Asset) -> int:
         for n, (kind, label, cam) in enumerate(specs):
             if (z["name"], label) in existing:
                 continue
+            cam = on(cam)
             session.add(LocationView(asset_id=asset.id, zone=z["name"], kind=kind, order=n, label=label,
                                      cam={k: [round(c, 2) for c in v] if isinstance(v, list) else v for k, v in cam.items()}))
             added += 1

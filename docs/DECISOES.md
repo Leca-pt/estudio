@@ -534,3 +534,30 @@ Consistência: todas as secções que se fecham usam a mesma seta à esquerda (.
 («O mundo», os grupos de assets, o Episódio/Ato da História passaram a este padrão); explicações nos títulos só pelo «?»;
 um subtítulo de uma frase curta é aceite (Configuração). As setas para baixo que ficam são botões de mover, não secções.
 Estáticos: ao mudar app.css/app.js/scene3d.js sobe-se o ?v= (base.html e o import em app.js).
+
+## 2026-10-15 — Maquetes: relevo, natureza, mais interiores e modelos 3D importados
+Pedido do utilizador: maquetes mais intricadas (canyons, rochas, paisagens, interiores com mais detalhe). Regra mantida:
+o Assistente escreve parâmetros (JSON), nunca geometria; tudo cinzento e liso (a forma), o aspeto vem das folhas e das
+vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos articulados).
+- Relevo (app/terrain.py ≡ static/js/terrain.js, a mesma conta nas duas linguagens — teste tests/test_terrain.py com
+  alturas calculadas pelo navegador): objeto "terrain" {from, to, z, relief, scale, seed, color, features} com
+  canyon (path, floor, width, depth, jagged, terraces), hill, mesa, ridge e flat. Fora dos terrenos o chão está a 0; o
+  chão plano à volta tem um buraco à medida dos terrenos e fica à altura média da borda, e o terreno tem uma «saia»
+  até lá (sem degraus nem buracos para o céu).
+- "rock" (rocha irregular, center [x,y] assenta no chão, shape round|sharp|slab|spire) e "scatter" (rochas, árvores,
+  pinheiros, arbustos, erva, cactos espalhados num retângulo, desenhados em lote; max_slope, avoid; até 6000 no total).
+- Pessoas e veículos: com relevo, o z conta a partir do chão (andam a seguir as subidas e descidas, no navegador e nas
+  contas do servidor). Câmara: z absoluto, ou "ground": true numa posição (convertido em absoluto ao gravar).
+  A visibilidade (quem a câmara vê, notas dos momentos) conta com o terreno a tapar (parede do canyon).
+  O Assistente recebe o resumo do relevo com um quadriculado de alturas e o fundo do canyon ao longo do caminho; as
+  vistas automáticas do local ficam à altura dos olhos acima do chão.
+- Interiores: +21 peças (bookshelf, wall_cabinet, toilet, bathtub, shower, washbasin, nightstand, dresser,
+  coffee_table, rug, curtain, frame, mirror, floor_lamp, fireplace, piano, washer, tv_stand, radiator, office_chair,
+  boxes); as de parede penduram-se sozinhas à altura certa (center z = chão).
+- Modelos 3D importados (gerar com o Artlist fica para quando houver créditos): .glb na ficha de um adereço ou elemento
+  do mundo (secção «Modelo 3D», com pré-visualização; Asset.model3d_id, migração 0061; MediaFile role model3d, o
+  anterior vai para «Rejeitados»). Na maquete/encenação {"type": "model", "asset", "center", "rot_z", "height"|"size"};
+  um ator com esse código também aparece com o modelo. Em cinzento, frente do glTF (+Z) virada para a frente da cena
+  (+Y), normais calculadas se faltarem; sem ficheiro, uma caixa com o nome. Os renders, o vídeo-guia e os renders do
+  servidor esperam pelos modelos; o Chromium do servidor lê-os por /interno/modelo/<id> (só 127.0.0.1).
+- Medido: 2 renders de um canyon de 300 × 400 m com 420 rochas/arbustos no servidor (sem placa gráfica): 3,3 s.

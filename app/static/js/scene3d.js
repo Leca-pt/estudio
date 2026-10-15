@@ -2,7 +2,10 @@
 // painéis e grava o vídeo-guia. Coordenadas da cena: metros, Z para cima, Y para a frente; no three.js, Y para cima.
 import * as THREE from '../vendor/three/three.module.min.js';
 import { OrbitControls } from '../vendor/three/OrbitControls.js';
-import { applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=3';
+import { applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=4';
+import { groundFn, height, rockGeo, scatterMesh, terrainMesh } from './terrain.js?v=3';
+import { greyModel, modelsReady } from './model3d.js?v=2';
+export { groundFn, modelsReady };
 
 const live = new Set();
 const CAPTURE = [1280, 720];
@@ -126,7 +129,7 @@ class Batch { // caixas e cilindros por cor, desenhados em lote (milhares de pr�
   }
 }
 
-export function buildLayer(layer, palette, idx) {
+export function buildLayer(layer, palette, idx, ground = null) {
   const group = new THREE.Group();
   const off = layer.offset || [0, 0, 0];
   group.position.copy(v3(off));
@@ -143,6 +146,29 @@ export function buildLayer(layer, palette, idx) {
     else if (o.type === 'prism') batch.add(o.shape === 'ramp' ? 'ramp' : 'gable', col(o.color), (d) => {
       d.position.copy(v3(o.center)); d.rotation.y = rad(o.rot_z); d.scale.set(o.size[0], o.size[2], o.size[1]);
     });
+    else if (o.type === 'terrain') group.add(terrainMesh(o, mat(col(o.color))));
+    else if (o.type === 'rock') { // rocha irregular, assente no chão (z = acima do chão)
+      const [w, dd, h] = o.size, g0 = ground ? ground(o.center[0], o.center[1]) : 0;
+      const m = new THREE.Mesh(rockGeo(o.seed, o.shape), mat(col(o.color)));
+      m.position.copy(v3([o.center[0], o.center[1], g0 + (o.center[2] || 0) + h * 0.12]));
+      m.rotation.y = rad(o.rot_z); m.scale.set(w / 2, h / 1.3, dd / 2);
+      if (o.label) m.userData.info = `rocha «${o.label}»`;
+      group.add(m);
+    } else if (o.type === 'scatter') group.add(scatterMesh(o, ground, mat(col(o.color)), v3));
+    else if (o.type === 'model') { // modelo 3D importado (GLB) de um asset, em cinzento; sem ficheiro, uma caixa com o nome
+      const base = o.center.length === 2 ? [o.center[0], o.center[1], ground ? ground(o.center[0], o.center[1]) : 0] : o.center;
+      let m;
+      if (o.url) m = greyModel(o.url, mat(col(o.color)), o.size, o.height);
+      else {
+        const sz = o.size || [1, 1, o.height || 1];
+        m = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(sz[0], sz[2], sz[1]), mat(col(o.color)));
+        b.position.y = sz[2] / 2; m.add(b);
+        const tag = label(o.asset + ' · sem modelo 3D'); tag.position.y = sz[2] + 0.6; tag.layers.set(1); m.add(tag);
+      }
+      m.position.copy(v3(base)); m.rotation.y = rad(o.rot_z);
+      m.userData.info = `${o.asset}${o.label ? ' «' + o.label + '»' : ''} (modelo 3D) em [${o.center.map((x) => +x.toFixed(2)).join(', ')}]`;
+      group.add(m);
+    }
     else if (o.type === 'extrude') {
       const c = col(o.color);
       group.add(extrudeMesh(o, hasWindows(o.color) && !o.plain && o.height > 3.5 ? windowMat(c) : mat(c)));
@@ -201,10 +227,42 @@ export function buildLayer(layer, palette, idx) {
   return group;
 }
 
+// Com relevo, a altura das pessoas e dos veículos conta a partir do chão por baixo delas.
+export const onGround = (ground, pos) => (ground ? [pos[0], pos[1], (pos[2] || 0) + ground(pos[0], pos[1])] : pos);
+// O chão plano à volta: com relevo, tem um buraco à medida dos terrenos e fica à altura média da borda deles (a
+// paisagem continua sem degrau); sem relevo, é o plano de sempre a 0.
+export function groundPlane(layers, size, color, palette = null) {
+  const ts = [];
+  for (const l of layers || []) for (const t of l.objects || []) if (t.type === 'terrain') ts.push(t);
+  const m = new THREE.MeshLambertMaterial({ color: ts.length && palette ? (palette[ts[0].color] || ts[0].color) : color }); // com relevo, a cor do terreno
+  if (!ts.length) {
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), m);
+    g.rotation.x = -Math.PI / 2; g.position.y = -0.02;
+    return g;
+  }
+  const x0 = Math.min(...ts.map((t) => t.from[0])), y0 = Math.min(...ts.map((t) => t.from[1]));
+  const x1 = Math.max(...ts.map((t) => t.to[0])), y1 = Math.max(...ts.map((t) => t.to[1]));
+  const ground = groundFn(layers);
+  let sum = 0, n = 0;
+  for (let i = 0; i <= 40; i++) {
+    const fx = x0 + (x1 - x0) * i / 40, fy = y0 + (y1 - y0) * i / 40;
+    for (const [x, y] of [[fx, y0], [fx, y1], [x0, fy], [x1, fy]]) { sum += ground(x, y); n++; }
+  }
+  const W = Math.max(size[0], (x1 - x0) * 4), D = Math.max(size[1], (y1 - y0) * 4), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const shape = new THREE.Shape([[cx - W / 2, cy - D / 2], [cx + W / 2, cy - D / 2], [cx + W / 2, cy + D / 2], [cx - W / 2, cy + D / 2]].map(([x, y]) => new THREE.Vector2(x, y)));
+  shape.holes.push(new THREE.Path([[x0, y0], [x0, y1], [x1, y1], [x1, y0]].map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.Mesh(new THREE.ShapeGeometry(shape), m);
+  g.rotation.x = -Math.PI / 2; // (x, y da cena) → chão do three (x, -z)
+  g.position.y = sum / n - 0.05;
+  return g;
+}
+
 export function actorMesh(a) { // o elenco: cilindro de 1,75 m com faixa na frente; carros e comboio: caixas
   const g = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ color: a.hex });
   const add = (geo, m, pos) => { const mesh = new THREE.Mesh(geo, m); mesh.position.copy(v3(pos)); g.add(mesh); return mesh; };
-  if (a.kind === 'character' || a.kind === 'person') {
+  if (a.model_url && a.kind !== 'character' && a.kind !== 'person') { // adereço ou veículo com modelo 3D importado
+    g.add(greyModel(a.model_url, mat, a.size || null, a.size ? null : null));
+  } else if (a.kind === 'character' || a.kind === 'person') {
     const man = mannequin(a.hex, a.size ? a.size[2] : 1.75, a.kind === 'person' && !a.code); // figurante sem código: cinzento
     g.add(man.root); g.userData.man = man;
   } else if (a.kind === 'car') {
@@ -262,17 +320,16 @@ export function mount(el) {
 
   let far = 400;
   const layerGroups = [];
+  const groundAt = groundFn(spec.layers); // relevo (null = chão plano a 0)
   spec.layers.forEach((layer, i) => {
-    const g = buildLayer(layer, spec.palette, i);
+    const g = buildLayer(layer, spec.palette, i, groundAt);
     layerGroups.push(g);
     scene.add(g);
     for (const o of layer.objects || []) for (const k of ['center', 'from', 'to']) if (o[k]) far = Math.max(far, Math.abs(o[k][0]) * 2, Math.abs(o[k][1]) * 2);
   });
   const gsize = spec.layers.find((l) => l.ground)?.ground || [far * 3, far * 3];
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(gsize[0], gsize[1]), new THREE.MeshLambertMaterial({ color: spec.palette.ground }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.02;
-  scene.add(ground);
+  const groundMesh = groundPlane(spec.layers, gsize, spec.palette.ground, spec.palette);
+  scene.add(groundMesh);
   scene.fog = new THREE.Fog(SKY, far * 0.6, far * 3);
 
   const actors = spec.actors.map((a) => {
@@ -315,7 +372,7 @@ export function mount(el) {
     camHelper.layers.set(1);
     scene.add(camHelper);
   }
-  const box = new THREE.Box3().setFromObject(scene.children.find((c) => c.isGroup) || ground);
+  const box = new THREE.Box3().setFromObject(scene.children.find((c) => c.isGroup) || groundMesh);
   const center = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
   const radius = box.isEmpty() ? 50 : box.getSize(new THREE.Vector3()).length() / 2;
   freeCam.position.copy(center.clone().add(new THREE.Vector3(radius * 0.6, radius * 0.8, radius * 0.9)));
@@ -420,7 +477,7 @@ export function mount(el) {
   function pose(time) {
     for (const { a, m } of actors) {
       const { pos } = linear(a.keys, time);
-      m.position.copy(v3(pos));
+      m.position.copy(v3(onGround(groundAt, pos))); // com relevo, a altura conta a partir do chão
       m.rotation.y = rad(facingAt(a.keys, time));
       const man = m.userData.man;
       if (man) { // pose da última posição com "pose"; quem se desloca anda (ou corre) sozinho
@@ -731,6 +788,7 @@ export function mount(el) {
   }
 
   async function recordNow(btn) { // grava a animação pela câmara do plano, em tempo real
+    await modelsReady();
     const types = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
     const mime = types.find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
     if (!mime) { btn.disabled = false; return say('Este navegador não consegue gravar vídeo (experimenta o Chrome ou o Edge).'); }
@@ -1080,6 +1138,7 @@ export function mount(el) {
   const needMoments = !layoutOnly && !!el.dataset.momentsStale;
   const needLoc = !layoutOnly && locPending.length > 0;
   if (needPreviews || needRenders || needMoments || needLoc) setTimeout(() => exclusive(async () => {
+    await modelsReady(); invalidate(); // os modelos 3D importados têm de estar na cena antes das fotografias
     if (needPreviews) await previews();
     if (needRenders) await viewRenders();
     if (needMoments) await captureMoments();

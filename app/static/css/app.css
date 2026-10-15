@@ -1309,3 +1309,7 @@ details.sec.fold[open] .fold-thumbs { display: none; }
 .cfg-guide > .f { padding: 0 12px 12px; }
 .cfg-guide > .f > label { display: none; }
 details.world-sec[open] > summary .fold-sum { display: none; }
+/* Modelo 3D importado (ficha do asset) */
+.model3d-prev { position: relative; border-radius: 8px; overflow: hidden; background: #cfd6de; max-width: 520px; }
+.model3d-prev canvas { display: block; width: 100%; height: auto; }
+.model3d-prev [data-model-info] { position: absolute; left: 8px; bottom: 6px; background: rgba(20,22,26,.7); color: #eee; padding: 2px 8px; border-radius: 4px; font-size: 11px; }

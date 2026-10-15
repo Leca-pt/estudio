@@ -605,8 +605,11 @@
     (root || document).querySelectorAll('textarea[data-count]').forEach(updateCounter);
     // Maquete 3D: o three.js só se carrega nas páginas que têm uma
     const models = document.querySelectorAll('[data-scene3d]:not([data-mounted])');
-    if (models.length) import('/static/js/scene3d.js?v=41').then(m => models.forEach(el => m.mount(el)))
+    if (models.length) import('/static/js/scene3d.js?v=45').then(m => models.forEach(el => m.mount(el)))
       .catch(err => models.forEach(el => { const s = el.querySelector('.m3d-status'); if (s) s.textContent = 'Não foi possível abrir o 3D: ' + err.message; }));
+    // Modelo 3D importado de um asset (ficha do asset): pré-visualização a rodar
+    const glbs = document.querySelectorAll('[data-model-url]:not([data-mounted])');
+    if (glbs.length) import('/static/js/model3d.js?v=2').then(m => glbs.forEach(el => m.preview(el))).catch(() => {});
   }
 
   document.addEventListener('DOMContentLoaded', () => init());

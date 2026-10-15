@@ -40,7 +40,7 @@ def approval_target(session: Session, media: MediaFile):
 
         return session.get(LocationView, media.locview_id), "image_id"
     if media.asset_id:
-        field = {"portrait": "portrait_image_id", "voice": "voice_ref_id"}.get(media.role, "approved_image_id")
+        field = {"portrait": "portrait_image_id", "voice": "voice_ref_id", "model3d": "model3d_id"}.get(media.role, "approved_image_id")
         return session.get(Asset, media.asset_id), field
     if media.shot_id and media.role in SHOT_ROLE_FIELDS:
         return session.get(Shot, media.shot_id), SHOT_ROLE_FIELDS[media.role]
@@ -74,7 +74,7 @@ def approve_media(session: Session, media: MediaFile) -> None:
 
 # O que o utilizador gerou ou carregou fica guardado ao rejeitar (em «Rejeitados», de onde se repõe); os ficheiros que a
 # app refaz sozinha (vídeo-guia, renders da maquete, profundidade) apagam-se.
-KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame", "key"}
+KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame", "key", "model3d"}
 
 
 def reject_media(session: Session, media: MediaFile) -> None:
@@ -92,6 +92,7 @@ def reject_media(session: Session, media: MediaFile) -> None:
     session.exec(update(Asset).where(Asset.approved_image_id == media.id).values(approved_image_id=None))
     session.exec(update(Asset).where(Asset.portrait_image_id == media.id).values(portrait_image_id=None))
     session.exec(update(Asset).where(Asset.voice_ref_id == media.id).values(voice_ref_id=None))
+    session.exec(update(Asset).where(Asset.model3d_id == media.id).values(model3d_id=None))
     for column in SHOT_ROLE_FIELDS.values():
         session.exec(update(Shot).where(getattr(Shot, column) == media.id).values({column: None}))
     session.exec(update(Project).where(Project.cover_media_id == media.id).values(cover_media_id=None))
@@ -107,7 +108,7 @@ def back_url(project: Project, media: MediaFile) -> str:
     if media.role in ("locview", "locrender", "locdepth") and media.asset_id:
         return f"/projetos/{project.id}/assets/{media.asset_id}#vista3d-{media.locview_id}"
     if media.asset_id:
-        anchor = {"portrait": "retrato", "photo": "fotos", "voice": "voz", "look": "looks"}.get(media.role, "resultados")
+        anchor = {"portrait": "retrato", "photo": "fotos", "voice": "voz", "look": "looks", "model3d": "modelo3d"}.get(media.role, "resultados")
         return f"/projetos/{project.id}/assets/{media.asset_id}#{anchor}"
     if media.role == "clip":
         return f"/projetos/{project.id}/video/planos/{media.shot_id}#" + ("take-escolhido" if media.status == "approved" else "resultados")
@@ -132,6 +133,8 @@ def download_name(session: Session, project: Project, media: MediaFile) -> str:
             return f"{asset.name}_photo_{name}"
         if media.role == "voice":
             return f"{asset.name}_voice{ext}" if approved else f"{asset.name}_voice_{name}"
+        if media.role == "model3d":
+            return f"{asset.name}_model{ext}" if approved else f"{asset.name}_model_{name}"
         if media.role == "look":
             return f"{asset.name}_look{media.look_id}{ext}" if approved else f"{asset.name}_look{media.look_id}_{name}"
         if media.role in ("locview", "locrender", "locdepth"):

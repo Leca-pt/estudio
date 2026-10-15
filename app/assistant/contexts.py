@@ -568,7 +568,9 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
                        f"voz diz (amostra): {_v(asset.voice_sample)}\n" if asset.kind == "character" else "") +
                       "Referências para gerar a folha (as imagens aprovadas destes assets vão anexadas; a descrição "
                       "deste asset deve bater certo com elas): "
-                      + (", ".join(a.name for a in (session.get(Asset, i) for i in asset.sheet_refs or []) if a) or "nenhuma")]))
+                      + (", ".join(a.name for a in (session.get(Asset, i) for i in asset.sheet_refs or []) if a) or "nenhuma")
+                      + ((f"\nModelo 3D importado: {'sim — nas maquetes e na encenação usa-se com {"type": "model", "asset": "' + asset.name + '"}, e um ator com este código aparece com esta forma' if asset.model3d_id else 'nenhum (o utilizador pode carregar um .glb na secção Modelo 3D)'}")
+                         if asset.kind in ("prop", "element") else "")]))
         attrs = ["label", "group_name", "canonical_description", "profile", "sheet_prompt"]
         if asset.kind == "character":
             attrs += ["portrait_prompt", "key_features", "voice_type", "voice_timbre", "voice", "voice_sample", "voice_note"]
@@ -578,10 +580,11 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
 
             if asset.layout3d:  # mudar por partes: só o que muda (rápido, e o resto fica intacto)
                 ctx.add(FieldSpec(f"layout3dedit:{asset.id}", f"{asset.name} › Maquete 3D › Alterar por partes",
-                                  "layout3d_edit", help=scene3d.LAYOUT_EDIT_HELP + " " + scene3d.OBJECTS_HELP))
+                                  "layout3d_edit", help=scene3d.LAYOUT_EDIT_HELP + " " + scene3d.OBJECTS_HELP
+                                  + " " + scene3d.models_line(session, project.id)))
             ctx.add(FieldSpec(f"layout3d:{asset.id}", f"{asset.name} › Maquete 3D" + (" (reescrever toda)" if asset.layout3d else ""),
                               "layout3d", help=(scene3d.LAYOUT_REWRITE_NOTE if asset.layout3d else "")
-                              + scene3d.LAYOUT_HELP_PREFIX + scene3d.SET_HELP))
+                              + scene3d.LAYOUT_HELP_PREFIX + scene3d.SET_HELP + " " + scene3d.models_line(session, project.id)))
             if asset.layout3d:
                 from app import location3d
 
@@ -706,7 +709,7 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
         _location_field(ctx, session, project, scene)
         if scene.set3d_asset_id:
             ctx.add(FieldSpec(f"stage3d:{scene.id}", f"C{scene.number:02d} › Encenação 3D", "stage3d",
-                              current=_json_dumps(scene.stage3d), help=_s3.STAGE_HELP))
+                              current=_json_dumps(scene.stage3d), help=_s3.STAGE_HELP + " " + _s3.models_line(session, project.id)))
         seen = _s3.previews(session, _s3.preview_hash(_s3.compose(session, project.id, scene=scene)), scene_id=scene.id)
         if seen:
             ctx.summary += ("\nVÊS A ENCENAÇÃO ATUAL nas imagens anexadas (de cima). Confere que ninguém atravessa paredes "

@@ -2,8 +2,8 @@
 // (buildLayer, actorMesh), vista de cima com grelha e números dos objetos, pelas vistas do local, à altura dos olhos,
 // de três quartos, por um piso cortado ou por uma câmara livre. Corre num Chromium sem ecrã dentro do contentor.
 import * as THREE from '../vendor/three/three.module.min.js';
-import { SKY, actorMesh, buildLayer, facingAt, fovFor, linear, v3 } from './scene3d.js?v=41';
-import { applyPose } from './scene3d_parts.js?v=3';
+import { SKY, actorMesh, buildLayer, facingAt, fovFor, groundFn, groundPlane, linear, modelsReady, onGround, v3 } from './scene3d.js?v=45';
+import { applyPose } from './scene3d_parts.js?v=4';
 
 const rad = (d) => (d || 0) * Math.PI / 180;
 
@@ -68,18 +68,18 @@ export async function renderStills(spec, opts) {
   sun.position.set(-300, 600, 250);
   scene.add(sun);
   let far = 400;
+  const groundAt = groundFn(spec.layers);
   spec.layers.forEach((layer, i) => {
-    scene.add(buildLayer(layer, spec.palette, i));
+    scene.add(buildLayer(layer, spec.palette, i, groundAt));
     for (const o of layer.objects || []) for (const k of ['center', 'from', 'to']) if (o[k]) far = Math.max(far, Math.abs(o[k][0]) * 2, Math.abs(o[k][1]) * 2);
   });
   const gsize = spec.layers.find((l) => l.ground)?.ground || [far * 3, far * 3];
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(gsize[0], gsize[1]), new THREE.MeshLambertMaterial({ color: spec.palette.ground }));
-  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02;
-  scene.add(ground);
+  scene.add(groundPlane(spec.layers, gsize, spec.palette.ground, spec.palette));
   const t = opts.t || 0;
   for (const a of spec.actors || []) { // o elenco e os figurantes nas posições do segundo t
     const m = actorMesh(a);
-    const { pos } = linear(a.keys, t);
+    const { pos: rel } = linear(a.keys, t);
+    const pos = onGround(groundAt, rel);
     m.position.copy(v3(pos)); m.rotation.y = rad(facingAt(a.keys, t));
     if (m.userData.man) {
       const k = [...a.keys].reverse().find((x) => x.t <= t && x.pose);
@@ -182,6 +182,7 @@ export async function renderStills(spec, opts) {
   }
 
   const out = [];
+  await modelsReady(); // os modelos 3D importados carregam antes de se fotografar
   for (const view of opts.views) {
     const c = camFor(view);
     if (!c) { out.push({ view, error: 'vista desconhecida' }); continue; }
