@@ -16,15 +16,17 @@
 </div>
 {{ m.alerts(error, saved) }}
 
-<div class="sb-layout">
-  <div class="col" style="gap: 14px">
-    <div class="f">
-      <label for="blocking">Notas de encenação <span class="dim" style="font-weight: 400">· quem está onde, de que lado fica a câmara (regra dos 180°); o Assistente usa-as ao montar as cenas 3D</span></label>
+{% set people = assets|rejectattr("kind", "equalto", "location")|list %}
+{% set with_maquete = locations|selectattr("layout3d")|list %}
+{% set n1 %}{{ scene.blocking|truncate(140) if scene.blocking else "nenhuma" }}{% endset %}
+{% call m.fold("notas", "Notas de encenação", n1, tip="Quem está onde, de que lado fica a câmara (regra dos 180°). O Assistente usa-as ao montar a encenação 3D.") %}
+  <div class="sec-b" style="grid-template-columns: minmax(0, 1fr)">
       <textarea id="blocking" name="blocking" form="scene-form" class="in" style="min-height: 112px" placeholder="ex.: a Ana atrás do balcão, à direita do ecrã; o Bruno entra pela porta da rua; a câmara fica do lado da sala.">{{ scene.blocking or '' }}</textarea>
-    </div>
-    <section class="sec">
-      <div class="sec-h"><h2 class="h2">Quem e o que aparece</h2><span class="hint">· o look de cada personagem vale para todos os planos da cena</span><span class="sp"></span>
-        <a class="btn sm ghost" href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">Mudar na cena</a></div>
+  </div>
+{% endcall %}
+{% set n2 %}{% if people %}<span class="fold-thumbs">{% for a in people[:6] %}{% set w = wardrobe.get(a.id) %}{% set cur = w.current if w else none %}{% set sh = sheets.get(cur.image_id if cur and cur.image_id else a.approved_image_id) %}{% if sh %}<img src="{{ sh.path|thumb }}" alt="">{% endif %}{% endfor %}</span>{{ people|map(attribute="label")|select|join(", ") }}{% else %}<span class="warn-t">ninguém marcado</span>{% endif %}{% endset %}
+{% call m.fold("quem", "Quem e o que aparece", n2, open=not people, tip="As personagens, adereços e elementos marcados na cena (mudam-se na cena, na História). O look de cada personagem escolhido aqui vale para todos os planos da cena.") %}
+  <div class="sec-b" style="display: flex; padding-bottom: 0"><span class="sp"></span><a class="btn sm ghost" href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">Mudar na cena</a></div>
       <div style="padding: 12px 16px">
         <div class="picked">
           {% for a in assets if a.kind != "location" %}
@@ -48,11 +50,10 @@
           {% endfor %}
         </div>
       </div>
-    </section>
-  </div>
-
-  <div class="col" style="gap: 8px" id="local">
-    <span class="cap">Local da cena</span>
+{% endcall %}
+{% set n3 %}{% if locations %}{{ locations|map(attribute="name")|join(", ") }}{% set nomaq = locations|rejectattr("layout3d")|list %}{% if not with_maquete %} · <span class="warn-t">nenhum com maquete</span>{% elif nomaq %} · <span class="dim">{{ nomaq|length }} sem maquete</span>{% endif %}{% else %}<span class="warn-t">sem local</span>{% endif %}{% endset %}
+{% call m.fold("local", "Local da cena", n3, open=not with_maquete, tip="Os locais marcados na cena. A encenação 3D passa-se na maquete de um deles; abre o local para a montar ou mudar.") %}
+  <div class="col" style="gap: 8px; padding: 12px 16px">
     {% for loc in locations %}
     <a class="loc-card" href="/projetos/{{ project.id }}/assets/{{ loc.id }}#maquete">
       <span class="mono">{{ loc.name }}</span>
@@ -62,14 +63,10 @@
     <span class="hint">A cena ainda não tem local. Escolhe-o na <a href="/projetos/{{ project.id }}/historia/cenas/{{ scene.id }}">cena</a>: os planos passam-se na maquete 3D dele.</span>
     {% endfor %}
   </div>
-</div>
+{% endcall %}
 
-<section class="sec" id="encenacao">
-  <div class="sec-h"><h2 class="h2">Encenação 3D</h2>
-    <span class="hint">· quem está onde e o que se mexe ao longo de toda a cena; os planos são câmaras sobre ela</span>
-    <span class="sp"></span>
-    {% if stage_d %}<span class="tag">{{ (stage_d)|seg }} s</span>{% endif %}</div>
-  {% set with_maquete = locations|selectattr("layout3d")|list %}
+{% set n4 %}{% if not with_maquete %}<span class="warn-t">falta a maquete do local</span>{% elif not scene.stage3d %}<span class="warn-t">por montar</span>{% else %}{{ set_loc.name if set_loc else "" }}{% if stage_d %} · {{ (stage_d)|seg }} s{% endif %} · elenco: {{ cast3d|map(attribute="asset.name")|join(", ") or "ninguém" }}{% endif %}{% endset %}
+{% call m.fold("encenacao", "Encenação 3D", n4, open=not (with_maquete and scene.stage3d), tip="Quem está onde e o que se mexe ao longo de toda a cena, na maquete do local. Os planos são câmaras sobre esta encenação: as posições são as mesmas em todos.") %}
   {% if not with_maquete %}
   <div class="m3d-empty"><p>{% if locations %}O local desta cena ({{ locations[0].name }}) ainda não tem maquete 3D. Monta-a primeiro: a encenação passa-se dentro dela.{% else %}Esta cena ainda não tem local. Escolhe-o na cena (História) e monta a maquete dele.{% endif %}</p>
     {% if locations %}<a class="btn pri" href="/projetos/{{ project.id }}/assets/{{ locations[0].id }}#maquete">Ir à maquete de {{ locations[0].label or locations[0].name }}</a>{% endif %}</div>
@@ -118,17 +115,16 @@
   </div>
   {% endif %}
   {% endif %}
-</section>
+{% endcall %}
 
 {% if script %}
-<div class="col" style="gap: 8px" id="guiao">
-  <div class="row" style="flex-wrap: wrap; gap: 8px"><h2 class="h2">Guião marcado</h2>
-    {% set uncovered = script|rejectattr("shots")|list %}
-    <span class="hint">{{ script|length - uncovered|length }} de {{ script|length }} linhas com plano{% if uncovered %} · <span class="c-wip">{{ uncovered|length }} sem plano</span>{% endif %}</span>
-    <span class="sp"></span>
+{% set uncovered = script|rejectattr("shots")|list %}
+{% set n5 %}{{ script|length - uncovered|length }} de {{ script|length }} linhas com plano{% if uncovered %} · <span class="warn-t">{{ uncovered|length }} sem plano</span>{% endif %}{% endset %}
+{% call m.fold("guiao", "Guião marcado", n5, open=uncovered and shots, tip="Um plano pode cobrir uma linha, várias ou todas (um só take para a cena inteira); uma linha pode estar em vários planos (ex.: plano geral e grande plano da mesma fala). Marca em cada linha os planos que a cobrem e grava.") %}
+<div class="col" style="gap: 8px; padding: 12px 16px">
+  <div class="row" style="flex-wrap: wrap; gap: 8px">
     {% for s in shots %}<button class="btn sm" type="submit" form="scene-form" name="op" value="all_lines:{{ s.shot.id }}" title="O P{{ '%02d' % s.shot.number }} passa a cobrir todas as linhas do guião">Todas as linhas no P{{ '%02d' % s.shot.number }}</button>{% endfor %}
   </div>
-  <span class="hint">Um plano pode cobrir uma linha, várias ou todas (um só take para a cena inteira); uma linha pode estar em vários planos (ex.: plano geral e grande plano da mesma fala). Marca em cada linha os planos que a cobrem e grava.</span>
   {% if shots %}<input type="hidden" name="cover_sent" value="1" form="scene-form">{% endif %}
   <div class="script-cov">
     {% for r in script %}
@@ -141,16 +137,17 @@
     {% endfor %}
   </div>
 </div>
+{% endcall %}
 {% endif %}
 
 <div class="col" style="gap: 10px" id="planos">
-  <div class="row"><h2 class="h2">Planos</h2><span class="tag">{{ shots|length }}</span>
+  <div class="row"><h2 class="h2">Planos</h2><span class="tag">{{ shots|length }}</span>{{ m.tip_btn("Cada plano é uma câmara sobre a encenação, numa parte do tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo. Quando aprovares o frame-chave de um plano (o último passo do plano), aparecem aqui em cima como o storyboard final.") }}
     {% if durations.shots %}<span class="hint">previsto {{ durations.planned_s|clock }}{% if durations.approved %} · takes escolhidos {{ (durations.approved_ms / 1000)|clock }}{% endif %}</span>{% endif %}
     <span class="sp"></span>
     {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="Propõe a cobertura desta cena: os planos pela ordem do guião, cada um com a parte da encenação e a câmara (plano geral, campo/contracampo por cima do ombro de quem ouve, grandes planos), do mesmo lado do eixo.">Propor a cobertura</button>{% endif %}
     <button class="btn sm" type="submit" form="scene-form" name="op" value="add_shot">{{ i.icon("plus", 13) }}Novo plano</button>
   </div>
-  <span class="hint">Cada plano é uma câmara sobre a encenação, numa parte do tempo dela, e dá um take. Por baixo, a vista do local em cada momento da câmara. Lê-se a cena de cima para baixo.{% if shots and not shots|selectattr("key")|list %} Quando aprovares o frame-chave de um plano (o último passo do plano), aparecem aqui em cima como o storyboard final.{% endif %}</span>
+
   {% if shots %}
   {% set ar = (project.aspect_ratio or "16:9").split(" ")[0] %}
   {% if shots|selectattr("key")|list %}

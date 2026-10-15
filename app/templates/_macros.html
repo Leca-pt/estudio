@@ -165,9 +165,9 @@
 
 {# Secção que se fecha: título, resumo numa linha e o conteúdo. Aberta por omissão só quando há coisa a fazer; o que o
    utilizador abre ou fecha fica (nesta página, até fechar o separador). #}
-{% macro fold(id, title, summary="", open=False, tip=None, cls="") %}
+{% macro fold(id, title, summary="", open=False, tip=None, cls="", num=None) %}
 <details class="sec fold {{ cls }}" id="{{ id }}" data-fold data-default-open="{{ 1 if open else 0 }}"{% if open %} open{% endif %}>
-  <summary class="sec-h fold-h"><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 14) }}</span><h2 class="h2">{{ title }}</h2>{% if tip %}{{ tip_btn(tip) }}{% endif %}<span class="fold-sum">{{ summary }}</span></summary>
+  <summary class="sec-h fold-h"><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 14) }}</span>{% if num %}<span class="n">{{ num }}</span>{% endif %}<h2 class="h2">{{ title }}</h2>{% if tip %}{{ tip_btn(tip) }}{% endif %}<span class="fold-sum">{{ summary }}</span></summary>
   {{ caller() }}
 </details>
 {% endmacro %}

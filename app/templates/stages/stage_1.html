@@ -9,9 +9,11 @@
     <button class="btn pri save" type="submit">Guardar</button>
   </div>
   {{ m.alerts(error, saved) }}
+  {% set bw = bible_warnings(project) or {} %}
+  {% set nw = (bw.get("style_block", [])|length) %}{% set nx = (bw.get("exclusions", [])|length) %}
 
-  <section class="sec">
-    <div class="sec-h"><span class="n">01</span><h2 class="h2">Base</h2></div>
+  {% set s1 %}{{ p.name }} · <span class="mono">{{ p.prefix }}</span> · {{ project_types[p.type] }}{% endset %}
+  {% call m.fold("base", "Base", s1, open=not (p.name and p.prefix), num="01") %}
     <div class="sec-b">
       {{ m.input("name", "Nome", p.name, extra="required") }}
       {% call m.input("prefix", "Prefixo", p.prefix, mono=True, extra=('readonly' if prefix_locked else 'maxlength="8" pattern="[A-Za-z0-9]{2,8}" required')) %}
@@ -26,10 +28,10 @@
         <span class="hint">Fixo depois de criar cenas.</span>
       </div>
     </div>
-  </section>
+  {% endcall %}
 
-  <section class="sec" id="ideia">
-    <div class="sec-h"><span class="n">02</span><h2 class="h2">A ideia</h2><span class="sp"></span><span class="hint">Do geral para o particular: premissa → logline → sinopse.</span></div>
+  {% set s2 %}{{ p.logline|truncate(150) if p.logline else "<span class='warn-t'>falta a logline</span>"|safe }}{% endset %}
+  {% call m.fold("ideia", "A ideia", s2, open=not (p.logline and p.synopsis), num="02", tip="Do geral para o particular: premissa → logline → sinopse. A premissa é texto livre e não entra nos prompts; o Assistente parte dela para propor o resto.") %}
     <div class="sec-b" style="grid-template-columns: minmax(0, 1fr)">
       {% call m.textarea("premise", "Premissa", p.premise, min_height=110, placeholder="A ideia de partida, pelas tuas palavras. E se…? Onde se passa, quem são as personagens principais, o tom, o que a torna diferente. Sem regras de tamanho.") %}
         <span class="hint">Texto livre, em português. Não entra nos prompts; o Assistente parte daqui para propor a logline, a sinopse, a identidade e o mundo.</span>
@@ -37,10 +39,10 @@
       {{ m.textarea("logline", "Logline", p.logline, cls="line", placeholder="Uma frase: quem, o que quer, o que está em jogo.") }}
       {{ m.textarea("synopsis", "Sinopse", p.synopsis, min_height=76, placeholder=("A série do princípio ao fim, em poucos parágrafos." if project.type == "series" else "A história completa em poucos parágrafos.")) }}
     </div>
-  </section>
+  {% endcall %}
 
-  <section class="sec">
-    <div class="sec-h"><span class="n">03</span><h2 class="h2">Identidade</h2></div>
+  {% set s3 %}{{ [p.genre, p.tone, p.audience, p.dialogue_language]|select|join(" · ") or "<span class='warn-t'>por escolher</span>"|safe }}{% endset %}
+  {% call m.fold("identidade", "Identidade", s3, open=not (p.genre and p.tone), num="03") %}
     <div class="sec-b c4">
       {{ m.select("genre", "Género", options.genre, p.genre) }}
       {{ m.select("tone", "Tom", options.tone, p.tone) }}
@@ -48,10 +50,10 @@
       {{ m.select("dialogue_language", "Língua dos diálogos", options.dialogue_language, p.dialogue_language) }}
       {{ m.textarea("references", "Referências", p.references, cls="span3", min_height=60, placeholder="Nota interna: filmes, estilos, épocas, o que evitar.") }}
     </div>
-  </section>
+  {% endcall %}
 
-  <section class="sec">
-    <div class="sec-h"><span class="n">04</span><h2 class="h2">Estilo visual</h2></div>
+  {% set s4 %}{{ [p.render_style, p.proportions, p.palette_light, project.image_resolution or "2K"]|select|join(" · ") }}{% if not p.style_block %} · <span class="warn-t">falta o bloco de estilo</span>{% elif nw %} · <span class="warn-t">{{ nw }} aviso{{ "s" if nw > 1 else "" }} no bloco de estilo</span>{% endif %}{% endset %}
+  {% call m.fold("estilo", "Estilo visual", s4, open=not p.style_block, num="04", tip="O estilo de render, as proporções e a paleta definem o aspeto do projeto. O bloco de estilo entra em todos os prompts de imagem e vídeo.") %}
     <div class="sec-b">
       {{ m.select("render_style", "Estilo de render", options.render_style, p.render_style) }}
       {{ m.select("proportions", "Proporções", options.proportions, p.proportions) }}
@@ -61,10 +63,10 @@
         <span class="hint">Folhas, retratos, looks, vistas, previs e capa. Cada modelo usa a mais próxima que aceita; o botão Gerar deixa escolher outra.</span></div>
       {{ m.injected("style_block", "Bloco de estilo", p.style_block, max_chars, cls="span3", copy=True) }}
     </div>
-  </section>
+  {% endcall %}
 
-  <section class="sec">
-    <div class="sec-h"><span class="n">05</span><h2 class="h2">Formato</h2></div>
+  {% set s5 %}{{ p.aspect_ratio or "formato por escolher" }}{% if p.target_duration_s %} · {{ (p.target_duration_s)|clock }}{{ " por episódio" if project.type == "series" else "" }}{% endif %}{% endset %}
+  {% call m.fold("formato", "Formato", s5, open=not p.aspect_ratio, num="05") %}
     <div class="sec-b">
       {{ m.select("aspect_ratio", "Formato (proporção)", options.aspect_ratio, p.aspect_ratio) }}
       {% if project.type == "series" %}
@@ -75,10 +77,10 @@
         {{ m.duration_select("target_duration_s", "Duração-alvo", duration_choices, p.target_duration_s, hint="Duração total do spot.") }}
       {% endif %}
     </div>
-  </section>
+  {% endcall %}
 
-  <section class="sec">
-    <div class="sec-h"><span class="n">06</span><h2 class="h2">Regras fixas</h2></div>
+  {% set s6 %}exclusões: {{ (p.exclusions or "")|wordcount }} palavras{% if nx %} <span class="warn-t">({{ nx }} aviso{{ "s" if nx > 1 else "" }})</span>{% endif %} · regras dos prompts: {{ "sim" if p.project_rules else "nenhuma" }}{% endset %}
+  {% call m.fold("regras", "Regras fixas", s6, num="06", tip="As exclusões entram no fim de todos os prompts (os modelos não têm prompt negativo). As regras dizem ao escritor de prompts como escrever neste projeto.") %}
     <div class="sec-b c2">
       {{ m.injected("exclusions", "Exclusões", p.exclusions, max_chars, min_height=104, hint="Os modelos não têm prompt negativo: o Assistente põe estas frases no fim de cada prompt.") }}
       <div class="f" style="padding: 12px">
@@ -87,12 +89,12 @@
         <span class="hint">Como escrever os prompts deste projeto (ex.: “a Rita usa sempre o casaco”). O Assistente segue-as em todos os prompts que escreve. O que é verdade na história vai em “O mundo”, na etapa Mundo.</span>
       </div>
     </div>
-  </section>
+  {% endcall %}
 </form>
 
 {% if cover_panel is defined %}
-<section class="sec" id="capa">
-  <div class="sec-h"><span class="n">07</span><h2 class="h2">Capa do projeto</h2><span class="dim" style="font-size: 11.5px">imagem do cartão na lista de projetos</span></div>
+{% set s7 %}{% if cover %}<span class="fold-thumbs"><img src="{{ cover.path|thumb }}" alt=""></span><span class="ok-t">✓ aprovada</span>{% else %}sem capa{% endif %}{% if cover_results %} · <span class="warn-t">{{ cover_results|length }} por decidir</span>{% endif %}{% endset %}
+{% call m.fold("capa", "Capa do projeto", s7, open=cover_results or cover_jobs, num="07", tip="A imagem do cartão do projeto na lista de projetos.") %}
   <form id="cover-form" method="post" action="/projetos/{{ project.id }}/capa" hidden>{{ m.csrf() }}</form>
   <div class="cover-layout">
     <div class="col" style="gap: 12px">
@@ -110,15 +112,15 @@
       {% else %}<div class="slot r169">{{ i.icon("image", 20) }}Sem capa — usa-se a primeira imagem aprovada do projeto</div>{% endif %}
     </div>
   </div>
-</section>
+{% endcall %}
 {% endif %}
 
-<section class="sec" id="arquivar">
-  <div class="sec-h"><h2 class="h2">Arquivar</h2><span class="sp"></span>
+{% call m.fold("arquivar", "Arquivar", "arquivado: fora da lista e do seletor" if project.archived_at else "tirar o projeto da lista sem apagar nada") %}
+  <div class="sec-b" style="display: flex; align-items: center; gap: 10px">
     <form method="post" action="/projetos/{{ project.id }}/arquivar" class="inline-form">{{ m.csrf() }}
       {% if project.archived_at %}<button class="btn sm" type="submit">Voltar a pôr na lista</button>
       {% else %}<button class="btn sm" type="submit" data-confirm="Arquivar «{{ project.name }}»?" data-confirm-text="Sai da lista de projetos e do seletor do topo; nada é apagado. Voltas a vê-lo em Projetos › Arquivados." data-confirm-ok="Arquivar">Arquivar projeto</button>{% endif %}
     </form>
+    <span class="hint">{% if project.archived_at %}Este projeto está arquivado: não aparece na lista nem no seletor.{% else %}Para projetos acabados ou parados: saem da lista e do seletor, mas ficam guardados com tudo.{% endif %}</span>
   </div>
-  <div class="sec-b"><span class="hint span3">{% if project.archived_at %}Este projeto está arquivado: não aparece na lista nem no seletor.{% else %}Para projetos acabados ou parados: saem da lista e do seletor, mas ficam guardados com tudo.{% endif %}</span></div>
-</section>
+{% endcall %}

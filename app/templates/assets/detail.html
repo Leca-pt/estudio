@@ -77,8 +77,8 @@
     {% endif %}
 
     {% if asset.kind == "character" %}
-    <section class="sec">
-      <div class="sec-h"><h2 class="h2">Voz</h2><span class="dim" style="font-size: 11.5px">só personagens</span></div>
+    {% set v1 %}{{ [asset.voice_type, asset.voice_timbre]|select|join(" · ") or "tipo e timbre por escolher" }}{% if asset.key_features %} · <span class="dim">{{ asset.key_features|truncate(60) }}</span>{% endif %}{% endset %}
+    {% call m.fold("voz-desc", "Voz e traços", v1, open=not (asset.voice_type or asset.voice or asset.key_features), tip="Tipo, timbre e descrição da voz, os traços marcantes para o vídeo e como a personagem fala nas falas (tudo em inglês, menos o tipo e o timbre).") %}
       <div class="sec-b" style="grid-template-columns: minmax(0, 1fr); gap: 12px">
         <div class="f"><label for="voice_type">Tipo</label>
           <select id="voice_type" name="voice_type" class="in" form="asset-form"><option value="">Escolher…</option>
@@ -94,7 +94,7 @@
         <div class="f"><label for="voice">Descrição para o prompt</label><textarea id="voice" name="voice" class="in in-line mono" lang="en" form="asset-form" placeholder="warm, confident adult female voice, calm and clear" rows="1">{{ asset.voice or '' }}</textarea></div>
         <div class="f"><label for="voice_note">Como fala nas falas</label><textarea id="voice_note" name="voice_note" class="in in-line mono" lang="en" form="asset-form" placeholder="speaking English with a clear Spanish accent" rows="1" data-only-if-changed>{{ asset.voice_note or '' }}</textarea><span class="hint">Em inglês. A app junta-o sozinha a cada fala desta personagem no prompt de vídeo, a seguir à voz de referência.</span></div>
       </div>
-    </section>
+    {% endcall %}
     {% endif %}
   </div>
 
@@ -136,22 +136,22 @@
 
       {% if sheet_panel %}{{ m.prompt_panel(sheet_panel, "asset-form", height=170, gen=gpt_enabled, jobs=gpt_jobs, gen_label="Gerar folha") }}{% endif %}
       {% if asset.kind != "location" %}
-      <section class="sec" id="referencias-folha">
-        <div class="sec-h"><h2 class="h2">Referências para gerar a folha</h2><span class="sp"></span><span class="hint">Outros assets que esta folha tem de respeitar (ex.: o interior usa a carrinha).</span></div>
+      {% set r1 %}{{ sheet_refs|map(attribute="asset.name")|join(", ") if sheet_refs else "nenhuma" }}{% endset %}
+      {% call m.fold("referencias-folha", "Referências para gerar a folha", r1, tip="Outros assets que esta folha tem de respeitar (ex.: o interior usa a carrinha). Ao gerar, as imagens aprovadas deles vão como referência.") %}
         <div style="padding: 12px 16px">
           <div class="picked">
             {% for r in sheet_refs %}{% for img in r.images %}<a class="ph img-ph" href="/media/{{ img.path }}" hx-boost="false" title="{{ r.asset.name }}{{ ' · retrato' if img.role == 'portrait' }}"><img src="{{ img.path|thumb }}" alt="{{ r.asset.name }}"></a>{% else %}<span class="tag">{{ r.asset.name }} · sem folha</span>{% endfor %}{% else %}<span class="hint">Nenhuma: a folha é gerada só a partir do prompt.</span>{% endfor %}
             <button class="btn sm" type="button" data-open-dialog="pick-sheet-refs">Escolher assets</button>
           </div>
         </div>
-        <div class="sec-f"><span class="hint">Ao gerar, as imagens aprovadas destes assets vão como referência.</span></div>
       {{ m.picker("pick-sheet-refs", "Referências para gerar a folha", sheet_ref_groups, asset.sheet_refs or [], "sheet_ref", "asset-form", hint="Outros assets que esta folha tem de respeitar (ex.: o interior de um veículo usa a folha do veículo).", sent_name="sheet_refs_sent") }}
-      </section>
+      {% endcall %}
       {% endif %}
     </form>
 
-    <section class="sec" id="fotos">
-      <div class="sec-h"><h2 class="h2">Fotos de referência</h2><span class="sp"></span><span class="hint">{{ {'location': 'Fotos de um sítio real em que este local se baseia.', 'prop': 'Fotos de um objeto real em que este se baseia.', 'character': 'Roupa, estilo, adereços. Evita caras de pessoas reais.', 'element': 'Fotos de coisas reais com o design que procuras.'}[asset.kind] }}</span></div>
+    {% set f1 %}{% if photos %}<span class="fold-thumbs">{% for ph in photos[:5] %}<img src="{{ ph.path|thumb }}" alt="">{% endfor %}</span>{{ photos|length }} foto{{ "s" if photos|length != 1 else "" }}{% else %}nenhuma{% endif %}{% endset %}
+    {% set ftip = {'location': 'Fotos de um sítio real em que este local se baseia. O Assistente vê-as ao montar a maquete e descreve o aspeto delas nos prompts das vistas (não vão para o gerador: ele copiaria a composição).', 'prop': 'Fotos de um objeto real em que este se baseia. Vão como referência ao gerar a folha.', 'character': 'Roupa, estilo, adereços (evita caras de pessoas reais). Vão como referência ao gerar a folha.', 'element': 'Fotos de coisas reais com o design que procuras. Vão como referência ao gerar a folha.'}[asset.kind] %}
+    {% call m.fold("fotos", "Fotos de referência", f1, tip=ftip) %}
       <div class="results">
         <form method="post" action="/projetos/{{ project.id }}/assets/{{ asset.id }}/fotos" enctype="multipart/form-data" class="drop drop-compact {% if photos %}drop-sm{% endif %}" data-dropzone>
           {{ m.csrf() }}
@@ -169,24 +169,24 @@
         </div>
         {% endfor %}
       </div>
-      <div class="sec-f"><span class="hint">{% if asset.kind == "location" %}O Assistente vê-as ao montar a maquete e, nas zonas onde as escolheres, descreve o aspeto delas nos prompts das vistas (não vão para o gerador: ele copiaria a composição da foto).{% else %}Vão como referência ao gerar a folha, e o Assistente vê-as ao escrever o prompt.{% endif %}</span></div>
-    </section>
+    {% endcall %}
 
     {% if asset.kind != "location" %}
-    <section class="sec" id="resultados">
-      <div class="sec-h"><h2 class="h2">{{ "Resultados da folha" if portrait else "Resultados" }}</h2><span class="sp"></span><span class="hint">Aprovar substitui a imagem aprovada atual. Rejeitar tira-a daqui e guarda-a em «Rejeitados» (podes repô-la).</span></div>
+    {% set busy_sheet = gpt_jobs|selectattr("job.status", "in", ["queued", "running"])|list %}
+    {% set rs %}{% if results %}<span class="warn-t">{{ results|length }} por decidir</span>{% elif busy_sheet %}a gerar…{% else %}nada por decidir · carregar do computador{% endif %}{% endset %}
+    {% call m.fold("resultados", "Resultados da folha" if portrait else "Resultados", rs, open=results or gpt_jobs, tip="Aprovar substitui a imagem aprovada atual. Rejeitar tira-a daqui e guarda-a em «Rejeitados» (podes repô-la). Também podes carregar uma imagem gerada fora da app.") %}
       <div class="results">
         {{ m.upload_zone("/projetos/%d/assets/%d/resultados" % (project.id, asset.id), "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP, até %d MB." % max_upload_mb, compact=True, small=results|length > 0) }}
         {{ m.job_tiles(gpt_jobs) }}
         {{ m.results(results, ratio="r43", edit=gpt_enabled) }}
       </div>
       {{ m.rejected_block(rejected_files(project.id, ("sheet", ""), asset_id=asset.id, look_id=None), "r43") }}
-    </section>
+    {% endcall %}
     {% endif %}
 
     {% if asset.kind == "location" %}
     <section class="sec" id="maquete">
-      <div class="sec-h"><h2 class="h2">Maquete 3D</h2><span class="sp"></span><span class="hint">O espaço do local, por zonas (divisões e espaços exteriores). Todos os planos passados aqui usam-na: a geografia fica sempre igual.</span></div>
+      <div class="sec-h"><h2 class="h2">Maquete 3D</h2>{{ m.tip_btn("O espaço do local, por zonas (divisões e espaços exteriores). Todos os planos passados aqui usam-na: a geografia fica sempre igual.") }}<span class="sp"></span></div>
       {% if layout_spec %}
       <div class="m3d-card">
         <button type="button" class="ph img-ph m3d-thumb" data-open-dialog="maquete-dlg" aria-label="Abrir a maquete 3D">{% if maquete_thumb %}<img src="{{ maquete_thumb.path|thumb }}" alt="Maquete vista de cima" loading="lazy">{% else %}<span class="dim">{{ i.icon("image", 22) }}</span>{% endif %}</button>
@@ -336,21 +336,22 @@
     {% if portrait %}
     <div class="col" id="retrato" style="gap: 14px">
       {{ m.prompt_panel(portrait.panel, "asset-form", height=140, gen=gpt_enabled, jobs=portrait_jobs, gen_label="Gerar retrato", gen_disabled=(none if approved else "Aprova primeiro a folha: o retrato parte dela")) }}
-      <section class="sec">
-        <div class="sec-h"><h2 class="h2">Resultados do retrato</h2><span class="sp"></span><span class="hint">Cabeça e ombros, de frente: a referência de cara para os grandes planos.</span></div>
+      {% set rp %}{% if portrait_results %}<span class="warn-t">{{ portrait_results|length }} por decidir</span>{% else %}nada por decidir · carregar do computador{% endif %}{% endset %}
+      {% call m.fold("resultados-retrato", "Resultados do retrato", rp, open=portrait_results or portrait_jobs, tip="Cabeça e ombros, de frente: a referência de cara para os grandes planos. Aprovar substitui o retrato atual.") %}
         <div class="results">
           {{ m.upload_zone("/projetos/%d/assets/%d/retrato" % (project.id, asset.id), "image/png,image/jpeg,image/webp", "Carregar do computador", "Se geraste fora da app · PNG, JPG ou WEBP, até %d MB." % max_upload_mb, compact=True, small=portrait_results|length > 0) }}
           {{ m.job_tiles(portrait_jobs) }}
           {{ m.results(portrait_results, ratio="r11", edit=gpt_enabled, prefix="retrato ") }}
         </div>
         {{ m.rejected_block(rejected_files(project.id, "portrait", asset_id=asset.id), "r11") }}
-      </section>
+      {% endcall %}
     </div>
     {% endif %}
 
     {% if asset.kind == "character" %}
-    <section class="sec" id="looks">
-      <div class="sec-h"><h2 class="h2">Guarda-roupa</h2><span class="sp"></span><span class="hint">Cada look é a mesma pessoa com outra roupa e acessórios. Escolhe-se por cena, no Storyboard; sem escolha, vale a Base.</span></div>
+    {% set lpend = looks|selectattr("results")|list %}
+    {% set lk1 %}Base{% if looks %} + {{ looks|map(attribute="look.name")|join(", ") }}{% endif %}{% if lpend %} · <span class="warn-t">{{ lpend|length }} look(s) com imagens por decidir</span>{% endif %}{% endset %}
+    {% call m.fold("looks", "Guarda-roupa", lk1, open=lpend, tip="Cada look é a mesma pessoa com outra roupa e acessórios. Escolhe-se por cena, no Storyboard; sem escolha, vale a Base.") %}
       <div class="looks">
         <div class="look-card">
           {% if approved %}<a class="ph r169 img-ph" href="/media/{{ approved.path }}" target="_blank" rel="noopener" hx-boost="false"><img src="{{ approved.path|thumb }}" alt="Folha base de {{ asset.label }}"></a>
@@ -427,10 +428,10 @@
           <div class="dlg-f"><span class="sp"></span><button class="btn" type="button" data-close-dialog>Cancelar</button><button class="btn pri" type="submit">Criar look</button></div>
         </form>
       </dialog>
-    </section>
+    {% endcall %}
 
-    <section class="sec" id="voz">
-      <div class="sec-h"><h2 class="h2">Voz de referência</h2><span class="sp"></span><span class="hint">Segue nos pedidos de vídeo dos planos onde {{ asset.label }} fala, para a voz ser a mesma em todos os takes.</span></div>
+    {% set vr %}{% if voice_ref %}<span class="ok-t">✓ aprovada</span>{% if voice_ref.duration_ms %} · {{ "%.1f"|format(voice_ref.duration_ms / 1000)|replace(".", ",") }} s{% endif %}{% else %}ainda sem voz aprovada{% endif %}{% if voice_results %} · <span class="warn-t">{{ voice_results|length }} por decidir</span>{% endif %}{% endset %}
+    {% call m.fold("voz", "Voz de referência", vr, open=voice_results or voice_jobs, tip="Segue nos pedidos de vídeo dos planos onde " ~ asset.label ~ " fala, para a voz ser a mesma em todos os takes.") %}
       <div class="voice-box">
         <div class="col" style="gap: 6px">
           <span class="cap">Voz aprovada</span>
@@ -511,11 +512,11 @@
         {% endif %}
       </form>
       <div style="padding: 0 16px 14px">{{ m.upload_zone("/projetos/%d/assets/%d/voz/ficheiros" % (project.id, asset.id), "audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,audio/ogg,audio/flac", "Ou carrega um áudio", "MP3, WAV, M4A, OGG ou FLAC, até 25 MB (fica em MP3) · 4 a 6 s de fala.", compact=True) }}</div>
-    </section>
+    {% endcall %}
 
     {% if bd_rows is not none %}
-    <section class="sec" id="bytedance">
-      <div class="sec-h"><h2 class="h2">Registo na ByteDance</h2><span class="sp"></span><span class="hint">O Seedance da ByteDance recusa caras realistas enviadas como imagem; registadas aqui, as imagens de {{ asset.label }} seguem como personagem autorizada (asset). Os vídeos registam sozinhos as que faltam.</span></div>
+    {% set bd1 %}{% if bd_rows %}{{ bd_rows|selectattr("status", "equalto", "active")|list|length }} de {{ bd_rows|length }} registadas{% else %}nada para registar ainda{% endif %}{% endset %}
+    {% call m.fold("bytedance", "Registo na ByteDance", bd1, tip="O Seedance da ByteDance recusa caras realistas enviadas como imagem; registadas aqui, as imagens seguem como personagem autorizada (asset). Os vídeos registam sozinhos as que faltam.") %}
       {% if bd_rows %}
       <div class="col" style="gap: 6px; padding: 10px 16px">
         {% for r in bd_rows %}
@@ -535,7 +536,7 @@
       {% else %}
       <p class="hint" style="padding: 10px 16px">Aprova a folha (e o retrato e os looks) para registar a personagem.</p>
       {% endif %}
-    </section>
+    {% endcall %}
     {% endif %}
     {% endif %}
 

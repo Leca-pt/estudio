@@ -12,11 +12,13 @@
   <div class="cfg-grid">
     {% if "guias" in sections %}
     <section class="sec" id="guias" style="grid-column: 1 / -1">
-      <div class="sec-h"><h2 class="h2">Guias do escritor de prompts</h2><span class="dim" style="font-size: 11.5px">como o escritor escreve cada tipo de prompt</span></div>
-      <div class="dim" style="padding: 10px 16px 4px; font-size: 11.5px">Todos os prompts da app são escritos pelo escritor de prompts (Configuração → Assistente → «Modelo para escrever prompts»). Ele recebe a bíblia, o mundo, as regras abaixo, a cena, o plano, quem aparece e as imagens que seguem, e escreve o prompt completo seguindo a guia do tipo. A app não junta nada ao prompt: só troca os marcadores <span class="mono">@CÓDIGO</span> pela sintaxe do modelo no envio. Muda uma guia e os prompts desse tipo ficam desatualizados (ao Gerar, são reescritos).</div>
+      <div class="sec-h"><h2 class="h2">Guias do escritor de prompts</h2>{{ m.tip_btn("Todos os prompts da app são escritos pelo escritor de prompts (Configuração → Assistente → «Modelo para escrever prompts»). Ele recebe a bíblia, o mundo, as regras, a cena, o plano, quem aparece e as imagens que seguem, e escreve o prompt completo seguindo a guia do tipo. A app não junta nada ao prompt: só troca os marcadores @CÓDIGO pela sintaxe do modelo no envio. Muda uma guia e os prompts desse tipo ficam desatualizados (ao Gerar, são reescritos).") }}<span class="dim" style="font-size: 11.5px">como o escritor escreve cada tipo de prompt · abre uma para a ler ou mudar</span></div>
       <div class="sec-b c2">
         {% for key, label in guide_labels.items() %}
-        {{ m.textarea("guide_" ~ key, label, guides[key], min_height=150) }}
+        <details class="cfg-guide span3" id="guia-{{ key }}" data-fold data-default-open="0">
+          <summary><span class="fold-chev" aria-hidden="true">{{ i.icon("chev-right", 13) }}</span><b>{{ label }}</b><span class="pb-snip">{{ (guides[key] or "")|replace("\n", " ")|truncate(120) }}</span></summary>
+          {{ m.textarea("guide_" ~ key, label, guides[key], min_height=150) }}
+        </details>
         {% endfor %}
         {{ m.select("sheet_aspect", "Proporção das folhas", options_aspect, guides.sheet_aspect) }}
         {{ m.select("portrait_aspect", "Proporção dos retratos", options_aspect, guides.portrait_aspect) }}
@@ -25,8 +27,9 @@
     {% endif %}
 
     {% if "regras" in sections %}
-    <section class="sec" id="regras">
-      <div class="sec-h"><h2 class="h2">Regras de prompt</h2><span class="sp"></span><button class="btn sm" type="submit" name="op" value="add_rule">+ Regra</button></div>
+    {% set rg %}{{ rules|selectattr("active")|list|length }} de {{ rules|length }} regras ativas{% if warn_enabled %} · aviso acima de {{ max_chars }} caracteres{% endif %}{% endset %}
+    {% call m.fold("regras", "Regras de prompt", rg, tip="O escritor de prompts segue estas regras em todos os prompts que escreve (e o Assistente no chat também). As regras de cada projeto vão na bíblia («Regras dos prompts»).") %}
+      <div class="row" style="padding: 10px 16px 0"><span class="sp"></span><button class="btn sm" type="submit" name="op" value="add_rule">+ Regra</button></div>
       <div style="padding: 4px 16px 8px">
         <label class="ck-row"><input type="checkbox" name="warn_enabled" value="1" {% if warn_enabled %}checked{% endif %}><span>Aviso acima de <input class="in mono" name="max_chars" value="{{ max_chars }}" aria-label="Limite de caracteres" inputmode="numeric" style="width: 70px; height: 26px; display: inline-block; padding: 0 6px"> caracteres</span></label>
         {% for r in rules %}
@@ -38,14 +41,12 @@
         </div>
         {% endfor %}
       </div>
-      <div class="sec-f"><span class="hint">O escritor de prompts segue estas regras em todos os prompts que escreve (e o Assistente no chat também). As regras de cada projeto vão na bíblia («Regras dos prompts»).</span></div>
-    </section>
+    {% endcall %}
     {% endif %}
   </div>
 
     {% if "validacoes" in sections %}
-    <section class="sec" id="validacoes">
-      <div class="sec-h"><h2 class="h2">Validações de prompts</h2><span class="dim" style="font-size: 11.5px">Avisos junto a cada prompt · nenhum bloqueia · uma entrada por linha</span></div>
+    {% call m.fold("validacoes", "Validações de prompts", "limites de palavras por modelo e listas de palavras a evitar", tip="Avisos junto a cada prompt; nenhum bloqueia. Uma entrada por linha. Regras completas em docs/PROMPT_RULES.md. Também se avisa quando falta “exactly N people”, quando a fala está sem aspas e quando os modos Frames/Referências se misturam.") %}
       <div class="sec-b">
         <div class="span3 prof-grid">
           <div class="prof-h">Limites de palavras por perfil de modelo <span class="dim">· vale o perfil do modelo por omissão (Modelos e geração)</span></div>
@@ -72,8 +73,7 @@
         {{ m.textarea(key, label, (checks[key] or [])|join("\n"), mono=True, lang="en", min_height=110) }}
         {% endfor %}
       </div>
-      <div class="sec-f"><span class="hint">Regras completas em <span class="mono">docs/PROMPT_RULES.md</span>. Também se avisa quando falta “exactly N people”, quando a fala está sem aspas e quando os modos Frames/Referências se misturam.</span></div>
-    </section>
+    {% endcall %}
     {% endif %}
 
     {% if "geracao" in sections %}

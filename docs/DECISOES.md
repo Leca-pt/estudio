@@ -522,5 +522,12 @@ explicações). Regras (revelação progressiva, carga cognitiva, uma ação pri
 - Listas longas recolhidas: as posições da câmara (com mais de 4) e as passagens de movimento brusco abrem-se a pedido.
 - Os takes (o resultado) ficam sempre à vista; o espaço de «nenhum take escolhido» já não ocupa meio ecrã.
 Resultado (projeto de teste, P01): página Vídeo de 4746 px para 1750 px; plano no Storyboard de 4179 px para 1726 px.
-Por fazer: as outras páginas com as mesmas regras (ficha do asset, cena do Storyboard, etapas 1–4, Configuração).
+Alargado (mesmo dia) às outras páginas: etapa 1 (as 7 secções da bíblia fecham-se com resumo; abertas só as
+incompletas), cena do Storyboard (notas, quem aparece, local, encenação 3D e guião marcado; os planos ficam sempre à
+vista), ficha do asset (referências, fotos, resultados sem nada por decidir, retrato, guarda-roupa, voz e traços, voz de
+referência, ByteDance), Configuração → Prompts (cada guia do escritor numa linha; regras e validações fechadas) e a
+grelha de assets (cartões de 240 px: 3 por linha em vez de 2 — o utilizador tinha dito «podes fazer os cards maiores
+se quiseres» em 29/09). Um campo obrigatório numa secção fechada abre-a ao gravar (evento invalid).
+Antes → depois: etapa 1 2989 → cabe no ecrã; Mundo 4392 → 2445; cena 2543 → 1321; personagem 2392 → 1512;
+Configuração → Prompts 4773 → cabe no ecrã.
 Estáticos: ao mudar app.css/app.js/scene3d.js sobe-se o ?v= (base.html e o import em app.js).

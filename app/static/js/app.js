@@ -467,6 +467,7 @@
     if (!a || a.getAttribute('href').length < 2) return;
     try { openTo(document.querySelector(a.getAttribute('href'))); } catch (err) { /* nada */ }
   });
+  document.addEventListener('invalid', (e) => openTo(e.target), true);
   applyFolds();
   document.addEventListener('htmx:afterSettle', applyFolds);
 
