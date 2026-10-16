@@ -93,11 +93,13 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
     script = script_coverage(session, scene)
     lines_of = {sh.id: [r["n"] for r in script if sh in r["shots"]] for sh in shots}
     location = session.get(Asset, scene.location_id) if scene.location_id else None
+    from app import outdated
+
     rows = []
     for sh in shots:
         ms = moments.rows(session, sh)
         rows.append({"shot": sh, "state": shot_board_state(session, sh), "moments": ms, "lines": lines_of.get(sh.id, []),
-                     "key": keyframe.approved(session, sh),
+                     "key": keyframe.approved(session, sh), "outdated": outdated.summary(session, sh),
                      "stills": [a["media"] for a in keyframe.all_approved(session, sh) if a["n"] is not None]
                      or [m for m in [keyframe.approved(session, sh)] if m is not None]})
     from app import looks as L
@@ -589,6 +591,11 @@ async def shot_save(request: Request, project_id: int, shot_id: int, session: Se
         c = next((c for c in checks if c.id == int(arg)), None)
         if c:
             session.delete(c)
+    from app import outdated
+
+    done = outdated.apply_op(session, shot, op)  # «manter» do «Antes de gerar» do frame-chave
+    if done:
+        flash_info(request, done)
     if "key_moment" in form:  # de que momento se gera o frame-chave
         from app import keyframe
 

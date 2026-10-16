@@ -30,6 +30,7 @@
         {% endif %}
         <span class="clip-m"><a class="m" href="{{ shot_url }}" title="Abrir o plano"><span class="dot {{ t.state }}"></span>P{{ '%02d' % sh.number }}</a>
         {% if t.clip %}<a class="ib sm clip-dl" href="/projetos/{{ project.id }}/media/{{ t.clip.id }}/descarregar" hx-boost="false" download title="Descarregar o take do P{{ '%02d' % sh.number }}" aria-label="Descarregar o take do P{{ '%02d' % sh.number }}">{{ i.icon("download", 13) }}</a>{% endif %}</span>
+        {% if t.outdated %}<span class="d warn-t" title="Feito antes de a câmara ou a encenação mudarem">⚠ desatualizado: {{ t.outdated|join(", ") }}</span>{% endif %}
         {% if sh.shot_type or sh.title %}<span class="d">{{ [sh.shot_type, sh.title]|select|join(" · ") }}</span>{% endif %}
       </div>
       {% else %}

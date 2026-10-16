@@ -91,7 +91,7 @@ def save(session: Session, project: Project, form, op: str = "") -> None:
 def run(request: Request, session: Session, project: Project, form, op: str) -> bool:
     """Ações Gerar / Escrever. Devolve True se a op era uma destas (a página só tem de voltar para onde estava)."""
     verb, _, rest = (op or "").partition(":")
-    if verb not in ("pgen", "pwrite", "pdismiss"):
+    if verb not in ("pgen", "pwrite", "pdismiss", "pkeep"):
         return False
     kind, _, ref = rest.partition(":")
     if verb == "pdismiss":
@@ -101,6 +101,12 @@ def run(request: Request, session: Session, project: Project, form, op: str) -> 
         targets = prompt_writer._targets(session, project, kind, ref)
     except (PT.TargetError, ValueError):
         flash(request, "Esse prompt já não existe.")
+        return True
+    if verb == "pkeep":  # «Manter este texto»: o prompt editado à mão vale para a versão atual do plano
+        from app import outdated
+
+        outdated.keep_prompt(session, targets[0]) if targets else None
+        flash_info(request, "O prompt fica como está e vale para a versão atual do plano.")
         return True
     if verb == "pwrite":
         if not targets:

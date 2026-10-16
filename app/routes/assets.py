@@ -419,7 +419,7 @@ def _layout_ctx(session: Session, project: Project, asset: Asset) -> dict:
 
 def _views3d_ctx(session: Session, project: Project, asset: Asset, digest: str | None) -> dict:
     """Vistas da maquete, por zona: render, imagem aprovada, resultados por decidir, pedidos e o bloco do prompt."""
-    from app import location3d
+    from app import location3d, outdated
 
     rows = []
     for v in location3d.location_views(session, asset):
@@ -430,7 +430,8 @@ def _views3d_ctx(session: Session, project: Project, asset: Asset, digest: str |
                      "panel": panel, "state": panel["state"],
                      "results": [m for m in media.values() if m.role == "locview" and m.status == "pending"],
                      "jobs": gpt_jobs(session, project, "locview", locview_id=v.id),
-                     "stale": render is None or v.render_hash != digest})
+                     "stale": render is None or v.render_hash != digest,
+                     "img_old": outdated.view_image_outdated(session, v)})
     groups: dict = {z["name"]: [] for z in location3d.zones(asset.layout3d)} if asset.layout3d else {}
     for r in rows:
         groups.setdefault(r["view"].zone, []).append(r)
@@ -461,6 +462,14 @@ async def views3d_save(request: Request, project_id: int, asset_id: int, session
     form = await request.form()
     op = text(form, "op") or ""
     verb, _, arg = op.partition(":")
+    if verb == "vimg_ok" and arg.isdigit():  # «Manter a imagem» de uma vista cuja maquete mudou
+        from app import outdated
+
+        from app.models import LocationView
+
+        lv = session.get(LocationView, int(arg))
+        if lv is not None and lv.asset_id == asset_id:
+            outdated.keep_view_image(session, lv)
     url = f"/projetos/{project.id}/assets/{asset.id}"
     views = {v.id: v for v in location3d.location_views(session, asset)}
     notes = dict(asset.zone_notes or {})
@@ -610,6 +619,10 @@ def save_view_render(session: Session, project: Project, asset: Asset, view, dig
     session.flush()
     view.render_id, view.render_hash = media.id, digest
     session.add(view)
+    if old is not None:  # antes de apagar o render antigo: a imagem da vista ainda mostra o que a vista vê?
+        from app import outdated
+
+        outdated.render_replaced(session, view, old, media)
     if old is not None:
         if old.path != media.path:
             delete_file(old.path)

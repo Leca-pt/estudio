@@ -76,7 +76,10 @@ def _rows(session: Session, project: Project, groups) -> list[dict]:
                 # sem take, os frames-chave aprovados fazem de imagens do plano (animatic: «Ver seguido» mostra cada um
                 # do segundo do momento dele até ao seguinte; um só, o tempo do plano todo)
                 stills = [] if clip else _stills(session, sh, keys.get(sh.key_image_id))
+                from app import outdated
+
                 tiles.append({"shot": sh, "clip": clip, "key": stills[0]["media"] if stills else None,
+                              "outdated": [] if clip else outdated.summary(session, sh),
                               "hold": stills[0]["hold"] if stills else None, "more": stills[1:],
                               "gap": gap, "state": shot_clip_state(sh, roles),
                               "wip_gap": gap in ("Take por escolher", "Sem takes")})

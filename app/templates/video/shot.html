@@ -147,10 +147,10 @@
     {% if set_var and set_var.problem %}{% set _ = errs.append("As variações da maquete desta cena não se aplicam (a maquete do local mudou entretanto): " ~ set_var.problem ~ " Corrige-as na encenação da cena.") %}
     {% elif set_var %}{% set _ = warns.append("A cena muda a maquete do local (" ~ set_var.count ~ " mudanças: " ~ set_var.text ~ "). As imagens das vistas do local mostram a versão habitual: confirma que o prompt diz a diferença.") %}{% endif %}
     {% if prompt_other_model %}{% set _ = warns.append("O prompt foi escrito para outro modelo (" ~ prompt_other_model ~ "); este plano gera com o " ~ model.name ~ ", que tem outro formato e outros limites.") %}{% endif %}
-    {% if errs or warns %}
+    {% if errs or warns or blocks %}
     <div class="pre-gen" role="status">
       <span class="pg-t">Antes de gerar</span>
-      <ul>{% for e in errs %}<li class="err">{{ e }}</li>{% endfor %}{% for w in warns %}<li class="warn">{{ w }}</li>{% endfor %}</ul>
+      <ul>{% for b in blocks %}<li class="err">{{ b.text }} <span class="pg-acts">{% for a in b.actions %}{% if a.op %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="{{ a.op }}">{{ a.label }}</button>{% else %}<a class="btn sm" href="{{ a.href }}">{{ a.label }}</a>{% endif %}{% endfor %}</span></li>{% endfor %}{% for e in errs %}<li class="err">{{ e }}</li>{% endfor %}{% for w in warns %}<li class="warn">{{ w }}</li>{% endfor %}</ul>
       <div class="row" style="gap: 6px; flex-wrap: wrap">
         {% if guide_issues|selectattr("level", "equalto", "error")|list or prompt_other_model %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="pwrite:video:{{ shot.id }}">Reescrever o prompt</button>{% endif %}
         {% if left_out and custom_refs %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="vref_auto">Repor a escolha automática</button>{% endif %}
@@ -160,7 +160,7 @@
     <div class="pre-gen ok hint">✓ Pronto: vai o vídeo-guia da cena 3D (o vídeo segue a câmara e o ritmo da animação){% if key.media %} e o frame-chave{% endif %}.</div>
     {% endif %}
 
-    {{ m.prompt_panel(prompt, F, height=262, jobs=video_jobs, gen_label="Gerar take", gen_disabled=(none if can_generate else "Faltam as imagens do pedido ou um modelo de vídeo"), cost_url="/projetos/%d/video/planos/%d/custo?k=%s" % (project.id, shot.id, cost_key|urlencode), cost_now=cost_now) }}
+    {{ m.prompt_panel(prompt, F, height=262, jobs=video_jobs, gen_label="Gerar take", gen_disabled=(none if can_generate else ("Há coisas desatualizadas: resolve-as em «Antes de gerar»" if blocks else "Faltam as imagens do pedido ou um modelo de vídeo")), cost_url="/projetos/%d/video/planos/%d/custo?k=%s" % (project.id, shot.id, cost_key|urlencode), cost_now=cost_now) }}
     {% if model and model.audio %}<label class="ck-row" style="border: 0; padding: 0 2px"><input type="checkbox" name="audio" value="1" form="{{ F }}" {% if video_audio %}checked{% endif %}><span>Com som (voz, efeitos, ambiente)</span></label>{% elif model and model.audio_always %}<span class="hint">Este modelo gera sempre som (voz e ambiente).</span>{% endif %}
 
     {# 5. Takes: o resultado, sempre à vista #}

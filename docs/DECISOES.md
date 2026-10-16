@@ -615,3 +615,23 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   da zona, e o passo 5 mostra «Antes de gerar» com o botão «Criar a vista desta câmara» (vai para o passo 3, onde se
   gera a imagem da vista). Sem imagem na vista do momento, o passo 5 avisa.
 - Proporções: a imagem da vista (gerada do render) abre um pouco o espaço; aceite por agora.
+
+## Nada desatualizado segue em silêncio (2026-10-16)
+- Pedido do utilizador: as alterações têm de propagar e ver-se; assinalar não chega — se o pedido continuar a levar o
+  conteúdo antigo, gera-se em vão e em silêncio.
+- app/outdated.py junta o que fica para trás num plano e PARA o pedido (no servidor, em routes/video.queue_video e
+  prompt_targets.enqueue do frame-chave — vale para o botão, o escritor de prompts e o conector MCP) até o utilizador
+  decidir. Cada problema traz as saídas como botões, no «Antes de gerar» (página Vídeo e passo 5):
+  - frame-chave que segue no vídeo de uma câmara antiga ou feito antes de a câmara/encenação mudarem → gerar de novo /
+    seguir sem frame-chave (vai para Rejeitados) / manter (só se não é de uma câmara antiga; params "hash_ok");
+  - vídeo-guia aprovado de outra duração ou gravado antes da mudança → gravar de novo / seguir sem vídeo-guia /
+    manter (guide_hashes passa a esta versão);
+  - imagem de uma vista do local que segue no pedido e foi feita antes de a maquete mudar NO QUE A VISTA MOSTRA →
+    refazer / manter (params "render_ok"). Quando chega um render novo da vista compara-se com o anterior
+    (render_replaced, antes de o apagar): igual → a imagem continua a valer; diferente → "render_changed". As imagens
+    anteriores a esta verificação não têm como ser comparadas (os renders antigos eram apagados) e não contam.
+    No frame-chave, uma vista assim simplesmente não segue (o passo 5 diz porquê);
+  - prompt editado à mão para uma versão anterior do plano (a versão do último prompt com "basis" ≠ a atual) →
+    reescrever / manter este texto (grava a versão atual como basis). Os prompts do escritor já se reescreviam
+    sozinhos ao Gerar.
+- As listas (cena: linha do plano; Montagem: o cartão sem take) mostram «⚠ desatualizado: frame-chave, vídeo-guia».

@@ -648,8 +648,11 @@ def sent_list(session: Session, images: list, guide, voices: list, mode: str) ->
 
 def queue_video(session: Session, project: Project, shot: Shot, prompt: str, audio: bool) -> tuple[bool, str]:
     """Pede um take (sem pedido HTTP: serve também ao escritor de prompts). Devolve (pedido feito, mensagem)."""
-    from app import jobs
+    from app import jobs, outdated
 
+    problem = outdated.check(session, shot, "video")  # nada desatualizado segue sem o utilizador decidir
+    if problem:
+        return False, problem
     model = shot_model(session, shot)
     if model is None:
         return False, "Não há modelos de vídeo disponíveis (liga o Artlist ou guarda a chave da fal na Configuração)."
@@ -699,8 +702,10 @@ def _view(request: Request, session: Session, project: Project, shot: Shot, scen
     t = PT.get(session, project, "video", str(shot.id))
     cast = moments.cast_images(session, shot)
     vs = video_settings(session)
+    from app import outdated
     from app import scene3d as _s3
 
+    blocks = outdated.blockers(session, shot, "video")  # o que está desatualizado e pararia o pedido
     ctx = {
         "set_var": _s3.variation_info(session, session.get(Scene, shot.scene_id)),
         "prompt": prompt_ops.panel(session, t, "Prompt de vídeo", people=_people(session, shot), dialogue=shot.dialogue),
@@ -737,7 +742,8 @@ def _view(request: Request, session: Session, project: Project, shot: Shot, scen
         "left_out": left_out(session, shot, model),
         "talk": _talk_rows(session, shot),
         "state": shot_clip_state(shot, pending),
-        "can_generate": bool(sent) and model is not None,
+        "can_generate": bool(sent) and model is not None and not blocks,
+        "blocks": blocks,
         "video_jobs": _video_jobs(session, project, shot), "video_quality": vs["quality"], "video_audio": vs["audio"],
         "default_model": next((m for m in video_models(session) if m.get("default")), None),
         "max_upload_mb": MAX_VIDEO_BYTES // (1024 * 1024), "main_form": "video-form",
@@ -811,6 +817,11 @@ async def video_save(request: Request, project_id: int, shot_id: int, session: S
         for field in ("sound_effects", "ambience", "music"):
             if field in form:
                 setattr(shot, field, text(form, field))
+        from app import outdated
+
+        done = outdated.apply_op(session, shot, op)  # «seguir sem…» / «manter» do «Antes de gerar»
+        if done:
+            flash_info(request, done)
         if op == "vref_auto":
             shot.video_refs, shot.video_inputs = None, None
         elif "vin_present" in form:  # o que segue no pedido: imagens (e o modo de cada), vídeo-guia e vozes

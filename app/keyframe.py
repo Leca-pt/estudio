@@ -126,11 +126,21 @@ def view_far(session: Session, shot: Shot) -> bool:
     return r is not None and r.get("image") is not None and r.get("fit") != "parecida"
 
 
+def view_old(session: Session, shot: Shot) -> bool:
+    """A imagem da vista do momento foi feita antes de a maquete mudar no que a vista mostra: não segue (seria o sítio
+    antigo); o passo 5 diz porquê e como a refazer."""
+    from app import outdated
+
+    r = moment(session, shot)
+    return r is not None and r.get("view") is not None and r.get("image") is not None \
+        and outdated.view_image_outdated(session, r["view"])
+
+
 @memo
 def inputs(session: Session, shot: Shot) -> list[MediaFile]:
     """O que segue para o gerador, por ordem: o previs (a geometria), a vista do local (só se foi tirada de um ângulo
     parecido) e as folhas do elenco."""
-    place = None if view_far(session, shot) else _location_image(session, shot)
+    place = None if view_far(session, shot) or view_old(session, shot) else _location_image(session, shot)
     out = [m for m in (render(session, shot), place) if m is not None]
     for m in cast(session, shot):
         if m not in out:
@@ -170,8 +180,16 @@ def made_at(session: Session, media: MediaFile) -> float:
 def _stale(session: Session, shot: Shot, m: MediaFile) -> bool:
     if not shot.scene3d:
         return False
-    was = made_from(session, m)
-    return bool(was) and was != moments.render_hash(session, shot)
+    was, now = made_from(session, m), moments.render_hash(session, shot)
+    return bool(was) and was != now and _params(session, m).get("hash_ok") != now  # «Manter assim» vale para esta versão
+
+
+def keep(session: Session, shot: Shot, m: MediaFile) -> None:
+    """«Manter assim»: o frame-chave vale para a versão atual da cena 3D (a mudança não lhe diz respeito)."""
+    job = session.exec(select(ImageJob).where(ImageJob.result_media_id == m.id)).first()
+    if job is not None:
+        job.params = {**(job.params or {}), "hash_ok": moments.render_hash(session, shot)}
+        session.add(job)
 
 
 def stale(session: Session, shot: Shot) -> bool:
@@ -292,7 +310,8 @@ def block(session: Session, project, shot: Shot) -> dict:
     results = media_list(session, shot_id=shot.id, role=ROLE, status="pending")
     far = view_far(session, shot)
     return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key, "label": label,
-            "view_far": far, "view_fit": r.get("fit") if r else None,
+            "view_far": far, "view_fit": r.get("fit") if r else None, "view_old": view_old(session, shot),
+            "blocks": outdated_blocks(session, shot),
             "view_noimg": r is not None and r.get("view") is not None and r.get("image") is None,
             "moment": r, "choices": choices, "absent": absent(session, shot), "all": all_approved(session, shot),
             "stale": stale(session, shot),
@@ -308,3 +327,9 @@ def scene_codes(session: Session, shot: Shot) -> list[str]:
     from app import scene3d
 
     return scene3d.in_frame(session, shot)
+
+
+def outdated_blocks(session: Session, shot: Shot) -> list[dict]:
+    from app import outdated
+
+    return outdated.blockers(session, shot, "chave")

@@ -171,6 +171,7 @@
       <div class="sr-h">
         <span class="dot {{ s.state }}"></span>
         <a class="sr-t" href="{{ url }}"><b>P{{ '%02d' % sh.number }}</b>{% if sh.shot_type %} · {{ sh.shot_type }}{% endif %}{% if sh.camera_movement %} · {{ sh.camera_movement }}{% endif %}{% if sh.title %}<span class="dim"> · {{ sh.title }}</span>{% endif %}</a>
+        {% if s.outdated %}<a class="tag warn" href="{{ url }}#frame-chave" title="Feito antes de a câmara ou a encenação mudarem: não segue no vídeo até o refazeres ou decidires">⚠ desatualizado: {{ s.outdated|join(", ") }}</a>{% endif %}
         {% if s.lines %}<span class="tag" title="Linhas do guião que este plano cobre">linhas {{ s.lines|join(", ") }}</span>{% endif %}
         {% set w = windows[loop.index0] %}<span class="tag mono" title="Parte da encenação que o plano mostra">{{ (w.start)|seg }}–{{ (w.end)|seg }} s</span>
         <span class="sp"></span>

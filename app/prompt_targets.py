@@ -463,9 +463,9 @@ def enqueue(session: Session, t: Target, gen: dict | None) -> tuple[bool, str]:
         return False, "Ainda não há render desta vista: abre a maquete do local para o tirar."
     params = None
     if t.kind == "chave":
-        from app import keyframe, moments
+        from app import keyframe, moments, outdated
 
-        problem = keyframe.missing(session, t.obj)
+        problem = keyframe.missing(session, t.obj) or outdated.check(session, t.obj, "chave")
         if problem:
             return False, problem
         if t.obj.scene3d:  # parte do previs (a 1.ª imagem é a geometria); a versão da cena e o momento ficam guardados
