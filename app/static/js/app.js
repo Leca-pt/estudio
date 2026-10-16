@@ -593,10 +593,19 @@
   document.addEventListener('change', (e) => {
     const t = e.target;
     if (t && t.matches && t.matches('select.res-select')) t._picked = true;
+    if (t && t.matches && t.matches('select.gen-select') && t.name) {
+      // o mesmo seletor pode aparecer duas vezes no mesmo formulário (ex.: no cartão da vista e na janela do prompt
+      // dela): o servidor lê o primeiro, por isso ficam todos com o que se escolheu
+      document.querySelectorAll(`select.gen-select[name="${CSS.escape(t.name)}"]`).forEach((o) => {
+        if (o !== t && [...o.options].some((x) => x.value === t.value)) { o.value = t.value; o._touched = true; o._picked = t._picked; }
+      });
+    }
     if (t && t.matches && t.matches('select.gen-select:not(.res-select)') && t.parentElement) {
       const k = genKey(t);
       if (k) store.set(k, t.value);
-      t.parentElement.querySelectorAll('select.res-select').forEach(syncRes);
+      document.querySelectorAll(`select.gen-select[name="${CSS.escape(t.name)}"]`).forEach((o) => {
+        o.parentElement && o.parentElement.querySelectorAll('select.res-select').forEach(syncRes);
+      });
     }
   });
 
