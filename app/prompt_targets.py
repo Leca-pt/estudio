@@ -141,6 +141,25 @@ def inputs(session: Session, t: Target) -> list[MediaFile]:
     return cover_inputs(session, t.project)
 
 
+def _look_line(session: Session, asset: Asset, v) -> str | None:
+    """Para o escritor: que imagem do sítio segue com o render, e para quê."""
+    from app import location3d as L, ref_tokens
+
+    if v.kind != "view":
+        return None
+    near = L.look_reference(session, asset, v)
+    if near:
+        tok = ref_tokens.token_for(session, near["media"])[0]
+        return (f"{tok}, a vista «{near['view'].label}» desta zona, tirada de uma câmara {near['fit']} com esta: mostra "
+                "as mesmas paredes e os mesmos objetos. Usa-a para os materiais, as cores, a luz e o que está em cada "
+                "sítio; o enquadramento, a altura da câmara e a lente vêm do render.")
+    ref = L.zone_reference(session, asset, v.zone)
+    if ref is not None:
+        return (f"{ref_tokens.token_for(session, ref)[0]}, a referência da zona (pode estar tirada de outro lado): só os "
+                "materiais, as cores e a luz; o que esta vista vê vem do render e da descrição da zona.")
+    return None
+
+
 def cover_inputs(session: Session, project: Project) -> list[MediaFile]:
     """Capa: as folhas das 4 primeiras personagens e a imagem do primeiro local com maquete."""
     from app.asset_refs import location_image
@@ -260,6 +279,7 @@ def context(session: Session, t: Target) -> str:
                 ("Nome da vista", v.label),
                 ("Como é esta zona (do utilizador, EN)", (asset.zone_notes or {}).get(v.zone or "")),
                 ("O que a maquete mostra desta posição (pista)", L.seen_from(asset.layout3d, v)),
+                ("Imagem do sítio que segue (Image 2)", _look_line(session, asset, v)),
                 ("Elementos do mundo escolhidos para esta zona (só estes; com o design das folhas)",
                  "; ".join(elements) or "nenhum — não acrescentes elementos do mundo que não estejam no «Como é»")]
         return C._lines("VISTA DA MAQUETE", rows)

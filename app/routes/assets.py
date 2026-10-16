@@ -431,7 +431,8 @@ def _views3d_ctx(session: Session, project: Project, asset: Asset, digest: str |
                      "results": [m for m in media.values() if m.role == "locview" and m.status == "pending"],
                      "jobs": gpt_jobs(session, project, "locview", locview_id=v.id),
                      "stale": render is None or v.render_hash != digest,
-                     "img_old": outdated.view_image_outdated(session, v)})
+                     "img_old": outdated.view_image_outdated(session, v),
+                     "look_ref": location3d.look_reference(session, asset, v) if v.kind == "view" else None})
     groups: dict = {z["name"]: [] for z in location3d.zones(asset.layout3d)} if asset.layout3d else {}
     for r in rows:
         groups.setdefault(r["view"].zone, []).append(r)

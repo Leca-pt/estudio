@@ -291,6 +291,7 @@ def _moments_ctx(session: Session, project: Project, shot: Shot) -> dict:
             "jobs": gpt_jobs(session, project, "locview", locview_id=v.id) if v else [],
             "task": prompt_writer.task_for(session, project.id, "vista", str(v.id)) if v else None,
             "render_ok": bool(v and v.render_id), "ready": moments.ready(r),
+            "look_ref": location3d.look_reference(session, loc, v) if v is not None and loc is not None and v.kind == "view" else None,
         })
     pending_views = [{"id": v.id, "zone": v.zone, "cam": v.cam,
                       "outdoor": bool((location3d.zone_info(loc.layout3d, v.zone) or {}).get("outdoor"))}

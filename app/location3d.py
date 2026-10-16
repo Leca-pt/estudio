@@ -398,13 +398,35 @@ def view_inputs(session: Session, asset: Asset, view: LocationView) -> list[int]
     from app.routes.production import approved_media
 
     ids = [view.render_id]
-    room = zone_reference(session, asset, view.zone) if view.kind == "view" else None
+    near = look_reference(session, asset, view) if view.kind == "view" else None
+    room = near["media"] if near else (zone_reference(session, asset, view.zone) if view.kind == "view" else None)
     ids.append(room.id if room else asset.approved_image_id)  # sem nenhuma das duas, segue só o render
     # Para o gerador só vão as folhas dos elementos e as imagens aprovadas (as fotografias reais ficam para o escritor
     # de prompts, que as descreve no texto): o limite conta só com essas.
     design = [i for i in design_refs(session, asset, view.zone) if i not in ids]  # o corte é o do modelo, ao gerar
     found = approved_media(session, ids + design)
     return [i for i in ids + design if i in found]
+
+
+def look_reference(session: Session, asset: Asset, view: LocationView) -> dict | None:
+    """O aspeto do sítio para gerar esta vista: a imagem aprovada da mesma zona tirada com a câmara mais parecida
+    (mostra as mesmas paredes e os mesmos objetos), se for «parecida» ou «aproximada»; None = a referência da zona.
+    Nunca a da própria vista nem uma desatualizada (um erro não passa de imagem em imagem). {"view", "media", "fit"}."""
+    from app import moments, outdated
+
+    best = None
+    for v in location_views(session, asset):
+        if v.id == view.id or (v.zone or "") != (view.zone or "") or not v.image_id or not v.cam or not view.cam:
+            continue
+        m = session.get(MediaFile, v.image_id)
+        if m is None or m.status != "approved" or outdated.view_image_outdated(session, v):
+            continue
+        s = moments.score(v.cam, view.cam)
+        if best is None or s < best[0]:
+            best = (s, v, m)
+    if best is None or best[0] > moments.CLOSE:
+        return None
+    return {"view": best[1], "media": best[2], "fit": moments.fit_label(best[0])}
 
 
 def design_refs(session: Session, asset: Asset, zone: str | None) -> list[int]:

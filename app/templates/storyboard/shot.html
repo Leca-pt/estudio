@@ -156,6 +156,7 @@
             <button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgen:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="O escritor de prompts escreve o prompt da vista e a imagem gera-se logo a seguir">{{ i.icon("image", 13) }}Gerar imagem</button></span>
           {% endif %}{% endif %}
           <a class="btn sm ghost" href="/projetos/{{ project.id }}/assets/{{ location.id }}#vista3d-{{ r.view.id }}">Ver o prompt</a>
+          {% if r.look_ref %}<span class="hint" title="Ao gerar esta vista, segue como imagem do sítio a vista mais parecida desta zona (mostra as mesmas paredes e objetos); o enquadramento vem do render">Aspeto a partir da vista «{{ r.look_ref.view.label }}» ({{ r.look_ref.fit }})</span>{% elif r.view and r.view.kind == "view" %}<span class="hint" title="Nenhuma vista aprovada desta zona foi tirada de um ângulo parecido: segue a referência da zona (só materiais, cores e luz)">Aspeto a partir da referência da zona</span>{% endif %}
         </div>
         {% if r.jobs or r.results %}<div class="row" style="gap: 8px; flex-wrap: wrap; align-items: flex-start">{{ m.job_tiles(r.jobs) }}{{ m.results(r.results, ratio="r169", width=140) }}</div>{% endif %}
         {% endif %}

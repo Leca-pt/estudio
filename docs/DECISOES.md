@@ -635,3 +635,11 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
     reescrever / manter este texto (grava a versão atual como basis). Os prompts do escritor já se reescreviam
     sozinhos ao Gerar.
 - As listas (cena: linha do plano; Montagem: o cartão sem take) mostram «⚠ desatualizado: frame-chave, vídeo-guia».
+
+## Imagem do sítio para gerar uma vista: a mais parecida (2026-10-16)
+- Antes, todas as vistas de uma zona levavam como Image 2 a referência da zona, para onde quer que a câmara olhasse
+  (nos arrumos, a vista 11 olha ao longo da divisão; a do P03 olha para o lado oposto e via outras paredes).
+- location3d.look_reference: a imagem aprovada da mesma zona tirada com a câmara mais parecida (moments.score, até
+  «aproximada»); nunca a da própria vista nem uma desatualizada. Sem nenhuma, a referência da zona, como antes. O
+  escritor sabe qual segue e para quê ("Imagem do sítio que segue"); o cartão da vista (ficha do local e passo 3)
+  mostra «Aspeto a partir da vista …» ou «… da referência da zona».

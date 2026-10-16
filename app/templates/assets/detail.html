@@ -319,6 +319,7 @@
                 <form method="post" action="/projetos/{{ project.id }}/media/{{ res.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar esta imagem?" data-confirm-text="Sai dos resultados por decidir e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form></div></div>{% endfor %}
             </div>{% endif %}
             {{ m.rejected_block(rejected_files(project.id, "locview", locview_id=v.id), "r169", 100) }}
+{% if r.look_ref %}<span class="hint" title="Ao gerar esta vista, segue como imagem do sítio a vista mais parecida desta zona (mostra as mesmas paredes e objetos); o enquadramento vem do render">Aspeto a partir da vista «{{ r.look_ref.view.label }}» ({{ r.look_ref.fit }})</span>{% elif v.kind == "view" %}<span class="hint" title="Nenhuma vista aprovada desta zona foi tirada de um ângulo parecido: segue a referência da zona (só materiais, cores e luz)">Aspeto a partir da referência da zona</span>{% endif %}
             <button type="button" class="lv-prompt-btn" data-open-dialog="prompt-{{ v.id }}" title="Ler e editar o prompt desta vista, e gerar">
               <span class="hint">Prompt · <span class="{{ 'warn-t' if r.state == 'stale' else '' }}">{{ r.panel.state_label }}</span></span>
               <span class="lv-prompt-peek">{{ (r.panel.text or "O escritor de prompts escreve-o ao gerar.")|truncate(140, True, "…") }}</span></button>
