@@ -119,10 +119,19 @@ def cast(session: Session, shot: Shot) -> list[MediaFile]:
     return [found[i] for i in dict.fromkeys(ids) if i in found]
 
 
+def view_far(session: Session, shot: Shot) -> bool:
+    """A vista do local do momento foi tirada de outro ângulo (não «parecida»): os modelos de imagem copiam-lhe o
+    enquadramento em vez do do previs, por isso não segue (o aspeto do sítio vem da nota da zona)."""
+    r = moment(session, shot)
+    return r is not None and r.get("image") is not None and r.get("fit") != "parecida"
+
+
 @memo
 def inputs(session: Session, shot: Shot) -> list[MediaFile]:
-    """O que segue para o gerador, por ordem: o previs (a geometria), a vista do local e as folhas do elenco."""
-    out = [m for m in (render(session, shot), _location_image(session, shot)) if m is not None]
+    """O que segue para o gerador, por ordem: o previs (a geometria), a vista do local (só se foi tirada de um ângulo
+    parecido) e as folhas do elenco."""
+    place = None if view_far(session, shot) else _location_image(session, shot)
+    out = [m for m in (render(session, shot), place) if m is not None]
     for m in cast(session, shot):
         if m not in out:
             out.append(m)
@@ -277,15 +286,11 @@ def block(session: Session, project, shot: Shot) -> dict:
         for row in moments.rows(session, shot):
             who = [names.get(c, c) for c in scene3d.codes_at(session, shot, row["t"]) if c in names]
             choices.append({"n": row["n"], "t": row["t"], "who": who, "on": row["n"] == r["n"], "render": row["render"]})
-    from app.jobs import key_two_pass_ok
-    from app.routes.gpt import default_generator, parse_generator
-
     results = media_list(session, shot_id=shot.id, role=ROLE, status="pending")
-    pass1 = {m.id: p for m in results if (p := _params(session, m).get("pass1"))}
-    two_pass = bool(shot.scene3d) and key_two_pass_ok(session, *parse_generator(default_generator(session, use=t.use)))
-    far = r is not None and r.get("image") is not None and r.get("fit") != "parecida"
+    far = view_far(session, shot)
     return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key, "label": label,
-            "two_pass": two_pass, "pass1": pass1, "view_far": far, "view_fit": r.get("fit") if r else None,
+            "view_far": far, "view_fit": r.get("fit") if r else None,
+            "view_noimg": r is not None and r.get("view") is not None and r.get("image") is None,
             "moment": r, "choices": choices, "absent": absent(session, shot), "all": all_approved(session, shot),
             "stale": stale(session, shot),
             "sent": key is not None and key.id in sent, "missing": missing(session, shot),
