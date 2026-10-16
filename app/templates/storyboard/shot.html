@@ -233,8 +233,19 @@
             </div>
           </div>
           {% endfor %}
+          {% for a in key.all if a.n is none %}
+          <div class="key-mo old">
+            <div class="row" style="gap: 6px"><b>Câmara antiga</b><span class="mono dim">{{ fmt_seconds(a.t) }}</span><span class="sp"></span>
+              {% if a.video %}<span class="tag warn" title="Este frame-chave segue no pedido de vídeo">segue no vídeo</span>{% endif %}</div>
+            <a class="ph img-ph {{ kratio }}" href="/media/{{ a.media.path }}" hx-boost="false" title="Frame-chave de uma câmara que já mudou"><img src="{{ a.media.path|thumb }}" alt="Frame-chave antigo" loading="lazy"></a>
+            <span class="hint warn-t">⚠ feito com uma câmara que entretanto mudou: já não corresponde a nenhum momento{{ " e o vídeo vai receber o enquadramento antigo" if a.video else "" }}.</span>
+            <div class="row" style="gap: 6px; flex-wrap: wrap">
+              <form method="post" action="/projetos/{{ project.id }}/media/{{ a.media.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar este frame-chave antigo?" data-confirm-text="Sai do storyboard{{ ' e deixa de seguir no pedido de vídeo' if a.video else '' }}; fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>
+            </div>
+          </div>
+          {% endfor %}
         </div>
-        {% for a in key.all if a.n is none %}<p class="hint">Há um frame-chave aprovado de um momento que já não existe (a câmara mudou): <a href="/media/{{ a.media.path }}" hx-boost="false">ver</a>.</p>{% endfor %}
+        {% if key.all|selectattr("video")|selectattr("n", "none")|list %}<p class="hint warn-t" style="margin: 8px 0 0">O frame-chave que segue no vídeo é de uma câmara antiga. Gera o de um momento atual e carrega em «Usar no vídeo», ou rejeita o antigo.</p>{% endif %}
         {% if key.all and not key.media %}<p class="hint warn-t">Nenhum frame-chave segue no pedido de vídeo: escolhe um com «Usar no vídeo».</p>{% endif %}
         {% if key.view_far %}<div class="pre-gen" role="status" style="margin-top: 8px"><span class="pg-t">Antes de gerar</span>
           <ul><li class="warn">A vista do local do momento {{ key.moment.n }} foi tirada de outro ângulo (parecença «{{ key.view_fit }}»): os modelos copiam-lhe o enquadramento, por isso não segue no frame-chave e o sítio fica descrito só por texto. Para o frame-chave sair com este ângulo e o aspeto certo, cria a vista desta câmara e gera a imagem dela (passo 3); depois volta aqui.</li></ul>

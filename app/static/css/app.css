@@ -1326,3 +1326,4 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .key-mo .ph.r11, .key-mo .slot.r11 { aspect-ratio: 1; }
 .key-mo .ph img { width: 100%; height: 100%; object-fit: cover; }
 .key-mo .ph.prev img { opacity: .75; }
+.key-mo.old { border-style: dashed; }

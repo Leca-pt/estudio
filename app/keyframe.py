@@ -205,7 +205,7 @@ def all_approved(session: Session, shot: Shot) -> list[dict]:
 
 def approve(session: Session, media: MediaFile) -> None:
     """Aprovar um frame-chave: fica o deste momento (o anterior do mesmo momento volta a «por decidir»). Segue no vídeo
-    se ainda nenhum seguia ou se o que seguia era deste mesmo momento."""
+    se ainda nenhum seguia, se o que seguia era deste mesmo momento ou se era de uma câmara antiga / desatualizado."""
     shot = session.get(Shot, media.shot_id)
     mine = _moment_of(session, shot, media)
     current = session.get(MediaFile, shot.key_image_id) if shot.key_image_id else None
@@ -215,7 +215,10 @@ def approve(session: Session, media: MediaFile) -> None:
             session.add(m["media"])
     media.status = "approved"
     session.add(media)
-    if current is None or current.status != "approved" or current.id == media.id or _moment_of(session, shot, current) == mine:
+    live = {moments.moment_key(k) for k in moments.keys(shot)}
+    old = current is not None and (_moment_of(session, shot, current) not in live or _stale(session, shot, current))
+    if (current is None or current.status != "approved" or current.id == media.id or old
+            or _moment_of(session, shot, current) == mine):
         shot.key_image_id = media.id
         session.add(shot)
 
