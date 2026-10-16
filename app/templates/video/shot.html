@@ -144,6 +144,8 @@
     {% for gi in guide_issues %}{% set _ = (errs if gi.level == "error" else warns).append(gi.text) %}{% endfor %}
     {% if guide_note.warn and not guide_note.off %}{% set _ = warns.append(guide_note.warn) %}{% endif %}
     {% if voice_note and voice_note.warn %}{% set _ = warns.append(voice_note.warn) %}{% endif %}
+    {% if set_var and set_var.problem %}{% set _ = errs.append("As variações da maquete desta cena não se aplicam (a maquete do local mudou entretanto): " ~ set_var.problem ~ " Corrige-as na encenação da cena.") %}
+    {% elif set_var %}{% set _ = warns.append("A cena muda a maquete do local (" ~ set_var.count ~ " mudanças: " ~ set_var.text ~ "). As imagens das vistas do local mostram a versão habitual: confirma que o prompt diz a diferença.") %}{% endif %}
     {% if prompt_other_model %}{% set _ = warns.append("O prompt foi escrito para outro modelo (" ~ prompt_other_model ~ "); este plano gera com o " ~ model.name ~ ", que tem outro formato e outros limites.") %}{% endif %}
     {% if errs or warns %}
     <div class="pre-gen" role="status">

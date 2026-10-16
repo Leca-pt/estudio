@@ -2,7 +2,7 @@
 // painéis e grava o vídeo-guia. Coordenadas da cena: metros, Z para cima, Y para a frente; no three.js, Y para cima.
 import * as THREE from '../vendor/three/three.module.min.js';
 import { OrbitControls } from '../vendor/three/OrbitControls.js';
-import { applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=4';
+import { PIECE_DIMS, applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=4';
 import { groundFn, height, rockGeo, scatterMesh, terrainMesh } from './terrain.js?v=3';
 import { greyModel, modelsReady } from './model3d.js?v=2';
 export { groundFn, modelsReady };
@@ -116,7 +116,7 @@ class Batch { // caixas e cilindros por cor, desenhados em lote (milhares de pr�
     fn(this.dummy);
     this.dummy.updateMatrix();
     this.items.get(key).mats.push(this.dummy.matrix.clone());
-    this.dummy.position.set(0, 0, 0); this.dummy.rotation.set(0, 0, 0); this.dummy.scale.set(1, 1, 1);
+    this.dummy.position.set(0, 0, 0); this.dummy.rotation.set(0, 0, 0, 'XYZ'); this.dummy.scale.set(1, 1, 1);
   }
   build(parent) {
     const geos = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 16),
@@ -129,6 +129,26 @@ class Batch { // caixas e cilindros por cor, desenhados em lote (milhares de pr�
   }
 }
 
+// Peça inclinada (rot_x, rot_y): roda e assenta pelo ponto mais baixo, com a pegada centrada em center (as mesmas
+// contas de scene3d.tilted_size no servidor).
+// Um assento de pernas para o ar assenta pelo assento (as costas pendem para fora da mesa), como em
+// scene3d.flipped_seat_h.
+const SEAT_H = { chair: 0.46, bar_stool: 0.75, bench: 0.45, sofa: 0.45, armchair: 0.45, booth: 0.45, bed: 0.55 };
+function tilted(obj, o) {
+  const g = new THREE.Group();
+  obj.rotation.set(rad(o.rot_x || 0), 0, -rad(o.rot_y || 0), 'XYZ'); // cena: x = x do three; y da cena = -z do three
+  g.add(obj); obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj), mid = box.getCenter(new THREE.Vector3());
+  let rest = -box.min.y;
+  const upside = Math.cos(rad(o.rot_x || 0)) * Math.cos(rad(o.rot_y || 0)) < -0.9;
+  if (upside && SEAT_H[o.model] && PIECE_DIMS[o.model]) {
+    const h = SEAT_H[o.model] * ((o.size || PIECE_DIMS[o.model])[2] / PIECE_DIMS[o.model][2]);
+    rest = -new THREE.Vector3(0, h, 0).applyEuler(obj.rotation).y;
+  }
+  obj.position.set(-mid.x, rest, -mid.z);
+  return g;
+}
+
 export function buildLayer(layer, palette, idx, ground = null) {
   const group = new THREE.Group();
   const off = layer.offset || [0, 0, 0];
@@ -137,12 +157,14 @@ export function buildLayer(layer, palette, idx, ground = null) {
   const batch = new Batch();
   const col = (c) => new THREE.Color(palette[c] || c).getHex();
   const rand = rng((layer.seed || 7) + idx * 101);
-  const box = (center, size, color, rotZ = 0, windows = false) => batch.add('box', col(color), (d) => {
-    d.position.copy(v3(center)); d.rotation.y = rotZ; d.scale.set(size[0], size[2], size[1]);
+  const box = (center, size, color, rotZ = 0, windows = false, o = null) => batch.add('box', col(color), (d) => {
+    d.position.copy(v3(center)); d.scale.set(size[0], size[2], size[1]);
+    if (o && (o.rot_x || o.rot_y)) d.rotation.set(rad(o.rot_x || 0), rotZ, -rad(o.rot_y || 0), 'YXZ'); // inclinada, à volta do meio
+    else d.rotation.y = rotZ;
   }, windows);
   let zoneN = 0;
   for (const o of layer.objects || []) {
-    if (o.type === 'box') box(o.center, o.size, o.color, rad(o.rot_z), hasWindows(o.color) && !o.plain && o.size[2] > 3.5);
+    if (o.type === 'box') box(o.center, o.size, o.color, rad(o.rot_z), hasWindows(o.color) && !o.plain && o.size[2] > 3.5, o);
     else if (o.type === 'prism') batch.add(o.shape === 'ramp' ? 'ramp' : 'gable', col(o.color), (d) => {
       d.position.copy(v3(o.center)); d.rotation.y = rad(o.rot_z); d.scale.set(o.size[0], o.size[2], o.size[1]);
     });
@@ -174,7 +196,7 @@ export function buildLayer(layer, palette, idx, ground = null) {
       group.add(extrudeMesh(o, hasWindows(o.color) && !o.plain && o.height > 3.5 ? windowMat(c) : mat(c)));
     }
     else if (o.type === 'piece') {
-      const pc = piece(o.model, col(o.color), o.size);
+      const pc0 = piece(o.model, col(o.color), o.size), pc = o.rot_x || o.rot_y ? tilted(pc0, o) : pc0;
       pc.position.copy(v3(o.center)); pc.rotation.y = rad(o.rot_z);
       pc.userData.info = `${o.model}${o.label ? ' «' + o.label + '»' : ''} em [${o.center.map((x) => +x.toFixed(2)).join(', ')}]`;
       group.add(pc);
@@ -840,7 +862,10 @@ export function mount(el) {
 
   async function locRenders() { // vistas novas do local (criadas a partir da câmara do plano): render e profundidade só da maquete
     if (!locPending.length || !el.dataset.locBase || !el.dataset.locHash) return;
-    const hidden = [...actors.map(({ m }) => m), ...layerGroups.slice(1), helpers];
+    // a cena pode mudar a maquete (set_changes): as vistas do local tiram-se da maquete do local, sem as variações
+    const locGroup = spec.loc_layer ? buildLayer(spec.loc_layer, spec.palette, 0, groundAt) : null;
+    if (locGroup) scene.add(locGroup);
+    const hidden = [...actors.map(({ m }) => m), ...(locGroup ? layerGroups : layerGroups.slice(1)), helpers];
     const keep = hidden.map((o) => o.visible);
     hidden.forEach((o) => { o.visible = false; });
     if (camHelper) camHelper.visible = false;
@@ -861,6 +886,7 @@ export function mount(el) {
       say('');
     } catch (err) { say(`O render da vista não ficou guardado: ${human(err)}.`); } finally {
       hidden.forEach((o, i) => { o.visible = keep[i]; });
+      if (locGroup) scene.remove(locGroup);
       fit(); invalidate();
     }
   }

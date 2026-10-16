@@ -267,6 +267,7 @@ def context(session: Session, t: Target) -> str:
         shot = t.obj
         scene = session.get(Scene, shot.scene_id)
         from app import looks, moments
+        from app import scene3d
         from app.routes.video import shot_model
         from app.scene3d import in_frame
 
@@ -286,6 +287,7 @@ def context(session: Session, t: Target) -> str:
         return C.join(C.scene_block(session, scene), C.shot_block(session, shot),
                       "MOMENTOS DA CÂMARA (cena 3D)\n" + moms if moms else "",
                       _frame_block(session, shot),
+                      scene3d.variation_note(session, scene),
                       (f"FRAME-CHAVE: segue {key_tok}, a imagem do início deste plano já com o sítio, a luz, a roupa de "
                        "cada personagem e onde cada uma está e para onde olha. Nas References, numa frase: \""
                        f"{key_tok} is the opening frame of this shot: start from exactly this composition — the same place, "
@@ -334,7 +336,8 @@ def _key_context(session: Session, t: Target) -> str:
                 "NO PREVIS, QUEM É QUEM: " + "; ".join(keyframe.cast_colours(session, shot)) if cast else "",
                 f"NESSE INSTANTE (calculado da encenação e da câmara): {first}" if first else "",
                 (f"FIGURANTES: {n_extras} — as figuras cinzento-claro do previs são pessoas comuns, com roupa do sítio e "
-                 "da época, variada e com cor (nunca manequins nem estátuas)." if n_extras else "")]
+                 "da época, variada e com cor (nunca manequins nem estátuas)." if n_extras else ""),
+                scene3d.variation_note(session, scene)]
     else:
         cast = [a for a in scene_assets(session, scene) if a.kind == "character"]
         rows = ["SEM CENA 3D: compõe a imagem pela descrição do plano (tipo de plano, ângulo, quem está onde, de frente ou "

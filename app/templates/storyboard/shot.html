@@ -125,6 +125,7 @@
   {% if moments %}
   {% set s3 %}<span class="fold-thumbs">{% for r in moments[:5] %}{% set im = r.image or r.render %}{% if im %}<img src="{{ im.path|thumb }}" alt="">{% endif %}{% endfor %}</span>{% if done["momentos"] %}<span class="ok-t">✓</span> {{ moments|length }} momento(s) com vista{% else %}<span class="warn-t">falta a vista em {{ not_ready|length }} de {{ moments|length }} momento(s)</span>{% endif %}{% endset %}
   {% call m.fold("momentos", "3 · Vistas do local nos momentos da câmara", s3, open=open_step == "momentos", tip="Em cada momento, a vista do local que vai para o vídeo (sem pessoas: o aspeto do sítio). A app escolhe a mais parecida com a câmara; se nenhuma serve, cria uma a partir desta câmara.") %}
+    {{ m.set_var_note(set_var) }}
     {% if moments|rejectattr("render")|list %}<p class="hint" style="margin: 0 0 8px">Os previs (o esboço 3D de cada momento) tiram-se no teu browser enquanto esta página está aberta: deixa-a aberta até aparecerem. Se fechares antes, tiram-se da próxima vez que a abrires.</p>{% endif %}
     <div class="moments">
       {% for r in moments %}

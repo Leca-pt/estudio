@@ -37,8 +37,8 @@ def _source(s: Session, project_id: int, screen: str):
         spec = scene3d.compose(s, p.id, scene=sc)
         if not spec:
             raise ToolError("Esta cena ainda não tem cenário 3D (escolhe o local da encenação).")
-        loc = s.get(Asset, sc.set3d_asset_id) if sc.set3d_asset_id else None
-        return spec, (loc.layout3d if loc else None) or {"objects": []}, loc, sc
+        layout, loc = scene3d.scene_set(s, sc)  # com as variações só desta cena (set_changes), se as houver
+        return spec, layout or {"objects": []}, loc, sc
     raise ToolError("screen tem de ser asset:N (maquete de um local) ou sb_scene:N (cenário de uma cena).")
 
 
@@ -56,7 +56,8 @@ def _legend(layout: dict, lviews: list[dict]) -> str:
     for n, o in enumerate(layout.get("objects") or []):
         what = o.get("model") or o.get("type")
         where = o.get("center") or o.get("from")
-        lines.append(f"#{n} {what}" + (f" «{o['label']}»" if o.get("label") else "") + (f" «{o['name']}»" if o.get("name") else "")
+        lines.append(f"#{o.get('n', n)} {what}" + (" (só nesta cena)" if o.get("scene_only") else "")
+                     + "".join(f" {k} {o[k]:g}°" for k in ("rot_x", "rot_y") if o.get(k)) + (f" «{o['label']}»" if o.get("label") else "") + (f" «{o['name']}»" if o.get("name") else "")
                      + (f" em [{', '.join(f'{x:g}' for x in where)}]" if where else ""))
     views = [f"{v['name']} = {v['label']} (vista {v['id']}: câmara em {v['cam']['pos']}, a olhar para {v['cam']['look_at']}, "
              f"{v['cam'].get('lens', 28):g} mm)" for v in lviews]
@@ -98,7 +99,8 @@ async def view_layout(project_id: int, screen: str, views: list[str] | None = No
                                                    "size": int(size), "lviews": lviews, "t": float(t), "focus": focus})
     except Exception as exc:  # noqa: BLE001 — o motivo vai para o cliente
         raise ToolError(f"Não consegui desenhar a maquete: {exc}") from exc
-    out: list[Any] = [_legend(layout, lviews)]
+    out: list[Any] = [_variations(s_note) if (s_note := _changes_note(project_id, screen)) else "", _legend(layout, lviews)]
+    out = [x for x in out if x]
     for r in shots:
         if r.get("error"):
             out.append(f"{r['view']}: {r['error']}")
@@ -126,4 +128,35 @@ def check_layout(project_id: int, screen: str) -> str:
     with Session(engine) as s:
         _spec, layout, loc, scene = _source(s, project_id, screen)
     name = loc.name if loc else "cenário"
-    return f"Verificação da maquete {name}:\n" + "\n".join(layout_check.check(layout))
+    note = _changes_note(project_id, screen)
+    return (f"Verificação da maquete {name}" + (" com as variações desta cena" if note else "") + ":\n"
+            + (_variations(note) + "\n" if note else "") + "\n".join(layout_check.check(layout)))
+
+
+def _changes_note(project_id: int, screen: str) -> str:
+    """sb_scene:N com variações da maquete: o resumo delas (ou o motivo de não se aplicarem)."""
+    from app import scene3d
+
+    head, _, raw = screen.partition(":")
+    if head != "sb_scene" or not raw.isdigit():
+        return ""
+    with Session(engine) as s:
+        sc = s.get(Scene, int(raw))
+        if sc is None or sc.project_id != project_id:
+            return ""
+        changes = (sc.stage3d or {}).get("set_changes")
+        if not changes:
+            return ""
+        problem = scene3d.set_changes_problem(s, sc)
+        if problem:
+            return f"!{problem}"
+        base, _loc = scene3d.scene_base(s, sc)
+        return f"{scene3d.set_changes_count(changes)} mudança(s): {scene3d.set_changes_summary(changes, base)}"
+
+
+def _variations(note: str) -> str:
+    if note.startswith("!"):
+        return ("ATENÇÃO: as variações desta cena (set_changes) NÃO se aplicam e o que se vê é a maquete do local: "
+                + note[1:] + " Corrige o set_changes da encenação.")
+    return ("VARIAÇÕES SÓ DESTA CENA (set_changes da encenação; a maquete do local não muda): " + note
+            + ". Os #n são os da maquete do local; os objetos juntados continuam a contagem.")

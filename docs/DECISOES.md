@@ -569,3 +569,23 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   - «Planos inteiros» (só quando difere, i.e. há sobreposições ou buracos): cada plano todo, pela ordem dos números,
     repetindo a ação dos que se sobrepõem — como montar os takes tal como estão.
   - Clicar num chip P.., na vista livre ou na câmara à mão sai do montado.
+
+## Variações da maquete por cena (2026-10-16)
+- Uma cena pode mudar a maquete do local só para si, na encenação: `stage3d.set_changes = {"hide": [#n], "update":
+  [{"i": #n, campos}], "add": [objetos], "note": "o que muda"}`. Os #n são os da maquete do local («Alterar por
+  partes»); a maquete do local e as outras cenas não mudam. Os juntados continuam a contagem (#total, #total+1…).
+- `scene3d.scene_set` devolve a maquete já com as variações (cada objeto leva "n", o número no local): o visualizador
+  da cena e dos planos, os previs, os vídeos-guia, a visibilidade, a planta para o Assistente, view_layout e
+  check_layout sb_scene:N seguem-na. `scene_base` é a do local, sem variações. Os #n são conferidos ao gravar a
+  encenação; se a maquete do local mudar depois e deixarem de bater, fica a do local e aparece um aviso.
+- Peças e caixas inclinam-se: rot_x, rot_y (ou "rot": [x, y, z]); também "pos" por "center". Peça inclinada: z é onde
+  assenta o ponto mais baixo e x, y o meio da pegada; um assento de pernas para o ar assenta pelo assento (as costas
+  pendem para fora da mesa). Caixa: roda à volta do meio. As contas são as mesmas no servidor (tilted_size,
+  flipped_seat_h) e no navegador.
+- Vistas do local: escolhida a opção b do pedido (aviso + nota automática). As imagens das vistas mostram o local
+  habitual; o ecrã do plano (passo 3 e «Antes de gerar» no Vídeo) avisa e os contextos do prompt de vídeo e do
+  frame-chave levam «O SÍTIO NESTA CENA NÃO ESTÁ COMO NAS VISTAS DO LOCAL…» com a nota e o resumo. Os renders das vistas
+  novas criadas a partir de um plano tiram-se da maquete do local (spec.loc_layer), nunca da versão da cena.
+  Vistas próprias da cena (opção a) ficam para depois.
+- check_layout: uma peça a flutuar só conta como «pendurada» numa parede ou fachada se estiver à mesma altura (antes,
+  um prédio por cima em planta escondia o aviso).

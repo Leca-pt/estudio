@@ -5,7 +5,7 @@ as janelas ficam dentro de uma parede inteira; peças assentam pela base (center
 
 import math
 
-from app.scene3d import PIECES
+from app.scene3d import PIECES, flipped_seat_h, tilted_size
 
 SEATS = {"chair", "armchair", "sofa", "bench", "booth", "bar_stool"}
 DIRECTED_SEATS = SEATS - {"bar_stool"}  # os bancos redondos não têm frente
@@ -20,11 +20,14 @@ def _rect(o: dict):
     """(cx, cy, hx, hy, ângulo, z0, z1) da pegada de uma caixa, peça ou cilindro; None para o resto."""
     t = o.get("type")
     if t == "box" and "center" in o:
-        c, s = o["center"], o["size"]
+        c, s = o["center"], tilted_size(o["size"], o)  # inclinada: roda à volta do meio
         return c[0], c[1], s[0] / 2, s[1] / 2, math.radians(o.get("rot_z", 0)), c[2] - s[2] / 2, c[2] + s[2] / 2
     if t == "piece" and "center" in o:
-        s = o.get("size") or list((PIECES.get(o.get("model")) or ((0.5, 0.5, 0.5),))[0])
-        c = o["center"]
+        s = tilted_size(o.get("size") or list((PIECES.get(o.get("model")) or ((0.5, 0.5, 0.5),))[0]), o)
+        c = o["center"]  # inclinada: z é onde assenta o ponto mais baixo
+        seat = flipped_seat_h(o)
+        if seat is not None:  # assento virado em cima de uma mesa: conta do assento para cima (as costas pendem)
+            return c[0], c[1], s[0] / 2, s[1] / 2, math.radians(o.get("rot_z", 0)), c[2], c[2] + seat
         return c[0], c[1], s[0] / 2, s[1] / 2, math.radians(o.get("rot_z", 0)), c[2], c[2] + s[2]
     if t == "cylinder" and "center" in o:
         c, r, h = o["center"], o.get("radius", 0.5), o.get("height", 1)
@@ -62,9 +65,14 @@ def _z_overlap(r1, r2) -> float:
     return min(r1[6], r2[6]) - max(r1[5], r2[5])
 
 
+def _num(n: int, o: dict) -> int:
+    """O #n do objeto: numa cena com variações, o da maquete do local (o objeto traz "n")."""
+    return o.get("n", n)
+
+
 def _name(n: int, o: dict) -> str:
     what = o.get("model") or o.get("type")
-    return f"#{n} {what}" + (f" «{o['label']}»" if o.get("label") else "")
+    return f"#{_num(n, o)} {what}" + (f" «{o['label']}»" if o.get("label") else "")
 
 
 def _zones(objs):
@@ -107,16 +115,17 @@ def check(layout: dict | None, max_items: int = 30) -> list[str]:
         for w, rw in walls.items():
             pen = _overlap_2d(rects[n], rw, shrink=0.10)  # até 10 cm é encostar a uma parede de 15 cm
             if pen and _z_overlap(rects[n], rw) > 0.1:
-                out["sobreposições"].append(f"{_name(n, objs[n])} entra {pen:.2f} m na parede #{w}.")
+                out["sobreposições"].append(f"{_name(n, objs[n])} entra {pen:.2f} m na parede #{_num(w, objs[w])}.")
     for i, n in enumerate(pieces):
         for m in pieces[i + 1:]:
             a, b = objs[n].get("model"), objs[m].get("model")
             if {a, b} & {"crate"} and abs(rects[n][5] - rects[m][6]) < 0.05:  # caixotes empilhados
                 continue
-            if (a in SEATS and b in TARGETS) or (b in SEATS and a in TARGETS):  # cadeira metida debaixo da mesa: normal
+            tilt = any(objs[k].get("rot_x") or objs[k].get("rot_y") for k in (n, m))
+            if not tilt and ((a in SEATS and b in TARGETS) or (b in SEATS and a in TARGETS)):  # cadeira debaixo da mesa: normal
                 continue
             pen = _overlap_2d(rects[n], rects[m], shrink=0.05)
-            if pen > 0.1 and _z_overlap(rects[n], rects[m]) > 0.1:
+            if pen > 0.1 and _z_overlap(rects[n], rects[m]) > (0.03 if tilt else 0.1):  # virada em cima: não pode entrar
                 out["sobreposições"].append(f"{_name(n, objs[n])} e {_name(m, objs[m])} ocupam o mesmo sítio ({pen:.2f} m).")
 
     # 2. Portas num vão; janelas numa parede
@@ -138,7 +147,7 @@ def check(layout: dict | None, max_items: int = 30) -> list[str]:
             continue
         if model == "door":
             if blocking:
-                out["portas e janelas"].append(f"{_name(n, o)} está tapada pela parede #{blocking[0]}: falta o vão (parte a parede em dois troços).")
+                out["portas e janelas"].append(f"{_name(n, o)} está tapada pela parede #{_num(blocking[0], objs[blocking[0]])}: falta o vão (parte a parede em dois troços).")
             elif not _indoor(zones, cx, cy, r[5]):
                 continue  # porta de rua: a fachada pode ser um quarteirão gerado, que aqui não se vê
             elif not all(side) and not any(side):
@@ -161,14 +170,14 @@ def check(layout: dict | None, max_items: int = 30) -> list[str]:
         for n, o in zones:
             w, d = abs(o["to"][0] - o["from"][0]), abs(o["to"][1] - o["from"][1])
             if w < 0.5 or d < 0.5:
-                out["fora das divisões"].append(f"#{n} zone «{o.get('name')}» quase sem área ({w:.1f} × {d:.1f} m): não tem chão.")
+                out["fora das divisões"].append(f"#{_num(n, o)} zone «{o.get('name')}» quase sem área ({w:.1f} × {d:.1f} m): não tem chão.")
             for m, p in zones:
                 if m <= n or abs((o.get("z") or 0) - (p.get("z") or 0)) > 0.3:
                     continue
                 ox = min(max(o["from"][0], o["to"][0]), max(p["from"][0], p["to"][0])) - max(min(o["from"][0], o["to"][0]), min(p["from"][0], p["to"][0]))
                 oy = min(max(o["from"][1], o["to"][1]), max(p["from"][1], p["to"][1])) - max(min(o["from"][1], o["to"][1]), min(p["from"][1], p["to"][1]))
                 if ox > 0.3 and oy > 0.3:
-                    out["fora das divisões"].append(f"#{n} «{o.get('name')}» e #{m} «{p.get('name')}» sobrepõem-se no mesmo piso ({ox:.1f} × {oy:.1f} m).")
+                    out["fora das divisões"].append(f"#{_num(n, o)} «{o.get('name')}» e #{_num(m, p)} «{p.get('name')}» sobrepõem-se no mesmo piso ({ox:.1f} × {oy:.1f} m).")
 
     # 4. A flutuar ou enterrados
     supports = [(n, r) for n, r in rects.items()]
@@ -183,15 +192,16 @@ def check(layout: dict | None, max_items: int = 30) -> list[str]:
             out["a flutuar ou enterrados"].append(f"{_name(n, o)} está {floor - base:.2f} m abaixo do chão.")
         elif base > floor + 0.05 and o.get("type") == "piece":
             under = any(m != n and abs(rm[6] - base) < 0.08 and _overlap_2d(r, rm, shrink=0.0) for m, rm in supports)
-            hung = o.get("model") in WALL_MOUNTED or any(  # encostado a uma parede ou fachada: pendurado
-                _overlap_2d((r[0], r[1], r[2] + 0.1, r[3] + 0.1, r[4], r[5], r[6]), rw, shrink=0.0) for rw in tall.values())
+            hung = o.get("model") in WALL_MOUNTED or any(  # encostado a uma parede ou fachada, à mesma altura: pendurado
+                _overlap_2d((r[0], r[1], r[2] + 0.1, r[3] + 0.1, r[4], r[5], r[6]), rw, shrink=0.0) and _z_overlap(r, rw) > 0
+                for rw in tall.values())
             if not under and not hung:
                 out["a flutuar ou enterrados"].append(f"{_name(n, o)} começa a {base - floor:.2f} m do chão sem nada por baixo.")
 
     # 5. Assentos virados para nada
     for n, o in enumerate(objs):
-        if o.get("type") != "piece" or o.get("model") not in DIRECTED_SEATS or n not in rects:
-            continue
+        if o.get("type") != "piece" or o.get("model") not in DIRECTED_SEATS or n not in rects or o.get("rot_x") or o.get("rot_y"):
+            continue  # virado ou deitado já não é um assento
         r = rects[n]
         near = [(math.hypot(rm[0] - r[0], rm[1] - r[1]), m) for m, rm in rects.items()
                 if objs[m].get("model") in TARGETS and abs(rm[5] - r[5]) < 0.5]
@@ -218,11 +228,11 @@ def check(layout: dict | None, max_items: int = 30) -> list[str]:
             area = abs((o["to"][0] - o["from"][0]) * (o["to"][1] - o["from"][1]))
             ceil = o.get("ceiling", 2.9 if area < 400 else 0)
             if ceil and ceil < 2.3:
-                out["medidas"].append(f"#{n} zone «{o.get('name')}» tem pé-direito de {ceil:.2f} m (menos de 2,3 m).")
+                out["medidas"].append(f"#{_num(n, o)} zone «{o.get('name')}» tem pé-direito de {ceil:.2f} m (menos de 2,3 m).")
     for w, rw in walls.items():
         h = rw[6] - rw[5]
         if h < 2.3 and objs[w].get("color") == "wall":
-            out["medidas"].append(f"#{w} parede com {h:.2f} m de altura (pé-direito baixo).")
+            out["medidas"].append(f"#{_num(w, objs[w])} parede com {h:.2f} m de altura (pé-direito baixo).")
 
     lines = []
     for title, items in out.items():

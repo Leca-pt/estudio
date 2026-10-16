@@ -117,7 +117,7 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
                    "who": (r["who"].label or r["who"].name) if r["who"] else ""}
                   for r in script if r["line"].kind == "dialogue" and r["n"] in spans and r["line"].text.strip()]
     ctx = {
-        "stage_spec": stage_spec, "stage_subs": stage_subs, "stage_hash": S3.preview_hash(stage_spec),
+        "stage_spec": stage_spec, "stage_subs": stage_subs, "set_var": S3.variation_info(session, scene), "stage_hash": S3.preview_hash(stage_spec),
         "stage_have": S3.preview_have(session, scene_id=scene.id), "set_loc": set_loc,
         "stage_d": float((scene.stage3d or {}).get("duration") or 0),
         **_timeline(shots, float((scene.stage3d or {}).get("duration") or 0)),
@@ -307,7 +307,10 @@ def _shot_view(request: Request, session: Session, project: Project, shot: Shot,
     checks = list(session.exec(select(ShotCheck).where(ShotCheck.shot_id == shot.id).order_by(ShotCheck.order, ShotCheck.id)).all())
     prev_shot, next_shot = _neighbours(session, scene, shot)
     script = script_coverage(session, scene)
+    from app import scene3d as _s3
+
     ctx = {
+        "set_var": _s3.variation_info(session, scene),
         "script": script, "shot_lines": set(shot_line_ids(session, shot)),
         "line_groups": [("Guião da cena", [(r["line"].id, None, f"{r['n']} · " + (
             f"{r['who'].name if r['who'] else '—'}: «{r['line'].text}»" if r["line"].kind == "dialogue" else r["line"].text)

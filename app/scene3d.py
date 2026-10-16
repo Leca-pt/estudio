@@ -129,6 +129,7 @@ def _objects(items, where: str) -> list[dict]:
         if not isinstance(it, dict) or it.get("type") not in OBJECT_TYPES:
             raise SceneError(f"{where}, objeto {n}: tipo tem de ser um de {', '.join(sorted(OBJECT_TYPES))}.")
         t, w = it["type"], f"{where}, objeto {n} ({it['type']})"
+        it = _aliases(it, w)
         if t == "zone":  # divisão com nome (sala, cozinha, quarto…): só o chão marcado e o nome
             a, b = _vec(it.get("from"), w, 2), _vec(it.get("to"), w, 2)
             zone = {"type": "zone", "name": str(it.get("name") or "divisão")[:40],
@@ -200,7 +201,7 @@ def _objects(items, where: str) -> list[dict]:
             dims, tone = PIECES[model]
             o = {"type": "piece", "model": model, "center": _vec(it.get("center"), w), "rot_z": _num(it.get("rot_z", 0), w, -360, 360),
                  "size": _vec(it["size"], w, lo=0.05, hi=60) if it.get("size") is not None else list(dims),
-                 "color": _color(it.get("color"), tone)}
+                 "color": _color(it.get("color"), tone)} | _tilt(it, w)
             if it.get("label"):
                 o["label"] = str(it["label"])[:60]
             out.append(o)
@@ -212,7 +213,7 @@ def _objects(items, where: str) -> list[dict]:
             o["plain"] = True  # sem janelas desenhadas (paredes interiores, muros)
         if t == "box":
             o |= {"center": _vec(it.get("center"), w), "size": _vec(it.get("size"), w, lo=0.01, hi=3000),
-                  "rot_z": _num(it.get("rot_z", 0), w, -360, 360)}
+                  "rot_z": _num(it.get("rot_z", 0), w, -360, 360)} | _tilt(it, w)
         elif t == "prism":
             shape = str(it.get("shape") or "gable")
             if shape not in PRISM_SHAPES:
@@ -250,6 +251,56 @@ def _objects(items, where: str) -> list[dict]:
     if scattered > MAX_SCATTER:
         raise SceneError(f"{where}: {scattered} coisas espalhadas (máximo {MAX_SCATTER} no total); baixa os \"count\".")
     return out
+
+
+def _aliases(it: dict, w: str) -> dict:
+    """Também se aceita "pos" por "center" e "rot": [x, y, z] (graus) por rot_x, rot_y e rot_z."""
+    if "pos" in it and "center" not in it:
+        it = {**{k: v for k, v in it.items() if k != "pos"}, "center": it["pos"]}
+    if "rot" in it:
+        rx, ry, rz = _vec(it["rot"], f"{w} rot", 3, -360, 360)
+        it = {**{k: v for k, v in it.items() if k != "rot"}, "rot_x": rx, "rot_y": ry, "rot_z": rz}
+    return it
+
+
+def _tilt(it: dict, w: str) -> dict:
+    """Inclinação (peças e caixas): rot_x e rot_y em graus, só quando não são 0."""
+    out = {}
+    for k in ("rot_x", "rot_y"):
+        if it.get(k):
+            v = _num(it[k], f"{w} {k}", -360, 360)
+            if v % 360:
+                out[k] = v
+    return out
+
+
+def tilted_size(size: list[float], o: dict) -> list[float]:
+    """Medidas [x, y, z] da caixa que envolve um objeto inclinado (rot_x e depois rot_y), antes do rot_z — as
+    mesmas contas do navegador."""
+    ax, ay = math.radians(o.get("rot_x", 0)), math.radians(o.get("rot_y", 0))
+    if not ax and not ay:
+        return list(size)
+    cx, sx, cy, sy = math.cos(ax), math.sin(ax), math.cos(ay), math.sin(ay)
+    # R = Rx(ax) · Ry(ay), em coordenadas da cena (x, y, z = altura)
+    rx = [[1, 0, 0], [0, cx, -sx], [0, sx, cx]]
+    ry = [[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]]
+    r = [[sum(rx[i][k] * ry[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+    return [round(sum(abs(r[i][j]) * size[j] for j in range(3)), 4) for i in range(3)]
+
+
+def upside_down(o: dict) -> bool:
+    """Virado ao contrário (de pernas para o ar): rot_x ou rot_y perto de 180°."""
+    return math.cos(math.radians(o.get("rot_x", 0))) * math.cos(math.radians(o.get("rot_y", 0))) < -0.9
+
+
+def flipped_seat_h(o: dict) -> float | None:
+    """Um assento (cadeira, banco…) de pernas para o ar assenta pelo assento — as costas pendem para fora da mesa,
+    como numa taberna fechada: a altura do assento (à escala da peça). None para o resto."""
+    if o.get("type") != "piece" or o.get("model") not in SEAT_H or not upside_down(o):
+        return None
+    base_h = PIECES[o["model"]][0][2]
+    size = o.get("size") or PIECES[o["model"]][0]
+    return SEAT_H[o["model"]] * (size[2] / base_h if base_h else 1)
 
 
 def _path(v, w: str) -> list[list[float]]:
@@ -364,6 +415,147 @@ def apply_layout_edit(layout: dict | None, edit) -> dict:
 
 
 STAGE_MAX_S = 600  # duração máxima de uma encenação (10 min)
+MAX_SET_CHANGES = 400
+
+
+def validate_set_changes(data) -> dict | None:
+    """Variações da maquete do local só numa cena: {"hide": [#n…], "update": [{"i": #n, campos a mudar}], "add":
+    [objetos], "note": "o que muda, em palavras"}. Os #n são os da maquete do local («Alterar por partes»); a maquete
+    do local não muda. Os números só se conferem contra a maquete ao aplicar (apply_set_changes)."""
+    if not data:
+        return None
+    if not isinstance(data, dict):
+        raise SceneError('"set_changes" tem de ser {"hide": [...], "update": [...], "add": [...], "note": "..."}.')
+    unknown = set(data) - {"hide", "update", "add", "note"}
+    if unknown:
+        raise SceneError(f"set_changes: campos desconhecidos ({', '.join(sorted(unknown))}); usa hide, update, add e note.")
+    out: dict = {}
+    hide = data.get("hide") or []
+    if not isinstance(hide, list) or any(not isinstance(x, int) or isinstance(x, bool) or x < 0 for x in hide):
+        raise SceneError("set_changes.hide: lista dos #n da maquete do local (números inteiros).")
+    if hide:
+        out["hide"] = sorted(set(hide))
+    update = data.get("update") or []
+    if not isinstance(update, list):
+        raise SceneError('set_changes.update: lista de {"i": #n, campos a mudar}.')
+    ups = []
+    for u in update:
+        if not isinstance(u, dict) or not isinstance(u.get("i"), int) or isinstance(u.get("i"), bool) or u["i"] < 0:
+            raise SceneError('set_changes.update: cada entrada é {"i": #n da maquete do local, campos a mudar}.')
+        u = _aliases(u, f"set_changes.update #{u['i']}")
+        if "type" in u or "model" in u:
+            raise SceneError(f"set_changes.update #{u['i']}: não se muda o tipo nem o modelo (esconde-o e junta outro em add).")
+        if len(u) < 2:
+            raise SceneError(f"set_changes.update #{u['i']}: não muda nada.")
+        ups.append(u)
+    if ups:
+        out["update"] = ups
+    adds = data.get("add") or []
+    if adds:
+        out["add"] = _objects(adds, "set_changes.add")
+    if len(out.get("hide", [])) + len(ups) + len(out.get("add", [])) > MAX_SET_CHANGES:
+        raise SceneError(f"set_changes: demasiadas mudanças (máximo {MAX_SET_CHANGES}).")
+    if data.get("note"):
+        out["note"] = str(data["note"]).strip()[:300]
+    return out if any(out.get(k) for k in ("hide", "update", "add")) else None
+
+
+def apply_set_changes(base: dict | None, changes: dict | None) -> dict | None:
+    """A maquete do local com as variações de uma cena. Cada objeto leva "n": o número dele na maquete do local (os
+    juntados continuam a contagem), para os avisos e as plantas usarem os mesmos #n que «Alterar por partes»."""
+    if not base or not changes:
+        return base
+    objs = base.get("objects", [])
+    total = len(objs)
+
+    def index(raw, where):
+        if not 0 <= raw < total:
+            raise SceneError(f"set_changes.{where}: #{raw} não existe na maquete do local (vai de #0 a #{total - 1}).")
+        return raw
+
+    hide = {index(n, "hide") for n in changes.get("hide", [])}
+    edits: dict[int, dict] = {}
+    for u in changes.get("update", []):
+        i = index(u["i"], "update")
+        if i in hide:
+            raise SceneError(f"set_changes: #{i} está escondido e também em update; tira-o de um dos dois.")
+        edits.setdefault(i, {}).update({k: v for k, v in u.items() if k != "i"})
+    kept = []
+    for k, o in enumerate(objs):
+        if k in hide:
+            continue
+        o = dict(o)
+        for f, v in edits.get(k, {}).items():
+            if v is None:
+                o.pop(f, None)
+            else:
+                o[f] = v
+        kept.append((k, o))
+    adds = changes.get("add", [])
+    try:
+        out = validate_set({**base, "objects": [o for _k, o in kept] + adds})
+    except SceneError as exc:
+        raise SceneError(f"set_changes: {exc}") from exc
+    for (k, _o), o in zip(kept, out["objects"]):
+        o["n"] = k
+    for j, o in enumerate(out["objects"][len(kept):]):
+        o["n"] = total + j
+        o["scene_only"] = True
+    return out
+
+
+def set_changes_summary(changes: dict | None, base: dict | None) -> str:
+    """Em palavras, o que a cena muda na maquete do local (para os avisos e os prompts)."""
+    if not changes:
+        return ""
+    objs = (base or {}).get("objects", [])
+
+    def what(o):
+        return o.get("model") or o.get("type") or "objeto"
+
+    def count(items):
+        c: dict[str, int] = {}
+        for o in items:
+            c[what(o)] = c.get(what(o), 0) + 1
+        return ", ".join(f"{n} {k}" for k, n in c.items())
+
+    parts = []
+    hidden = [objs[i] for i in changes.get("hide", []) if i < len(objs)]
+    moved = [objs[u["i"]] for u in changes.get("update", []) if u["i"] < len(objs)]
+    if hidden:
+        parts.append(f"sem {count(hidden)}")
+    if moved:
+        parts.append(f"mudados de sítio ou virados: {count(moved)}")
+    if changes.get("add"):
+        labels = sorted({o["label"] for o in changes["add"] if o.get("label")})
+        parts.append(f"a mais: {count(changes['add'])}" + (f" ({'; '.join(labels[:4])})" if labels else ""))
+    text = "; ".join(parts)
+    return f"{changes['note']} — {text}" if changes.get("note") else text
+
+
+def set_changes_count(changes: dict | None) -> int:
+    return sum(len((changes or {}).get(k, [])) for k in ("hide", "update", "add"))
+
+
+def variation_info(session: Session, scene: Scene | None) -> dict | None:
+    """Para os ecrãs: {"count", "text", "problem"} se a cena muda a maquete do local; None se não muda."""
+    changes = (scene.stage3d or {}).get("set_changes") if scene is not None else None
+    if not changes:
+        return None
+    base, loc = scene_base(session, scene)
+    return {"count": set_changes_count(changes), "text": set_changes_summary(changes, base),
+            "problem": set_changes_problem(session, scene), "loc": loc}
+
+
+def variation_note(session: Session, scene: Scene | None) -> str:
+    """Para os prompts (vídeo e frame-chave): o sítio nesta cena não está como nas vistas do local."""
+    info = variation_info(session, scene)
+    if not info or info["problem"]:
+        return ""
+    return ("O SÍTIO NESTA CENA NÃO ESTÁ COMO NAS VISTAS DO LOCAL (a cena muda a maquete do local; as imagens das vistas "
+            f"do local mostram a disposição habitual): {info['text']}. O previs e o vídeo-guia já mostram a versão desta "
+            "cena. No prompt, diz numa frase curta o que está diferente no sítio (ex.: \"the chairs are upside down on "
+            "the tables\"), para o modelo não copiar a disposição da imagem do local.")
 
 
 def _actors(actors, codes: dict, tmax: float) -> list[dict]:
@@ -427,7 +619,7 @@ def _camera(cam, tmax: float = 60) -> list[dict]:
     return out
 
 
-def validate_stage(data, session: Session, project_id: int) -> dict:
+def validate_stage(data, session: Session, project_id: int, scene: Scene | None = None) -> dict:
     """Encenação de uma cena: objetos extra, o elenco e os figurantes ao longo de toda a cena e, opcionalmente, o
     segundo em que começa cada linha do guião ("lines": [{"n": número da linha, "t": segundo}])."""
     if not isinstance(data, dict):
@@ -443,6 +635,11 @@ def validate_stage(data, session: Session, project_id: int) -> dict:
                            for x in lines if isinstance(x, dict)), key=lambda x: x["t"])
     if data.get("seed") is not None:
         out["seed"] = int(_num(data["seed"], "seed", 0, 1e6))
+    changes = validate_set_changes(data.get("set_changes"))
+    if changes:
+        if scene is not None:  # os #n têm de existir na maquete do local da cena
+            apply_set_changes(scene_base(session, scene)[0], changes)
+        out["set_changes"] = changes
     return out
 
 
@@ -576,14 +773,42 @@ def suggest_color(session: Session, scene: Scene, code: str, used: set[str]) -> 
     return next((c for c in CAST_ORDER if c not in used), CAST_ORDER[0])
 
 
-def scene_set(session: Session, scene: Scene | None) -> tuple[dict | None, Asset | None]:
-    """(maquete em uso, o local dela) — a encenação da cena passa-se na maquete do local escolhido."""
+def scene_base(session: Session, scene: Scene | None) -> tuple[dict | None, Asset | None]:
+    """(maquete do local, o local) — tal como está no local, sem as variações da cena."""
     if scene is None or not scene.set3d_asset_id:
         return None, None
     loc = session.get(Asset, scene.set3d_asset_id)
     if loc is not None and loc.layout3d:
         return loc.layout3d, loc
     return None, None
+
+
+@memo
+def scene_set(session: Session, scene: Scene | None) -> tuple[dict | None, Asset | None]:
+    """(maquete em uso, o local dela) — a encenação da cena passa-se na maquete do local escolhido, com as variações
+    só desta cena (set_changes da encenação). Se as variações já não batem com a maquete do local (mudou entretanto),
+    fica a maquete do local e o aviso vem de set_changes_problem."""
+    base, loc = scene_base(session, scene)
+    changes = (scene.stage3d or {}).get("set_changes") if scene is not None else None
+    if base and changes:
+        try:
+            return apply_set_changes(base, changes), loc
+        except SceneError:
+            return base, loc
+    return base, loc
+
+
+def set_changes_problem(session: Session, scene: Scene | None) -> str | None:
+    """Porque é que as variações da cena não se aplicam (ex.: a maquete do local perdeu objetos), ou None."""
+    base, _loc = scene_base(session, scene)
+    changes = (scene.stage3d or {}).get("set_changes") if scene is not None else None
+    if not base or not changes:
+        return None
+    try:
+        apply_set_changes(base, changes)
+    except SceneError as exc:
+        return str(exc)
+    return None
 
 
 @memo
@@ -699,8 +924,12 @@ def compose(session: Session, project_id: int, shot: Shot | None = None, locatio
             return None
         start, dur = shot_window(shot)
         actors = _actors_out(slice_actors(stage.get("actors", []), start, dur), colors, labels, models)
-        return {"layers": layers, "actors": actors, "camera": list(cam.get("camera") or []), "duration": dur,
-                "start": start, "legend": _legend(layers, actors, colors, labels), "palette": NEUTRAL | ACCENT}
+        out = {"layers": layers, "actors": actors, "camera": list(cam.get("camera") or []), "duration": dur,
+               "start": start, "legend": _legend(layers, actors, colors, labels), "palette": NEUTRAL | ACCENT}
+        raw, _loc = scene_base(session, scene)
+        if base is not raw and raw:  # a cena muda a maquete: as vistas novas do local tiram-se da maquete do local
+            out["loc_layer"] = _with_models([{"offset": [0, 0, 0], "rot_z": 0, **raw}], models)[0]
+        return out
     if scene is None or (not base and not stage):
         return None
     actors = _actors_out(stage.get("actors", []), colors, labels, models)
@@ -1237,8 +1466,10 @@ def staging_plan(layout: dict | None) -> str:
         lines.append(f"zona «{z['name'] or 'o espaço todo'}»: de [{r(z['from'][0])}, {r(z['from'][1])}] a [{r(z['to'][0])}, {r(z['to'][1])}], "
                      + (f"chão a {r(z['z'])} m" if not any(o.get("type") == "terrain" for o in layout.get("objects", [])) else "chão: o do relevo")
                      + (" (ao ar livre)" if z["outdoor"] else ""))
-    for o in layout.get("objects", []):
+    for idx, o in enumerate(layout.get("objects", [])):
         t = o.get("type")
+        num = f"#{o.get('n', idx)} "
+        tilt = "".join(f", {k} {r(o[k])}°" for k in ("rot_x", "rot_y") if o.get(k))
         if t == "piece":
             c, size = o["center"], o.get("size") or list(PIECES[o["model"]][0])
             where = location3d.zone_at(layout, c[0], c[1], c[2] + 0.5) or "—"
@@ -1246,11 +1477,13 @@ def staging_plan(layout: dict | None) -> str:
             if o["model"] in SEAT_H:
                 base_h = PIECES[o["model"]][0][2]
                 seat = f", assento a {r(c[2] + SEAT_H[o['model']] * (size[2] / base_h if base_h else 1))} m"
-            lines.append(f"{o['model']}{' «' + o['label'] + '»' if o.get('label') else ''} em [{r(c[0])}, {r(c[1])}, {r(c[2])}] "
-                         f"rot {r(o.get('rot_z', 0))}° ({r(size[0])}×{r(size[1])}×{r(size[2])} m{seat}) · zona {where}")
+            if tilt:
+                seat = ""  # virado ou deitado: já não se senta
+            lines.append(f"{num}{o['model']}{' «' + o['label'] + '»' if o.get('label') else ''} em [{r(c[0])}, {r(c[1])}, {r(c[2])}] "
+                         f"rot {r(o.get('rot_z', 0))}°{tilt} ({r(size[0])}×{r(size[1])}×{r(size[2])} m{seat}) · zona {where}")
         elif t == "box" and o.get("label"):
             c, sz = o["center"], o["size"]
-            lines.append(f"«{o['label']}» (caixa) em [{r(c[0])}, {r(c[1])}, {r(c[2])}] tamanho {[r(x) for x in sz]} rot {r(o.get('rot_z', 0))}°")
+            lines.append(f"{num}«{o['label']}» (caixa) em [{r(c[0])}, {r(c[1])}, {r(c[2])}] tamanho {[r(x) for x in sz]} rot {r(o.get('rot_z', 0))}°{tilt}")
         elif t == "box" and min(o["size"][0], o["size"][1]) < 0.5 and o["size"][2] > 1.5:  # parede: de ponta a ponta
             c, sz, a = o["center"], o["size"], math.radians(o.get("rot_z", 0))
             half = (sz[0] if sz[0] >= sz[1] else sz[1]) / 2
@@ -1354,7 +1587,10 @@ SET_HELP = (
     'rot_z (0 = frente para +Y, 90 = para -X, 180 = para -Y, -90 = para +X), size [largura, profundidade, altura] '
     'opcional, color opcional, label} com model um de: ' + ", ".join(PIECES)
     + ' (a frente +Y é o lado de quem a usa: o assento da cadeira, a porta do frigorífico, a frente do carro; uma '
-    'cadeira virada para a mesa tem rot_z a apontar para ela); zone (divisão com nome) {name, from [x,y], to [x,y], z '
+    'cadeira virada para a mesa tem rot_z a apontar para ela; peças e caixas também se inclinam com rot_x e rot_y, ou '
+    '"rot": [rx, ry, rz] em graus — ex. [180, 0, 0] = de pernas para o ar —; numa peça inclinada o z de center é onde '
+    'assenta o ponto mais baixo — num assento de pernas para o ar, o assento, com as costas a pender —, uma caixa '
+    'roda à volta do meio); zone (divisão com nome) {name, from [x,y], to [x,y], z '
     '(altura do chão desse piso, 0 no rés-do-chão), ceiling}. '
     'Usa SEMPRE peças para mobília, portas, janelas, escadas, candeeiros, árvores e carros estacionados; caixas só '
     'para paredes, chão, muros, prédios e o que não houver na biblioteca. Os prédios (cores building*, tall, low) '
@@ -1429,6 +1665,18 @@ STAGE_HELP = (
     'peace keepers, táxis autónomos, drones…) levam SEMPRE "code" do elemento (kind "person" para quem anda, "car" '
     'ou "vehicle" para veículos): ganham a cor do elemento na maquete e a folha dele segue para os vídeos onde '
     'aparecem. Os outros figurantes ficam sem código (cinzentos, pessoas e carros genéricos). Respeita as notas de blocking (lados do ecrã, regra dos 180°).'
+    ' VARIAÇÕES DA MAQUETE SÓ NESTA CENA ("set_changes"): quando o guião pede o local diferente do habitual (fechado, '
+    'cadeiras viradas em cima das mesas, mesa tombada, caixotes a mais), NÃO mexas na maquete do local (serve todas as '
+    'cenas): põe na encenação {"set_changes": {"hide": [#n da maquete do local que não aparecem nesta cena], '
+    '"update": [{"i": #n, "center" (ou "pos"): [x, y, z], "rot": [rx, ry, rz] (graus nos três eixos) ou só "rot_z", '
+    'outros campos a mudar}], "add": [objetos só desta cena, no formato da maquete; contam a partir do último #n], '
+    '"note": "o que muda, em palavras (vai para os prompts)"}}. Os #n são os da PLANTA DA MAQUETE / «Alterar por partes». '
+    'Numa peça com rot_x ou rot_y (inclinada, deitada, virada ao contrário: "rot": [180, 0, 0] = de pernas para o ar) o z de '
+    '"center" é onde assenta o ponto mais baixo do objeto já rodado (ex.: uma cadeira virada em cima de uma mesa de '
+    '0,75 m leva z 0,75; um assento de pernas para o ar assenta pelo assento e as costas pendem, por isso põe as costas '
+    'para fora do tampo — com rot_z — e não enfiadas nele) e x, y o meio da pegada. Depois verifica com check_layout sb_scene:N (nada a flutuar nem '
+    'enfiado noutra coisa) e vê com view_layout sb_scene:N. A maquete do local e as outras cenas não mudam; as vistas do '
+    'local continuam a mostrar a versão do local, por isso escreve em "note" a diferença que o vídeo tem de mostrar.'
 )
 CAMERA_HELP = (
     'value = JSON da CÂMARA deste plano sobre a encenação da cena: {"start": <segundo da encenação onde o plano '

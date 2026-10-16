@@ -331,3 +331,5 @@
 
 {# Resolução das imagens ao lado do modelo (começa na do projeto; o JS deixa só as que o modelo escolhido aceita). #}
 {% macro res_select(name, form) %}<select name="{{ name }}" class="gen-select res-select" form="{{ form }}" aria-label="Resolução" title="Resolução da imagem (a do projeto: {{ project.image_resolution or '2K' }})" data-default="{{ project.image_resolution or '2K' }}">{% for r in ("1K", "2K", "4K") %}<option value="{{ r }}"{% if r == (project.image_resolution or "2K") %} selected{% endif %}>{{ r }}</option>{% endfor %}</select>{% endmacro %}
+
+{% macro set_var_note(v) %}{% if v %}<p class="alert warn" style="margin: 0 0 10px">{% if v.problem %}As variações da maquete desta cena não se aplicam (a maquete do local mudou entretanto): {{ v.problem }} Corrige-as na encenação da cena.{% else %}A cena muda a maquete do local ({{ v.count }} mudança{{ "s" if v.count != 1 }}: {{ v.text }}). As imagens das vistas do local mostram a versão habitual; o previs e o vídeo-guia já mostram esta cena, e o prompt diz a diferença.{% endif %}</p>{% endif %}{% endmacro %}

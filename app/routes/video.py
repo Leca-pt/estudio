@@ -698,7 +698,10 @@ def _view(request: Request, session: Session, project: Project, shot: Shot, scen
     t = PT.get(session, project, "video", str(shot.id))
     cast = moments.cast_images(session, shot)
     vs = video_settings(session)
+    from app import scene3d as _s3
+
     ctx = {
+        "set_var": _s3.variation_info(session, session.get(Scene, shot.scene_id)),
         "prompt": prompt_ops.panel(session, t, "Prompt de vídeo", people=_people(session, shot), dialogue=shot.dialogue),
         "moments": moments.rows(session, shot), "location": moments.location(session, shot),
         "sent": [(m, PT_label(session, m)) for m in sent],

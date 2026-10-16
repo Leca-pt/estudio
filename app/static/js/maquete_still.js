@@ -2,7 +2,7 @@
 // (buildLayer, actorMesh), vista de cima com grelha e números dos objetos, pelas vistas do local, à altura dos olhos,
 // de três quartos, por um piso cortado ou por uma câmara livre. Corre num Chromium sem ecrã dentro do contentor.
 import * as THREE from '../vendor/three/three.module.min.js';
-import { SKY, actorMesh, buildLayer, facingAt, fovFor, groundFn, groundPlane, linear, modelsReady, onGround, v3 } from './scene3d.js?v=47';
+import { SKY, actorMesh, buildLayer, facingAt, fovFor, groundFn, groundPlane, linear, modelsReady, onGround, v3 } from './scene3d.js?v=48';
 import { applyPose } from './scene3d_parts.js?v=4';
 
 const rad = (d) => (d || 0) * Math.PI / 180;
@@ -148,7 +148,7 @@ export async function renderStills(spec, opts) {
         if (floorZ !== null && (p[2] < floorZ - 0.3 || p[2] > floorZ + 3.2)) return;
         if (!near(p)) return;
         if (plan && opts.focus && (p[0] < b.x0 - 1 || p[0] > b.x1 + 1 || p[1] < b.y0 - 1 || p[1] > b.y1 + 1)) return;
-        const s = textSprite(`#${n}`, { size: ts, color: '#000', bg: 'rgba(255,214,0,0.85)', screen: !plan });
+        const s = textSprite(`#${o.n ?? n}`, { size: ts, color: '#000', bg: 'rgba(255,214,0,0.85)', screen: !plan });
         s.position.copy(v3(plan ? [p[0], p[1], (floorZ ?? 0) + 0.1] : [p[0], p[1], p[2] + 0.15]));
         ov.add(s);
       });

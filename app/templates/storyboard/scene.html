@@ -90,6 +90,7 @@
     <button class="btn sm" type="button" data-open-dialog="pick-cast3d">Escolher elenco</button>
   </div>
   {{ m.picker("pick-cast3d", "Elenco da encenação", cast3d_groups, cast3d_ids, "cast3d", "scene-form", hint="As personagens, os adereços e os elementos do mundo (robots, táxis…) que entram na cena. Cada um tem uma cor forte (a mesma noutras cenas, se estiver livre); um elemento com vários figurantes tem uma só cor. Nos vídeos seguem as folhas do que a câmara de cada plano vê.", sent_name="cast3d_sent") }}
+  {{ m.set_var_note(set_var) }}
   {% if stage_spec and set_loc %}
   <div class="m3d" data-scene3d data-aspect="{{ project.aspect_ratio or '16:9' }}"
        data-preview="/projetos/{{ project.id }}/storyboard/cenas/{{ scene.id }}/encenacao/previas" data-preview-hash="{{ stage_hash or '' }}" data-preview-have="{{ stage_have }}">

@@ -260,6 +260,13 @@ def _asset_by_code(session: Session, project: Project, code: str) -> Asset | Non
     return session.exec(select(Asset).where(Asset.project_id == project.id, Asset.name == code)).first() if code else None
 
 
+def _stage_scene(session: Session, project: Project, key: str) -> Scene | None:
+    """A cena de um campo stage3d:N (para conferir as variações da maquete com a maquete do local dela)."""
+    raw = key.split(":", 1)[1] if ":" in key else ""
+    scene = session.get(Scene, int(raw)) if raw.isdigit() else None
+    return scene if scene is not None and scene.project_id == project.id else None
+
+
 def validate(session: Session, project: Project, key: str, value: str, allowed: dict[str, FieldSpec]) -> str:
     """Valida uma proposta contra os campos permitidos neste contexto. Devolve o valor normalizado."""
     if key not in allowed:
@@ -317,7 +324,7 @@ def validate(session: Session, project: Project, key: str, value: str, allowed: 
             raise ProposalError("O JSON 3D não é válido.")
         try:
             clean = (scene3d.validate_camera(data) if fs.kind == "scene3d"
-                     else scene3d.validate_stage(data, session, project.id) if fs.kind == "stage3d"
+                     else scene3d.validate_stage(data, session, project.id, _stage_scene(session, project, key)) if fs.kind == "stage3d"
                      else scene3d.validate_set(data))
         except scene3d.SceneError as exc:
             raise ProposalError(str(exc))
@@ -848,7 +855,7 @@ def apply(session: Session, project: Project, key: str, value: str, context_scen
         if not scene or scene.project_id != project.id:
             raise ProposalError("A cena já não existe.")
         try:
-            scene.stage3d = scene3d.validate_stage(json.loads(value), session, project.id)
+            scene.stage3d = scene3d.validate_stage(json.loads(value), session, project.id, scene)
         except scene3d.SceneError as exc:
             raise ProposalError(str(exc))
         scene.cast3d = scene3d.scene_cast(session, scene) or None
