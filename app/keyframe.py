@@ -277,13 +277,21 @@ def block(session: Session, project, shot: Shot) -> dict:
         for row in moments.rows(session, shot):
             who = [names.get(c, c) for c in scene3d.codes_at(session, shot, row["t"]) if c in names]
             choices.append({"n": row["n"], "t": row["t"], "who": who, "on": row["n"] == r["n"], "render": row["render"]})
+    from app.jobs import key_two_pass_ok
+    from app.routes.gpt import default_generator, parse_generator
+
+    results = media_list(session, shot_id=shot.id, role=ROLE, status="pending")
+    pass1 = {m.id: p for m in results if (p := _params(session, m).get("pass1"))}
+    two_pass = bool(shot.scene3d) and key_two_pass_ok(session, *parse_generator(default_generator(session, use=t.use)))
+    far = r is not None and r.get("image") is not None and r.get("fit") != "parecida"
     return {"panel": prompt_ops.panel(session, t, "Prompt do frame-chave"), "media": key, "label": label,
+            "two_pass": two_pass, "pass1": pass1, "view_far": far, "view_fit": r.get("fit") if r else None,
             "moment": r, "choices": choices, "absent": absent(session, shot), "all": all_approved(session, shot),
             "stale": stale(session, shot),
             "sent": key is not None and key.id in sent, "missing": missing(session, shot),
             "render": render(session, shot), "previous": previous(session, shot),
             "jobs": jobs_ctx(session, project, ROLE, shot_id=shot.id),
-            "results": media_list(session, shot_id=shot.id, role=ROLE, status="pending"),
+            "results": results,
             "rejected": [m for m in reversed(media_list(session, shot_id=shot.id, role=ROLE, status="rejected"))
                          if (media_root() / m.path).is_file()]}
 

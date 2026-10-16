@@ -345,7 +345,16 @@ def _key_context(session: Session, t: Target) -> str:
                  f"plano ({r['cam']['lens']:g} mm). O render desse instante é a primeira imagem que segue: dá o "
                  "enquadramento, a altura e o ângulo da câmara, onde está cada pessoa e para onde olha (viseira escura "
                  "= o rosto) e onde está cada objeto." if r else "")
-        rows = [start,
+        far = ""
+        if r and r.get("image") is not None and r.get("fit") != "parecida":
+            from app import ref_tokens
+
+            tok = ref_tokens.token_for(session, r["image"])[0]
+            far = (f"A VISTA DO LOCAL DESTE MOMENTO ({tok}) FOI TIRADA DE OUTRO ÂNGULO (parecença {r['fit']} com a "
+                   "câmara do plano): no prompt, diz numa frase que ela serve só para os materiais, as cores e a luz do "
+                   "sítio e que o enquadramento, a altura da câmara, a lente e a profundidade do espaço vêm do previs; "
+                   "nunca descrevas o espaço como se vê nela.")
+        rows = [start, far,
                 "NO PREVIS, QUEM É QUEM: " + "; ".join(keyframe.cast_colours(session, shot)) if cast else "",
                 f"NESSE INSTANTE (calculado da encenação e da câmara): {first}" if first else "",
                 ("FORA DESTA IMAGEM (aparecem noutra altura do plano; NÃO os ponhas na imagem nem os nomeies no prompt): "
@@ -469,6 +478,20 @@ def enqueue(session: Session, t: Target, gen: dict | None) -> tuple[bool, str]:
     if t.kind == "look" and not getattr(session.get(Asset, t.obj.asset_id), "approved_image_id", None):
         return False, "Aprova primeiro a folha da personagem: o look parte dela."
     provider, model = parse_generator(gen.get("gen") or default_generator(session, use=t.use))
+    if params and params.get("base") and t.kind == "chave":
+        from app.jobs import key_two_pass_ok
+
+        if key_two_pass_ok(session, provider, model):  # o ângulo do previs preso num 1.º passo (ver jobs._key_two_pass)
+            from app import keyframe, location3d, moments
+
+            params["two_pass"] = True
+            r, loc = keyframe.moment(session, t.obj), moments.location(session, t.obj)
+            # o 1.º passo só tem texto: como é a zona onde a câmara está (a nota da zona; sem zonas, a do local)
+            note = ((loc.zone_notes or {}).get(r.get("zone") or "") if loc and r else "") or ""
+            if not note and loc is not None and len(location3d.zones(loc.layout3d)) <= 1:
+                note = loc.canonical_description or ""
+            if note:
+                params["place"] = note[:600]
     return queue_image(session, t.project, t.role, t.prompt or "", [m.id for m in inputs(session, t)], provider,
                        model, use=t.use, resolution=gen.get("res") or None, params=params, **t.target)
 

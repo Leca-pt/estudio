@@ -324,6 +324,61 @@ async def _locview(provider: str, ctx: dict, prompt: str, aspect: str | None, in
     return await _image(provider, ctx, prompt, aspect, [], "generate", timeout)
 
 
+# Frame-chave em dois passos (params "two_pass"): os modelos de edição com várias referências não seguram o ângulo de
+# um previs cinzento quando a vista do local foi tirada de outro sítio (copiam a fotografia). 1.º passo: um modelo de
+# estrutura faz uma imagem real com a geometria presa ao previs (câmara, lente, quem está onde), só com texto; 2.º
+# passo: o modelo escolhido parte dessa imagem (já fotográfica, com o ângulo certo) e põe as personagens das folhas e
+# os materiais da vista do local, sem mexer na câmara.
+KEY_STRUCT_MODEL = "flux-pro-depth"
+KEY_PASS1 = ("A real cinematic film still, photographic, natural light, no text. Keep exactly this camera, framing, lens "
+             "and perspective. The rounded figures are real people (adults dressed for the place), standing exactly "
+             "where the figures are, at the same size and facing the same way (the dark band is the face side); every "
+             "block is the real, fully detailed object; walls, doors, shelves and furniture stay where they are.")
+KEY_PASS2 = ("Image 1 (attached) is the frame to keep: it already has the exact camera — framing, camera position and "
+             "height, lens, perspective — and where every person and every object is. Keep all of that exactly; never "
+             "move the camera, never re-frame, never add or remove people. Change only: each person becomes exactly the "
+             "character described below (face, hair, body and clothes from their reference images), and materials, "
+             "colours and light follow the place reference. Where the text below talks about the previs, the grey "
+             "mock-up or the coloured figures, it means Image 1 and the people in it.")
+
+
+def key_two_pass_ok(session: Session, provider: str, model) -> bool:
+    """O frame-chave pode ir em dois passos: há chave da fal (para o modelo de estrutura) e o modelo escolhido aceita
+    imagens (o 2.º passo parte da imagem do 1.º)."""
+    from app import api_keys, image_models
+
+    if not api_keys.get(get_config(session, "api_keys", {}) or {}, "fal") or KEY_STRUCT_MODEL not in image_models.FAL:
+        return False
+    caps = image_models.caps_of(provider, model)
+    return "structure" not in caps and bool({"refs", "edit"} & caps)
+
+
+async def _key_two_pass(provider: str, ctx: dict, prompt: str, aspect: str | None, inputs: list, timeout: int) -> bytes:
+    from app import fal
+
+    lines = [ln for ln in prompt.split("\n") if ln.strip() and "Image" not in ln]  # sem referências: só o texto
+    place = ctx.get("place") or ""
+    text1 = "\n".join([KEY_PASS1] + ([f"The place: {place}"] if place else []) + lines)
+    _stage(ctx.get("job_id"), "1.º passo: a geometria do previs")
+    if not ctx.get("fal_key"):
+        raise fal.FalError("Falta a chave da fal.ai (Configuração → Chaves de API) para o 1.º passo.")
+    first = await _image("fal", ctx | {"control_is_depth": False}, text1, aspect, inputs[:1], "structure", timeout,
+                         model=KEY_STRUCT_MODEL)
+    keep = ctx.get("pass1_path")
+    if keep:  # guarda-se ao lado do resultado, para se ver de onde partiu
+        keep.parent.mkdir(parents=True, exist_ok=True)
+        keep.write_bytes(first)
+        path = keep
+    else:
+        import tempfile
+
+        path = Path(tempfile.mkstemp(suffix=".png")[1])
+        path.write_bytes(first)
+    _stage(ctx.get("job_id"), "2.º passo: as personagens e o sítio")
+    return await _image(provider, ctx, KEY_PASS2 + "\n" + prompt, aspect, [(path, "1.º passo")] + list(inputs[1:]),
+                        "generate", timeout)
+
+
 async def _run_one(job_id: int) -> None:
     with Session(engine) as session:
         job = session.get(ImageJob, job_id)
@@ -355,6 +410,10 @@ async def _run_one(job_id: int) -> None:
         from app.options import video_settings
 
         vcfg = video_settings(session)
+        if role == "key" and (job.params or {}).get("two_pass"):  # frame-chave em dois passos: o 1.º fica guardado
+            proj = session.get(Project, job.project_id)
+            ctx["pass1_path"] = media_root() / safe_segment(proj.prefix) / folder_for(session, job) / f"passo1-{job.id}.png"
+            ctx["place"] = str((job.params or {}).get("place") or "")[:600]  # como é a zona (ver prompt_targets)
         if (job.params or {}).get("resolution"):  # a resolução escolhida para este take (plano ou padrão do projeto)
             vcfg = {**vcfg, "quality": job.params["resolution"]}
     credits = None
@@ -422,6 +481,9 @@ async def _run_one(job_id: int) -> None:
                                                 params.get("description"))
                 data = await fal.run(ctx["fal_key"], ctx.get("model"), args, timeout, output="audio",
                                      on_status=lambda t: _stage(ctx.get("job_id"), t))
+        elif role == "key" and (ctx.get("params") or {}).get("two_pass") and not edit:
+            data = await _key_two_pass(provider, ctx, prompt, aspect, inputs, timeout)
+            extra_params["pass1"] = str(ctx["pass1_path"].relative_to(media_root())) if ctx.get("pass1_path") else None
         elif (role == "locview" or (role == "key" and (ctx.get("params") or {}).get("base"))) and not edit:
             # vistas da maquete e frames-chave com previs: partem do render; o caminho depende do que o modelo sabe fazer
             data = await _locview(provider, ctx, prompt, aspect, inputs, timeout)

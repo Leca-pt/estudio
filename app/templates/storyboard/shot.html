@@ -236,6 +236,8 @@
         </div>
         {% for a in key.all if a.n is none %}<p class="hint">Há um frame-chave aprovado de um momento que já não existe (a câmara mudou): <a href="/media/{{ a.media.path }}" hx-boost="false">ver</a>.</p>{% endfor %}
         {% if key.all and not key.media %}<p class="hint warn-t">Nenhum frame-chave segue no pedido de vídeo: escolhe um com «Usar no vídeo».</p>{% endif %}
+        {% if key.view_far %}<p class="hint warn-t" style="margin: 8px 0 0">A vista do local do momento {{ key.moment.n }} foi tirada de outro ângulo (parecença «{{ key.view_fit }}»): o frame-chave pode sair com o ângulo dela. Para o ângulo certo, cria a vista desta câmara no <a href="#momentos">passo 3</a> («+ Vista desta câmara») e gera a imagem dela.</p>{% endif %}
+        {% if key.two_pass %}<p class="hint" style="margin: 8px 0 0">Gera-se em 2 passos: primeiro uma imagem real presa ao ângulo do previs, depois as personagens e o aspeto do sítio por cima dela (cerca do dobro do custo de uma imagem).</p>{% endif %}
         {% if key.absent %}<p class="hint" style="margin: 8px 0 0">No momento {{ key.moment.n }}: {{ key.absent|join("; ") }} — não vão para a imagem.</p>{% endif %}
         {% if key.previous %}<p class="hint" style="margin: 4px 0 0">O escritor vê o frame-chave do plano anterior, para manter a luz, a roupa e o sítio.</p>{% endif %}
       </div>
@@ -256,6 +258,7 @@
       <div class="sec-b" style="display: block">
         {{ m.prompt_panel(key.panel, F, height=150, jobs=key.jobs, gen_label=("Gerar frame-chave do momento %d" % key.moment.n) if key.moment else "Gerar frame-chave", gen_disabled=key.missing) }}
         {% if key.jobs or key.results %}<div class="results" style="margin-top: 10px">{{ m.job_tiles(key.jobs) }}{{ m.results(key.results, ratio=kratio, width=150 if kratio == "r169" else 110, edit=True, prefix="frame-chave ") }}</div>{% endif %}
+        {% if key.pass1 %}<p class="hint" style="margin: 6px 0 0">1.º passo (a geometria, antes das personagens): {% for mid, p in key.pass1.items() %}<a href="/media/{{ p }}" hx-boost="false">ver{% if key.pass1|length > 1 %} {{ loop.index }}{% endif %}</a>{{ " · " if not loop.last }}{% endfor %}</p>{% endif %}
         {{ m.rejected_block(key.rejected, ratio=kratio, width=110) }}
       </div>
   {% endcall %}

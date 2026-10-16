@@ -604,3 +604,14 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   vizinhos (a soma dá a duração do plano). O «Storyboard final» da cena mostra-os todos.
 - Pela conversa: campo «Frame-chave › Momento» (key_moment:N) no ecrã do plano; aprovar e escolher o que segue no
   vídeo é sempre do utilizador.
+
+## Frame-chave com o ângulo do previs (2026-10-16)
+- Problema visto (T1E02 C06 P02 e outros): os modelos de edição com várias referências (GPT Image 2.5) seguem a vista do
+  local quando esta foi tirada de outro ângulo («aproximada»/«diferente») e perdem o enquadramento do previs cinzento.
+- Dois passos (params "two_pass", quando há chave da fal e o modelo escolhido aceita imagens): 1.º um modelo de
+  estrutura (flux-pro-depth) faz uma imagem real presa ao previs, só com texto (a nota da zona da câmara, ou a
+  descrição do local se só há uma zona, e as linhas do prompt sem referências); 2.º o modelo escolhido parte dessa
+  imagem (Image 1) com a vista do local e as folhas, com a ordem de não mexer na câmara. O 1.º passo fica guardado
+  (params "pass1") e vê-se no passo 5. Custa cerca do dobro.
+- Sempre que a vista do momento não é «parecida»: o contexto do escritor diz que ela serve só para materiais, cores e
+  luz; o passo 5 sugere criar a vista desta câmara no passo 3.
