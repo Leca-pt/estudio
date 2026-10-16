@@ -580,10 +580,22 @@
       sel.value = allowed.reduce((a, b) => (Math.abs(RES.indexOf(b) - want) < Math.abs(RES.indexOf(a) - want) ? b : a));
     }
   }
+  // O modelo escolhido num seletor de gerar fica lembrado neste browser para esse tipo de imagem (frame-chave, vista,
+  // folha…): sem isto, a página, ao atualizar-se depois do pedido, voltava a mostrar o modelo por omissão (e o pedido
+  // seguinte ia para ele).
+  const genKey = (sel) => { const m = /^gen:([^:]+):/.exec(sel.name || ''); return m ? 'estudio-gen:' + m[1] : null; };
+  function restoreGens(root) {
+    (root && root.querySelectorAll ? root : document).querySelectorAll('select.gen-select:not(.res-select)').forEach((sel) => {
+      const k = genKey(sel), v = k && !sel._touched ? store.get(k) : null;
+      if (v && v !== sel.value && [...sel.options].some((o) => o.value === v)) sel.value = v;
+    });
+  }
   document.addEventListener('change', (e) => {
     const t = e.target;
     if (t && t.matches && t.matches('select.res-select')) t._picked = true;
     if (t && t.matches && t.matches('select.gen-select:not(.res-select)') && t.parentElement) {
+      const k = genKey(t);
+      if (k) store.set(k, t.value);
       t.parentElement.querySelectorAll('select.res-select').forEach(syncRes);
     }
   });
@@ -591,6 +603,7 @@
   function init(root) {
     applyTheme();
     lazyFill();
+    restoreGens(root);
     document.querySelectorAll('select.res-select').forEach(syncRes);
     growAll(root);
     const page = !root || root === document.body || (root.querySelector && root.querySelector('.content')) ||
@@ -617,6 +630,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { growAll(); applyPending(); });
   window.addEventListener('load', () => { growAll(); applyPending(); });
   document.addEventListener('htmx:load', e => init(e.target));
+  document.addEventListener('htmx:afterSettle', () => { restoreGens(); document.querySelectorAll('select.res-select').forEach(syncRes); });  // depois de um morph
 
   // Mini chat no modal de um prompt: o pedido vai ao modelo de escrever prompts, que devolve o prompt alterado; o texto
   // muda na caixa (fica por guardar até carregar em Guardar) e cada pedido fica na lista, com "Desfazer".
