@@ -1328,3 +1328,7 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .key-mo .ph.prev img { opacity: .75; }
 .key-mo.old { border-style: dashed; }
 .pre-gen .pg-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.var-note { margin: 0 0 10px; }
+.var-note summary { cursor: pointer; list-style: none; }
+.var-note summary::-webkit-details-marker { display: none; }
+.var-note p { margin: 4px 0 0 18px; }

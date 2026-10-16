@@ -543,7 +543,8 @@ def variation_info(session: Session, scene: Scene | None) -> dict | None:
     if not changes:
         return None
     base, loc = scene_base(session, scene)
-    return {"count": set_changes_count(changes), "text": set_changes_summary(changes, base),
+    note = (changes.get("note") or "").split(" / ")[0].strip()  # no ecrã: o que o autor escreveu (a parte em português)
+    return {"count": set_changes_count(changes), "text": note or set_changes_summary(changes, base),
             "problem": set_changes_problem(session, scene), "loc": loc}
 
 
