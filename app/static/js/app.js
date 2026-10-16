@@ -1,6 +1,7 @@
 // Estúdio — JS mínimo: tema, gaveta, copiar, contadores, confirmação, diálogos.
 (function () {
   const app = () => document.querySelector('.app');
+  const T = (s) => (window.estudioT ? window.estudioT(s) : s);  // interface em inglês (static/js/i18n.js)
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -109,7 +110,7 @@
     try { return JSON.parse(document.querySelector('.app').getAttribute('hx-headers'))['X-CSRF-Token']; } catch (e) { return ''; }
   }
   function saveFrame(video, url, take, btn) {
-    if (!video || !video.videoWidth) { alert('O vídeo ainda não carregou. Carrega em play e tenta outra vez.'); return; }
+    if (!video || !video.videoWidth) { alert(T('O vídeo ainda não carregou. Carrega em play e tenta outra vez.')); return; }
     const c = document.createElement('canvas');
     c.width = video.videoWidth; c.height = video.videoHeight;
     c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
@@ -119,7 +120,7 @@
       fd.append('frame', blob, 'frame.png'); fd.append('take', take); fd.append('t', video.currentTime.toFixed(3));
       fetch(url, { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrfToken() }, credentials: 'same-origin' })
         .then(r => { if (!r.ok) throw new Error(r.status); const d = document.getElementById('lightbox'); if (d && d.open) d.close(); window.estudioRefresh(); })
-        .catch(() => { if (btn) btn.disabled = false; alert('Não foi possível guardar o fotograma.'); });
+        .catch(() => { if (btn) btn.disabled = false; alert(T('Não foi possível guardar o fotograma.')); });
     }, 'image/png');
   }
   function captureFrom(btn) {
@@ -314,7 +315,7 @@
       const r = await fetch(`/agenda/itens/${agDrag.dataset.item}/mover`, { method: 'POST', body, credentials: 'same-origin',
         headers: { 'x-csrf-token': board.dataset.csrf, 'content-type': 'application/x-www-form-urlencoded' } });
       if (!r.ok) throw new Error(r.status);
-    } catch (err) { alert('Não foi possível mover o cartão.'); }
+    } catch (err) { alert(T('Não foi possível mover o cartão.')); }
     if (window.estudioRefresh) window.estudioRefresh();
   });
 
@@ -510,7 +511,7 @@
   document.addEventListener('input', markDirty, true);
   document.addEventListener('submit', (e) => { dirtyForms.delete(e.target); e.target.classList.remove('dirty'); }, true);
   const anyDirty = () => { for (const f of [...dirtyForms]) { if (!f.isConnected) dirtyForms.delete(f); } return dirtyForms.size > 0; };
-  window.estudioLeaveOk = () => !anyDirty() || confirm('Tens alterações por guardar nesta página. Sair sem guardar?')
+  window.estudioLeaveOk = () => !anyDirty() || confirm(T('Tens alterações por guardar nesta página. Sair sem guardar?'))
     && (dirtyForms.clear(), true);
   document.addEventListener('click', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
@@ -627,7 +628,7 @@
     (root || document).querySelectorAll('textarea[data-count]').forEach(updateCounter);
     // Maquete 3D: o three.js só se carrega nas páginas que têm uma
     const models = document.querySelectorAll('[data-scene3d]:not([data-mounted])');
-    if (models.length) import('/static/js/scene3d.js?v=48').then(m => models.forEach(el => m.mount(el)))
+    if (models.length) import('/static/js/scene3d.js?v=49').then(m => models.forEach(el => m.mount(el)))
       .catch(err => models.forEach(el => { const s = el.querySelector('.m3d-status'); if (s) s.textContent = 'Não foi possível abrir o 3D: ' + err.message; }));
     // Modelo 3D importado de um asset (ficha do asset): pré-visualização a rodar
     const glbs = document.querySelectorAll('[data-model-url]:not([data-mounted])');

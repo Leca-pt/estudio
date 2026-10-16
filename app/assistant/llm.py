@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 
+from app import i18n
 from app.config import settings
 
 
@@ -150,7 +151,7 @@ async def ask(system: str, prompt: str, model: str, timeout_s: int, images: list
         "--output-format", "stream-json" if images else "json",
         *(["--input-format", "stream-json", "--verbose"] if images else []),
         "--json-schema", json.dumps(SCHEMA),
-        "--system-prompt", system,
+        "--system-prompt", system + i18n.assistant_note(),
         "--model", model,
     ]
     try:

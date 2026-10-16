@@ -643,3 +643,20 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   «aproximada»); nunca a da própria vista nem uma desatualizada. Sem nenhuma, a referência da zona, como antes. O
   escritor sabe qual segue e para quê ("Imagem do sítio que segue"); o cartão da vista (ficha do local e passo 3)
   mostra «Aspeto a partir da vista …» ou «… da referência da zona».
+
+## Interface em inglês (2026-10-16)
+- Configuração → «Idioma · Language» (GlobalConfig ui_language; português por omissão). O Assistente e o escritor de
+  prompts respondem ao utilizador nessa língua (i18n.assistant_note no system prompt); o conteúdo dos campos segue as
+  regras de cada campo (os prompts para os modelos continuam em inglês).
+- Tradução à saída, não no código: a app continua a gerar as páginas em português e app/i18n.py (TranslateMiddleware)
+  traduz o texto visível das respostas HTML com o dicionário app/i18n/en.json — frases exatas, padrões com partes
+  variáveis (expressões estritas, com âncora e pedaços fixos obrigatórios; partes nas pontas curtas; uma parte que
+  pareça frase de conteúdo por traduzir faz o padrão não servir), linhas compostas (« · », « › ») parte a parte,
+  frases separadas só se todas tiverem tradução, datas palavra a palavra. Nunca se traduz <textarea>, <script>,
+  <style> nem translate="no"; os valores gravados ficam como estão (as listas mostram-se traduzidas).
+- O texto que o navegador escreve sozinho (maquete, avisos, alert/confirm) traduz-se em static/js/i18n.js com o mesmo
+  dicionário (MutationObserver), carregado de /i18n/en.json com versão.
+- O dicionário fez-se a partir do código (templates, mensagens do servidor, JS, listas) e do texto visto pelo crawler,
+  traduzido com um glossário (scratchpad i18n/GLOSSARY.md, copiado para app/i18n/GLOSSARY.md). Ao acrescentar texto
+  à app, acrescentar a tradução ao en.json (o crawler com I18N_COLLECT lista o que falta).
+- Custo: ~40 ms na página mais pesada (cena com guião longo) com a cache de frases; nada em português.

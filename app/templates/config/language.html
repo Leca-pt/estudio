@@ -1,0 +1,15 @@
+{% extends "config/shell.html" %}
+{% block content %}
+<div class="phead"><div><div class="crumbs">Configuração</div><h1 class="h1">Idioma</h1></div></div>
+{{ m.alerts(error, saved) }}
+<section class="sec" style="max-width: 560px">
+  <div class="sec-h"><h2 class="h2">Idioma da interface</h2></div>
+  <form method="post" action="/configuracao/idioma" class="col" style="padding: 16px; gap: 14px">
+    {{ m.csrf() }}
+    <div class="f"><label for="ui_language">Idioma</label>
+      <select id="ui_language" name="ui_language" class="in" translate="no">{% for code, name in langs.items() %}<option value="{{ code }}"{% if code == current %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+    <div><button class="btn pri" type="submit">Guardar</button></div>
+    <span class="hint">Muda os textos da app e a língua em que o Assistente responde. O conteúdo dos projetos (guião, prompts, nomes) fica como foi escrito; os prompts para os modelos de imagem e vídeo continuam em inglês.</span>
+  </form>
+</section>
+{% endblock %}

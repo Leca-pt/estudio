@@ -73,6 +73,10 @@ app.add_middleware(
     https_only=settings.cookie_secure,
 )
 
+from app.i18n import TranslateMiddleware  # noqa: E402 — com a interface em inglês, traduz as páginas à saída
+
+app.add_middleware(TranslateMiddleware)
+
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 app.include_router(auth.router)
@@ -186,6 +190,16 @@ def manifest():
 @app.get("/sw.js", include_in_schema=False)
 def service_worker():
     return Response(SW_JS, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/i18n/en.json", include_in_schema=False)
+def i18n_dict() -> Response:
+    """O dicionário da interface em inglês, para o navegador (guardado por versão)."""
+    from app import i18n
+
+    path = i18n.DIR / "en.json"
+    data = path.read_bytes() if path.exists() else b"{}"
+    return Response(data, media_type="application/json", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/healthz", include_in_schema=False)

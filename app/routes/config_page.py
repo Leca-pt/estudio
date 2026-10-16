@@ -657,6 +657,23 @@ async def keys_save(request: Request, session: Session = Depends(get_session)):
 
 # ── Conta ────────────────────────────────────────────────────
 
+@router.get("/idioma")
+def language_page(request: Request):
+    from app import i18n
+
+    return _render(request, "config/language.html", "idioma", {"langs": i18n.LANGS, "current": i18n.current()})
+
+
+@router.post("/idioma")
+async def language_save(request: Request, session: Session = Depends(get_session)):
+    from app import i18n
+
+    form = await request.form()
+    i18n.set_language(session, text(form, "ui_language") or "pt")
+    session.commit()
+    return RedirectResponse("/configuracao/idioma?guardado=1", status_code=303)
+
+
 @router.get("/conta")
 def account_page(request: Request, cred: Credential = Depends(require_login)):
     return _render(request, "config/account.html", "conta", {"email": cred.email})

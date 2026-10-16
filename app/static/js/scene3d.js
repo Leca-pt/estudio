@@ -2,7 +2,7 @@
 // painéis e grava o vídeo-guia. Coordenadas da cena: metros, Z para cima, Y para a frente; no three.js, Y para cima.
 import * as THREE from '../vendor/three/three.module.min.js';
 import { OrbitControls } from '../vendor/three/OrbitControls.js';
-import { PIECE_DIMS, applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=4';
+import { PIECE_DIMS, applyPose, hasWindows, label, mannequin, mat, piece, windowMat } from './scene3d_parts.js?v=5';
 import { groundFn, height, rockGeo, scatterMesh, terrainMesh } from './terrain.js?v=3';
 import { greyModel, modelsReady } from './model3d.js?v=2';
 export { groundFn, modelsReady };

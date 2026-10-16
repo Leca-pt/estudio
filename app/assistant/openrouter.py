@@ -83,7 +83,10 @@ async def ask(key: str, system: str, prompt: str, model: str, timeout_s: int, im
                 content += [{"type": "text", "text": f"Image {n}: {label}"}, {"type": "image_url", "image_url": {"url": url}}]
     content.append({"type": "text", "text": prompt + "\n\nResponde só com um objeto JSON válido com as chaves "
                                                      "\"reply\" (texto) e \"proposals\" (lista de {field, value, reason})."})
-    body = {"model": model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
+    from app import i18n
+
+    body = {"model": model, "messages": [{"role": "system", "content": system + i18n.assistant_note()},
+                                         {"role": "user", "content": content}]}
     if info is None or info["json"]:
         body["response_format"] = {"type": "json_schema", "json_schema": {"name": "assistant_reply", "strict": True, "schema": SCHEMA}}
     headers = {"Authorization": f"Bearer {key}", "X-Title": "Estudio"}  # cabeçalhos HTTP: só ASCII

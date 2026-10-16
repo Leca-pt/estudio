@@ -132,6 +132,22 @@ def _image_generators_now(use: str = "generate") -> dict:
 templates.env.globals["image_generators"] = _image_generators
 
 
+def _ui_lang() -> str:
+    from app import i18n
+
+    return i18n.current()
+
+
+def _i18n_version() -> str:
+    from app import i18n
+
+    return i18n.version()
+
+
+templates.env.globals["ui_lang"] = _ui_lang
+templates.env.globals["i18n_version"] = _i18n_version
+
+
 def _writer_elapsed(task) -> int:
     from app import prompt_writer
 

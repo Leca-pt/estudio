@@ -230,6 +230,7 @@ export function applyPose(m, pose, phase) {
 
 // Etiqueta de texto (nome das divisões, na vista livre)
 export function label(text) {
+  text = window.estudioT ? window.estudioT(text) : text; // interface em inglês (static/js/i18n.js)
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
   const g = cv.getContext('2d');
   g.fillStyle = 'rgba(20,22,26,0.72)'; g.fillRect(0, 24, 512, 80);
