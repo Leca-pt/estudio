@@ -561,7 +561,11 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   (+Y), normais calculadas se faltarem; sem ficheiro, uma caixa com o nome. Os renders, o vídeo-guia e os renders do
   servidor esperam pelos modelos; o Chromium do servidor lê-os por /interno/modelo/<id> (só 127.0.0.1).
 - Medido: 2 renders de um canyon de 300 × 400 m com 420 rochas/arbustos no servidor (sem placa gráfica): 3,3 s.
-- «Montado» na encenação da cena (2026-10-16): passa os planos com câmara seguidos, pela ordem dos números, cada um na
-  sua parte da encenação (start → start + duração), cortando de câmara em câmara; a barra de tempo passa a ser a do
-  montado e uma etiqueta no canto diz o plano. Planos que cobrem o mesmo troço (cobertura) repetem a ação, como no
-  filme montado com esses takes. Só no ecrã; clicar num chip P.., na vista livre ou na câmara à mão sai do montado.
+- Montado na encenação da cena (2026-10-16), só no ecrã, com uma etiqueta do plano no canto e as falas do guião por
+  baixo (as linhas de diálogo nos segundos que a encenação lhes marca em "lines"):
+  - «Montado»: a ação corre uma vez (0 → duração da encenação) e a câmara é a do plano que começou mais recentemente;
+    planos que começam juntos (cobertura do mesmo troço) dividem-no em partes iguais, pela ordem dos números; onde
+    nenhum plano cobre a ação fica a câmara anterior e a etiqueta diz «sem plano».
+  - «Planos inteiros» (só quando difere, i.e. há sobreposições ou buracos): cada plano todo, pela ordem dos números,
+    repetindo a ação dos que se sobrepõem — como montar os takes tal como estão.
+  - Clicar num chip P.., na vista livre ou na câmara à mão sai do montado.

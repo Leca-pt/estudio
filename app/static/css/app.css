@@ -652,11 +652,11 @@ details.sec > summary::-webkit-details-marker { display: none; }
 .panel-cell .pc-gen { align-self: flex-start; }
 /* Guião marcado */
 .script-cov { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.script-cov .sc { display: flex; gap: 10px; align-items: baseline; padding: 7px 10px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.4; }
+.script-cov .sc { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding: 7px 10px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.4; }
 .script-cov .sc:first-child { border-top: 0; }
 .sl-n { width: 18px; flex-shrink: 0; font-size: 11px; }
-.sl-t { flex: 1; min-width: 0; }
-.sl-s { display: flex; gap: 4px; flex-shrink: 0; }
+.sl-t { flex: 1 1 240px; min-width: 0; }
+.sl-s { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; margin-left: auto; }
 .sl-s .tag { height: 20px; text-decoration: none; }
 .script-cov .sc.none { background: color-mix(in srgb, var(--wip) 8%, transparent); }
 /* Modal de seleção */
@@ -1314,3 +1314,6 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .model3d-prev canvas { display: block; width: 100%; height: auto; }
 .model3d-prev [data-model-info] { position: absolute; left: 8px; bottom: 6px; background: rgba(20,22,26,.7); color: #eee; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
 .m3d-cut-tag { position: absolute; left: 10px; top: 10px; padding: 3px 8px; border-radius: 6px; background: rgb(0 0 0 / .55); color: #fff; font-size: 12px; pointer-events: none; }
+.m3d-sub { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); max-width: 82%; padding: 5px 12px; border-radius: 6px; background: rgb(0 0 0 / .62); color: #fff; font-size: clamp(13px, 1.9vw, 18px); line-height: 1.35; text-align: center; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.m3d-sub[hidden] { display: none; }
+.m3d-sub b { font-weight: 600; opacity: .8; }

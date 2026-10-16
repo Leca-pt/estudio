@@ -94,11 +94,12 @@
   <div class="m3d" data-scene3d data-aspect="{{ project.aspect_ratio or '16:9' }}"
        data-preview="/projetos/{{ project.id }}/storyboard/cenas/{{ scene.id }}/encenacao/previas" data-preview-hash="{{ stage_hash or '' }}" data-preview-have="{{ stage_have }}">
     <script type="application/json" class="m3d-data">{{ stage_spec|tojson }}</script>
+    {% if stage_subs %}<script type="application/json" class="m3d-subs">{{ stage_subs|tojson }}</script>{% endif %}
     <div class="m3d-stage"></div>
     <div class="m3d-bar row"></div>
     <div class="m3d-chips row"></div>
     <div class="m3d-legend row"></div>
-    <div class="m3d-actions row"><span class="hint">Os chips P01, P02… mostram a encenação pela câmara de cada plano, na parte dele; «Montado» passa os planos seguidos, com os cortes de câmara.</span><span class="sp"></span>
+    <div class="m3d-actions row"><span class="hint">Os chips P01, P02… mostram a encenação pela câmara de cada plano, na parte dele; «Montado» passa a cena com os cortes de câmara e as falas por baixo; «Planos inteiros» passa cada plano todo, um a seguir ao outro.</span><span class="sp"></span>
       {% if asst.enabled %}<button class="btn sm" type="button" data-asst-ask="{{ 'Ajusta a encenação 3D desta cena: confere as posições, os olhares e os tempos das linhas contra o guião e as notas de encenação.' if scene.stage3d else 'Monta a encenação 3D desta cena dentro da maquete do local: o elenco e os figurantes com as posições e os olhares ao longo de toda a cena, a partir do guião e das notas de encenação, e marca em lines o segundo em que começa cada linha do guião.' }}">{{ i.icon("sparkles", 13) }}{{ "Ajustar com o Assistente" if scene.stage3d else "Montar a encenação com o Assistente" }}</button>{% endif %}
       <span class="hint m3d-status"></span></div>
   </div>

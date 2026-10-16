@@ -112,8 +112,12 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
 
     stage_spec = S3.compose(session, project.id, scene=scene)
     base, set_loc = S3.scene_set(session, scene)
+    spans = S3.line_spans(scene)
+    stage_subs = [{"from": spans[r["n"]][0], "to": spans[r["n"]][1], "text": r["line"].text,
+                   "who": (r["who"].label or r["who"].name) if r["who"] else ""}
+                  for r in script if r["line"].kind == "dialogue" and r["n"] in spans and r["line"].text.strip()]
     ctx = {
-        "stage_spec": stage_spec, "stage_hash": S3.preview_hash(stage_spec),
+        "stage_spec": stage_spec, "stage_subs": stage_subs, "stage_hash": S3.preview_hash(stage_spec),
         "stage_have": S3.preview_have(session, scene_id=scene.id), "set_loc": set_loc,
         "stage_d": float((scene.stage3d or {}).get("duration") or 0),
         **_timeline(shots, float((scene.stage3d or {}).get("duration") or 0)),

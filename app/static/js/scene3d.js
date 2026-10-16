@@ -583,6 +583,33 @@ export function mount(el) {
   q('.m3d-cams')?.setAttribute('aria-pressed', String(showCams));
   const cuts = stageMode ? (spec.shots || []) : [];
   const cutTotal = cuts.reduce((sum, sh) => sum + sh.duration, 0);
+  // Montado pelo tempo da ação: a ação corre uma vez e a câmara é a do plano que começou mais recentemente; planos que
+  // começam juntos (cobertura do mesmo troço) dividem esse troço em partes iguais, pela ordem dos números.
+  const actionCuts = (() => {
+    const ends = cuts.flatMap((sh) => [sh.start, sh.start + sh.duration]);
+    const bounds = [...new Set([0, duration, ...ends].map((b) => Math.max(0, Math.min(duration, b))))].sort((a, b) => a - b);
+    const runs = [];
+    for (let k = 0; k + 1 < bounds.length; k++) {
+      const a = bounds[k], b = bounds[k + 1], mid = (a + b) / 2;
+      const cov = cuts.map((sh, i) => ({ sh, i })).filter(({ sh }) => sh.start <= mid && mid < sh.start + sh.duration);
+      const top = Math.max(...cov.map((c) => c.sh.start));
+      const group = cov.filter((c) => c.sh.start === top).map((c) => c.i);
+      const last = runs[runs.length - 1];
+      if (last && last.group.join() === group.join()) last.to = b; else runs.push({ from: a, to: b, group });
+    }
+    const out = [];
+    for (const r of runs) {
+      const parts = r.group.length ? r.group : [-1], step = (r.to - r.from) / parts.length;
+      parts.forEach((i, j) => {
+        const last = out[out.length - 1];
+        if (last && last.i === i) last.to = r.from + (j + 1) * step;
+        else out.push({ from: r.from + j * step, to: r.from + (j + 1) * step, i });
+      });
+    }
+    return out;
+  })();
+  // As falas do guião, nos segundos que a encenação lhes dá (legendas do montado)
+  const subs = JSON.parse(el.querySelector('.m3d-subs')?.textContent || '[]');
   const chips = q('.m3d-chips');
   if (chips && layoutOnly && lviews.length) { // vistas do local: escolher uma põe a câmara à mão lá
     const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -593,7 +620,9 @@ export function mount(el) {
         .map((lv) => `<option value="${lv.id}">${esc(lv.label)}</option>`).join('')}</optgroup>`).join('')}</select></label>`;
   }
   if (chips && stageMode) { // a encenação pela câmara de cada plano, no troço dele
-    chips.innerHTML = (cuts.length > 1 ? `<button class="chip m3d-edit" type="button" data-m3d="edit" title="Os planos seguidos, pela ordem, cada um pela sua câmara e na sua parte da encenação: como vai ficar montado">▶ Montado · ${cuts.length} planos · ${fmt(cutTotal)}</button>` : '')
+    const whole = Math.abs(cutTotal - duration) > 0.05; // há planos sobrepostos ou buracos: os dois modos diferem
+    chips.innerHTML = (cuts.length > 1 ? `<button class="chip m3d-edit" type="button" data-m3d="edit" data-edit="action" title="A ação corre uma vez, do princípio ao fim, e a câmara corta para cada plano quando ele começa; planos que filmam o mesmo troço repartem-no entre si">▶ Montado · ${fmt(duration)}</button>`
+      + (whole ? `<button class="chip m3d-edit" type="button" data-m3d="edit" data-edit="shots" title="Cada plano inteiro, um a seguir ao outro, pela ordem dos números: os que filmam o mesmo troço repetem a ação (como montar os takes tal como estão)">▶ Planos inteiros · ${cuts.length} planos · ${fmt(cutTotal)}</button>` : '') : '')
       + (spec.shots || []).map((sh, i) => `<button class="chip" type="button" data-m3d-shot="${i}">P${String(sh.n).padStart(2, '0')} · ${fmt(sh.start)}–${fmt(sh.start + sh.duration)}</button>`).join('')
       || '<span class="hint">Ainda nenhum plano tem câmara.</span>';
   } else if (chips && !layoutOnly) { // os momentos da câmara: um botão por momento, no segundo dele
@@ -601,26 +630,49 @@ export function mount(el) {
   }
   // "Montado" (encenação): os planos com câmara seguidos, pela ordem dos números, cada um na sua parte da encenação —
   // a câmara corta de um para o outro, como no filme. A barra de tempo passa a ser a do montado.
-  let cutMode = false, mt = 0, cutIdx = -1;
+  let cutMode = null, mt = 0, cutIdx = -1; // cutMode: null, 'action' (tempo da ação) ou 'shots' (planos inteiros)
   const cutTag = document.createElement('span');
   cutTag.className = 'm3d-cut-tag mono'; cutTag.hidden = true; stage.appendChild(cutTag);
+  const subEl = document.createElement('div');
+  subEl.className = 'm3d-sub'; subEl.hidden = true; stage.appendChild(subEl);
+  const editTotal = () => (cutMode === 'shots' ? cutTotal : duration);
+  const pn = (n) => `P${String(n).padStart(2, '0')}`;
   function editAt(v) { // segundo do montado → plano e segundo da encenação
-    mt = Math.max(0, Math.min(cutTotal, v));
-    let acc = 0, i = 0;
-    while (i < cuts.length - 1 && mt >= acc + cuts[i].duration) { acc += cuts[i].duration; i++; }
-    if (i !== cutIdx) { cutIdx = i; useShot(i); }
-    cutTag.textContent = `P${String(cuts[i].n).padStart(2, '0')} · ${fmt(mt - acc)}`;
-    t = Math.min(duration, cuts[i].start + (mt - acc));
+    mt = Math.max(0, Math.min(editTotal(), v));
+    let i = -1, label = '';
+    if (cutMode === 'shots') {
+      let acc = 0; i = 0;
+      while (i < cuts.length - 1 && mt >= acc + cuts[i].duration) { acc += cuts[i].duration; i++; }
+      t = Math.min(duration, cuts[i].start + (mt - acc));
+      label = `${pn(cuts[i].n)} · ${fmt(mt - acc)}`;
+    } else {
+      t = mt;
+      const seg = actionCuts.find((x) => mt < x.to) || actionCuts[actionCuts.length - 1];
+      i = seg ? seg.i : -1;
+      label = i >= 0 ? `${pn(cuts[i].n)} · ${fmt(t - cuts[i].start)}` : 'sem plano';
+    }
+    if (i >= 0 && i !== cutIdx) { cutIdx = i; useShot(i); }
+    cutTag.textContent = label;
+    const sub = subs.find((x) => t >= x.from && (t < x.to || (t >= duration && x.to >= duration))) || null; // a última fala fica até ao fim
+    if (sub !== subEl.sub) { // só mexe no texto quando a fala muda
+      subEl.sub = sub; subEl.hidden = !sub;
+      if (sub) {
+        const who = document.createElement('b'), said = document.createElement('span');
+        who.textContent = sub.who ? `${sub.who}: ` : ''; said.textContent = sub.text;
+        subEl.replaceChildren(who, said);
+      }
+    }
     invalidate();
     if (range) range.value = mt;
-    if (timeEl) timeEl.textContent = `${fmt(mt)} / ${fmt(cutTotal)}`;
+    if (timeEl) timeEl.textContent = `${fmt(mt)} / ${fmt(editTotal())}`;
   }
-  function editMode(on) {
-    if (on === cutMode) return;
-    cutMode = on; cutTag.hidden = !on; cutIdx = -1;
-    q('.m3d-edit')?.classList.toggle('on', on);
-    if (range) range.max = on ? cutTotal : duration;
-    if (on) { setView('shot'); editAt(mt >= cutTotal ? 0 : mt); } else setT(t);
+  function editMode(kind) {
+    if (kind === cutMode) return;
+    cutMode = kind; cutTag.hidden = !kind; cutIdx = -1;
+    if (!kind) { subEl.hidden = true; subEl.sub = null; }
+    el.querySelectorAll('.m3d-edit').forEach((b) => b.classList.toggle('on', !!kind && b.dataset.edit === kind));
+    if (range) range.max = kind ? editTotal() : duration;
+    if (kind) { setView('shot'); editAt(0); } else setT(t);
   }
   function useShot(i) { // encenação: seguir a câmara do plano i, do início do troço dele
     const sh = (spec.shots || [])[i];
@@ -660,7 +712,7 @@ export function mount(el) {
     raf = requestAnimationFrame(loop);
     if (playing && cutMode) {
       editAt(mt + (now - last) / 1000);
-      if (mt >= cutTotal) { playing = false; if (playBtn) playBtn.textContent = '▶'; }
+      if (mt >= editTotal()) { playing = false; if (playBtn) playBtn.textContent = '▶'; }
     } else if (playing) {
       setT(t + (now - last) / 1000);
       if (t >= duration) { playing = false; if (playBtn) playBtn.textContent = '▶'; }
@@ -687,7 +739,7 @@ export function mount(el) {
     if (lvb) { const lv = lviews.find((x) => String(x.id) === lvb.dataset.lv); if (lv) { setLvCam(lv.cam); setView('lv'); } return; }
     const sb = e.target.closest('[data-m3d-shot]');
     if (sb) {
-      editMode(false);
+      editMode(null);
       if (useShot(Number(sb.dataset.m3dShot))) { setT(camOffset); setView('shot'); playing = false; if (playBtn) playBtn.textContent = '▶'; }
       return;
     }
@@ -696,13 +748,16 @@ export function mount(el) {
     if (b.dataset.m3dT !== undefined) { setT(Number(b.dataset.m3dT)); setView('shot'); playing = false; if (playBtn) playBtn.textContent = '▶'; return; }
     const what = b.dataset.m3d;
     if (what === 'play') {
-      if (cutMode) { if (mt >= cutTotal) editAt(0); } else if (t >= duration) setT(0);
+      if (cutMode) { if (mt >= editTotal()) editAt(0); } else if (t >= duration) setT(0);
       playing = !playing; b.textContent = playing ? '⏸' : '▶';
     }
-    else if (what === 'edit') { editMode(true); if (mt >= cutTotal) editAt(0); playing = true; if (playBtn) playBtn.textContent = '⏸'; }
+    else if (what === 'edit') {
+      if (cutMode === b.dataset.edit) { if (mt >= editTotal()) editAt(0); } else editMode(b.dataset.edit);
+      playing = true; if (playBtn) playBtn.textContent = '⏸';
+    }
     else if (what === 'shot' && stageMode && !camKeys.length) { if (useShot(0)) { setT(camOffset); setView('shot'); } }
-    else if (what === 'shot' || what === 'free') { if (what === 'free') editMode(false); setView(what); }
-    else if (what === 'walk') { editMode(false); startWalk(); }
+    else if (what === 'shot' || what === 'free') { if (what === 'free') editMode(null); setView(what); }
+    else if (what === 'walk') { editMode(null); startWalk(); }
     else if (what === 'record') record(b);
     else if (what === 'cams') { // mostrar/esconder as câmaras dos planos (caminhos e números) na encenação
       showCams = !showCams; b.setAttribute('aria-pressed', String(showCams)); invalidate();
