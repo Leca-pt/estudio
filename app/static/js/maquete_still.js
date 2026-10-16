@@ -2,7 +2,7 @@
 // (buildLayer, actorMesh), vista de cima com grelha e números dos objetos, pelas vistas do local, à altura dos olhos,
 // de três quartos, por um piso cortado ou por uma câmara livre. Corre num Chromium sem ecrã dentro do contentor.
 import * as THREE from '../vendor/three/three.module.min.js';
-import { SKY, actorMesh, buildLayer, facingAt, fovFor, groundFn, groundPlane, linear, modelsReady, onGround, v3 } from './scene3d.js?v=45';
+import { SKY, actorMesh, buildLayer, facingAt, fovFor, groundFn, groundPlane, linear, modelsReady, onGround, v3 } from './scene3d.js?v=46';
 import { applyPose } from './scene3d_parts.js?v=4';
 
 const rad = (d) => (d || 0) * Math.PI / 180;

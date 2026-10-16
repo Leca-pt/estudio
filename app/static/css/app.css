@@ -1313,3 +1313,4 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .model3d-prev { position: relative; border-radius: 8px; overflow: hidden; background: #cfd6de; max-width: 520px; }
 .model3d-prev canvas { display: block; width: 100%; height: auto; }
 .model3d-prev [data-model-info] { position: absolute; left: 8px; bottom: 6px; background: rgba(20,22,26,.7); color: #eee; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.m3d-cut-tag { position: absolute; left: 10px; top: 10px; padding: 3px 8px; border-radius: 6px; background: rgb(0 0 0 / .55); color: #fff; font-size: 12px; pointer-events: none; }

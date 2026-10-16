@@ -561,3 +561,7 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   (+Y), normais calculadas se faltarem; sem ficheiro, uma caixa com o nome. Os renders, o vídeo-guia e os renders do
   servidor esperam pelos modelos; o Chromium do servidor lê-os por /interno/modelo/<id> (só 127.0.0.1).
 - Medido: 2 renders de um canyon de 300 × 400 m com 420 rochas/arbustos no servidor (sem placa gráfica): 3,3 s.
+- «Montado» na encenação da cena (2026-10-16): passa os planos com câmara seguidos, pela ordem dos números, cada um na
+  sua parte da encenação (start → start + duração), cortando de câmara em câmara; a barra de tempo passa a ser a do
+  montado e uma etiqueta no canto diz o plano. Planos que cobrem o mesmo troço (cobertura) repetem a ação, como no
+  filme montado com esses takes. Só no ecrã; clicar num chip P.., na vista livre ou na câmara à mão sai do montado.

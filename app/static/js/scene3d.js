@@ -581,6 +581,8 @@ export function mount(el) {
     bar.after(pad);
   }
   q('.m3d-cams')?.setAttribute('aria-pressed', String(showCams));
+  const cuts = stageMode ? (spec.shots || []) : [];
+  const cutTotal = cuts.reduce((sum, sh) => sum + sh.duration, 0);
   const chips = q('.m3d-chips');
   if (chips && layoutOnly && lviews.length) { // vistas do local: escolher uma põe a câmara à mão lá
     const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -591,10 +593,34 @@ export function mount(el) {
         .map((lv) => `<option value="${lv.id}">${esc(lv.label)}</option>`).join('')}</optgroup>`).join('')}</select></label>`;
   }
   if (chips && stageMode) { // a encenação pela câmara de cada plano, no troço dele
-    chips.innerHTML = (spec.shots || []).map((sh, i) => `<button class="chip" type="button" data-m3d-shot="${i}">P${String(sh.n).padStart(2, '0')} · ${fmt(sh.start)}–${fmt(sh.start + sh.duration)}</button>`).join('')
+    chips.innerHTML = (cuts.length > 1 ? `<button class="chip m3d-edit" type="button" data-m3d="edit" title="Os planos seguidos, pela ordem, cada um pela sua câmara e na sua parte da encenação: como vai ficar montado">▶ Montado · ${cuts.length} planos · ${fmt(cutTotal)}</button>` : '')
+      + (spec.shots || []).map((sh, i) => `<button class="chip" type="button" data-m3d-shot="${i}">P${String(sh.n).padStart(2, '0')} · ${fmt(sh.start)}–${fmt(sh.start + sh.duration)}</button>`).join('')
       || '<span class="hint">Ainda nenhum plano tem câmara.</span>';
   } else if (chips && !layoutOnly) { // os momentos da câmara: um botão por momento, no segundo dele
     chips.innerHTML = moments.map((mo) => `<button class="chip" type="button" data-m3d-t="${Math.min(mo.t, duration)}">Momento ${mo.n} · ${fmt(mo.t)}</button>`).join('');
+  }
+  // "Montado" (encenação): os planos com câmara seguidos, pela ordem dos números, cada um na sua parte da encenação —
+  // a câmara corta de um para o outro, como no filme. A barra de tempo passa a ser a do montado.
+  let cutMode = false, mt = 0, cutIdx = -1;
+  const cutTag = document.createElement('span');
+  cutTag.className = 'm3d-cut-tag mono'; cutTag.hidden = true; stage.appendChild(cutTag);
+  function editAt(v) { // segundo do montado → plano e segundo da encenação
+    mt = Math.max(0, Math.min(cutTotal, v));
+    let acc = 0, i = 0;
+    while (i < cuts.length - 1 && mt >= acc + cuts[i].duration) { acc += cuts[i].duration; i++; }
+    if (i !== cutIdx) { cutIdx = i; useShot(i); }
+    cutTag.textContent = `P${String(cuts[i].n).padStart(2, '0')} · ${fmt(mt - acc)}`;
+    t = Math.min(duration, cuts[i].start + (mt - acc));
+    invalidate();
+    if (range) range.value = mt;
+    if (timeEl) timeEl.textContent = `${fmt(mt)} / ${fmt(cutTotal)}`;
+  }
+  function editMode(on) {
+    if (on === cutMode) return;
+    cutMode = on; cutTag.hidden = !on; cutIdx = -1;
+    q('.m3d-edit')?.classList.toggle('on', on);
+    if (range) range.max = on ? cutTotal : duration;
+    if (on) { setView('shot'); editAt(mt >= cutTotal ? 0 : mt); } else setT(t);
   }
   function useShot(i) { // encenação: seguir a câmara do plano i, do início do troço dele
     const sh = (spec.shots || [])[i];
@@ -632,7 +658,10 @@ export function mount(el) {
   function loop(now) {
     if (!canvas.isConnected) { handle.dispose(); live.delete(handle); return; }  // a página trocou a maquete
     raf = requestAnimationFrame(loop);
-    if (playing) {
+    if (playing && cutMode) {
+      editAt(mt + (now - last) / 1000);
+      if (mt >= cutTotal) { playing = false; if (playBtn) playBtn.textContent = '▶'; }
+    } else if (playing) {
       setT(t + (now - last) / 1000);
       if (t >= duration) { playing = false; if (playBtn) playBtn.textContent = '▶'; }
     }
@@ -658,6 +687,7 @@ export function mount(el) {
     if (lvb) { const lv = lviews.find((x) => String(x.id) === lvb.dataset.lv); if (lv) { setLvCam(lv.cam); setView('lv'); } return; }
     const sb = e.target.closest('[data-m3d-shot]');
     if (sb) {
+      editMode(false);
       if (useShot(Number(sb.dataset.m3dShot))) { setT(camOffset); setView('shot'); playing = false; if (playBtn) playBtn.textContent = '▶'; }
       return;
     }
@@ -665,10 +695,14 @@ export function mount(el) {
     if (!b) return;
     if (b.dataset.m3dT !== undefined) { setT(Number(b.dataset.m3dT)); setView('shot'); playing = false; if (playBtn) playBtn.textContent = '▶'; return; }
     const what = b.dataset.m3d;
-    if (what === 'play') { if (t >= duration) setT(0); playing = !playing; b.textContent = playing ? '⏸' : '▶'; }
+    if (what === 'play') {
+      if (cutMode) { if (mt >= cutTotal) editAt(0); } else if (t >= duration) setT(0);
+      playing = !playing; b.textContent = playing ? '⏸' : '▶';
+    }
+    else if (what === 'edit') { editMode(true); if (mt >= cutTotal) editAt(0); playing = true; if (playBtn) playBtn.textContent = '⏸'; }
     else if (what === 'shot' && stageMode && !camKeys.length) { if (useShot(0)) { setT(camOffset); setView('shot'); } }
-    else if (what === 'shot' || what === 'free') setView(what);
-    else if (what === 'walk') startWalk();
+    else if (what === 'shot' || what === 'free') { if (what === 'free') editMode(false); setView(what); }
+    else if (what === 'walk') { editMode(false); startWalk(); }
     else if (what === 'record') record(b);
     else if (what === 'cams') { // mostrar/esconder as câmaras dos planos (caminhos e números) na encenação
       showCams = !showCams; b.setAttribute('aria-pressed', String(showCams)); invalidate();
@@ -695,7 +729,7 @@ export function mount(el) {
     setView('free');
     try { localStorage.setItem('m3d-cut', cut ? e.target.value : '0'); } catch (err) { /* só não fica lembrado */ }
   });
-  range?.addEventListener('input', () => { setT(Number(range.value)); playing = false; if (playBtn) playBtn.textContent = '▶'; });
+  range?.addEventListener('input', () => { if (cutMode) editAt(Number(range.value)); else setT(Number(range.value)); playing = false; if (playBtn) playBtn.textContent = '▶'; });
 
   const status = q('.m3d-status');
   const say = (msg) => {  // também no cartão da página, quando a maquete está num modal fechado
