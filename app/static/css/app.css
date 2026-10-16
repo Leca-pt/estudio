@@ -623,7 +623,7 @@ details.sec > summary::-webkit-details-marker { display: none; }
 .ks-card.slot { display: grid; place-items: center; text-align: center; color: var(--tx3); text-decoration: none; padding: 6px; }
 /* Montagem: plano sem take mostrado pelo frame-chave */
 .clip .clip-still { outline: 1px dashed var(--line2); outline-offset: -1px; }
-.clip-still .still-tag { position: absolute; top: 6px; left: 6px; right: 6px; z-index: 2; width: fit-content; max-width: calc(100% - 12px); padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,.65); color: #eee; font-size: 10px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clip-still .still-tag, .key-mo .still-tag { position: absolute; top: 6px; left: 6px; right: 6px; z-index: 2; width: fit-content; max-width: calc(100% - 12px); padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,.65); color: #eee; font-size: 10px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* frame-chave do plano (Storyboard do plano) */
 .sec-b.key-b { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; padding-bottom: 0; }
 .key-now { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; }
@@ -1317,3 +1317,12 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .m3d-sub { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); max-width: 82%; padding: 5px 12px; border-radius: 6px; background: rgb(0 0 0 / .62); color: #fff; font-size: clamp(13px, 1.9vw, 18px); line-height: 1.35; text-align: center; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .m3d-sub[hidden] { display: none; }
 .m3d-sub b { font-weight: 600; opacity: .8; }
+.key-moments { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.key-mo { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.key-mo.on { border-color: var(--line2); background: var(--s2); }
+.key-mo .ph, .key-mo .slot { position: relative; display: grid; place-items: center; width: 100%; border-radius: 6px; font-size: 11px; overflow: hidden; }
+.key-mo .ph.r169, .key-mo .slot.r169 { aspect-ratio: 16 / 9; }
+.key-mo .ph.r916, .key-mo .slot.r916 { aspect-ratio: 9 / 16; }
+.key-mo .ph.r11, .key-mo .slot.r11 { aspect-ratio: 1; }
+.key-mo .ph img { width: 100%; height: 100%; object-fit: cover; }
+.key-mo .ph.prev img { opacity: .75; }

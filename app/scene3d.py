@@ -1085,24 +1085,23 @@ def _inside_outside(layout: dict, cam: list[float], target: list[float]) -> bool
 MIN_SCREEN = 0.06  # altura mínima no quadro (fração) para alguém contar como estando na imagem
 
 
-def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
-    """Os atores da encenação (elenco, figurantes, veículos) que a câmara do plano vê em algum momento do troço, com a
-    distância mais curta a que os vê."""
+def _seen_at(session: Session, shot: Shot, times: list[float]) -> tuple[list[dict], list[dict[int, float]]]:
+    """(os atores da encenação, e para cada segundo do plano pedido {índice do ator: distância} de quem a câmara vê)."""
     scene = session.get(Scene, shot.scene_id)
     cam = (shot.scene3d or {}).get("camera") or []
     stage = (scene.stage3d if scene else None) or {}
     if not cam or not stage.get("actors"):
-        return []
-    start, dur = shot_window(shot)
+        return [], [{} for _t in times]
+    start, _dur = shot_window(shot)
     base, _loc = scene_set(session, scene)
     walls, windows = _occluders(base)
     walls += _occluders({"objects": stage.get("objects", [])})[0]
     ground = scene_ground(session, scene)
     from app.terrain import blocks_sight
-    best: dict[int, float] = {}
-    steps = max(2, int(dur / 0.5) + 1)
-    for i in range(steps):
-        t = dur * i / (steps - 1)
+    out = []
+    for t in times:
+        seen: dict[int, float] = {}
+        out.append(seen)
         c = _cam_at(cam, t)
         if c is None:
             continue
@@ -1133,8 +1132,48 @@ def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
                 continue
             if dist > 6 and base and _inside_outside(base, pos, p):
                 continue
-            best[ai] = min(best.get(ai, 1e9), dist)
-    return [(stage["actors"][ai], d) for ai, d in sorted(best.items())]
+            seen[ai] = dist
+    return stage.get("actors") or [], out
+
+
+@memo
+def _track(session: Session, shot: Shot) -> tuple[list[dict], list[tuple[float, dict[int, float]]]]:
+    """Quem a câmara vê ao longo do plano, de meio em meio segundo: (atores, [(segundo do plano, {ator: distância})])."""
+    _start, dur = shot_window(shot)
+    steps = max(2, int(dur / 0.5) + 1)
+    times = [dur * i / (steps - 1) for i in range(steps)]
+    actors, seen = _seen_at(session, shot, times)
+    return actors, list(zip(times, seen))
+
+
+def visible_actors(session: Session, shot: Shot) -> list[tuple[dict, float]]:
+    """Os atores da encenação (elenco, figurantes, veículos) que a câmara do plano vê em algum momento do troço, com a
+    distância mais curta a que os vê."""
+    actors, track = _track(session, shot)
+    best: dict[int, float] = {}
+    for _t, seen in track:
+        for ai, d in seen.items():
+            best[ai] = min(best.get(ai, 1e9), d)
+    return [(actors[ai], d) for ai, d in sorted(best.items())]
+
+
+def codes_at(session: Session, shot: Shot, t: float) -> list[str]:
+    """Os códigos (elenco, adereços, elementos do mundo) que a câmara do plano vê no segundo t do plano."""
+    actors, (seen,) = _seen_at(session, shot, [t])
+    return list(dict.fromkeys(actors[ai]["code"] for ai in seen if actors[ai].get("code")))
+
+
+def appearances(session: Session, shot: Shot) -> dict[str, tuple[float, float]]:
+    """{código: (primeiro, último segundo do plano em que a câmara o vê)}."""
+    actors, track = _track(session, shot)
+    out: dict[str, tuple[float, float]] = {}
+    for t, seen in track:
+        for ai in seen:
+            code = actors[ai].get("code")
+            if code:
+                a, _b = out.get(code, (t, t))
+                out[code] = (a, t)
+    return out
 
 
 # Testado no Seedance 2.5 (5 de outubro de 2026): com 1 figura além do elenco o take sai certo; com 9 o modelo copia

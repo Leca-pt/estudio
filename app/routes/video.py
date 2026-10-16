@@ -312,15 +312,15 @@ MAX_VIEWS_WITH_GUIDE = 2
 def auto_refs(session: Session, shot: Shot, cap: int = MAX_VIDEO_REFS) -> list[MediaFile]:
     """A escolha automática: o frame-chave (se aprovado), as vistas do local nos momentos (sem repetir) e as folhas do
     elenco. Se passam do limite, o frame-chave e o elenco ficam e cortam-se as vistas do meio. O frame-chave já mostra o
-    sítio do primeiro momento: a vista desse momento deixa de seguir."""
+    sítio do momento dele: a vista desse momento deixa de seguir."""
     from app import keyframe
 
     views, cast = moments.view_images(session, shot), moments.cast_images(session, shot)
     key = keyframe.approved(session, shot)
     lead = [key] if key is not None else []
     if key is not None:
-        first = (moments.rows(session, shot)[:1] or [{}])[0].get("image")
-        views = [v for v in views if v != first]
+        shown = keyframe.moment_view(session, shot)  # o sítio desse momento já vai no frame-chave
+        views = [v for v in views if v != shown]
         # sem cena 3D, as folhas que foram para o frame-chave (as personagens da cena) seguem com ele
         cast = [m for m in (cast if shot.scene3d else keyframe.cast(session, shot)) if m != key]
     if shot.scene3d and shot.guide_video_id:
@@ -389,7 +389,8 @@ def frame_inputs(session: Session, shot: Shot, model: dict | None) -> list[Media
 
     views = moments.view_images(session, shot)
     key = keyframe.approved(session, shot)
-    if key is not None:
+    if key is not None and keyframe.made_at(session, key) > 0.05:
+        key = None  # um frame-chave do meio do plano não é a imagem inicial
         end = views[-1] if len(views) > 1 and (model is None or model.get("end_frame", True)) else None
         return [key] + ([end] if end is not None else [])
     if not views:

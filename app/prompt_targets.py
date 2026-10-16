@@ -284,15 +284,26 @@ def context(session: Session, t: Target) -> str:
         key = keyframe.approved(session, shot)
         key = key if key is not None and key in inputs(session, t) else None
         key_tok = ref_tokens.token_for(session, key)[0] if key is not None else ""
+        key_t = keyframe.made_at(session, key) if key is not None else 0.0
+        if key is None:
+            key_text = ""
+        elif key_t < 0.05:
+            key_text = (f"FRAME-CHAVE: segue {key_tok}, a imagem do início deste plano já com o sítio, a luz, a roupa de "
+                        "cada personagem e onde cada uma está e para onde olha. Nas References, numa frase: \""
+                        f"{key_tok} is the opening frame of this shot: start from exactly this composition — the same "
+                        "place, light, clothes and the same positions of everyone\". As posições iniciais vêm dela: não "
+                        "as descrevas em pormenor; descreve o que acontece a partir daí.")
+        else:
+            key_text = (f"FRAME-CHAVE: segue {key_tok}, a imagem deste plano aos {key_t:g} s (NÃO é o início): o sítio, a "
+                        "luz, a roupa de cada personagem e onde cada uma está e para onde olha nesse instante. Nas "
+                        f"References, numa frase: \"{key_tok} shows this shot at {key_t:g}s: by then everyone is exactly "
+                        "in these positions, in this place and light, with these clothes\". Descreve o que acontece "
+                        "até aí (quem entra, por onde, para onde vai) e depois; não digas que o plano começa nesta imagem.")
         return C.join(C.scene_block(session, scene), C.shot_block(session, shot),
                       "MOMENTOS DA CÂMARA (cena 3D)\n" + moms if moms else "",
                       _frame_block(session, shot),
                       scene3d.variation_note(session, scene),
-                      (f"FRAME-CHAVE: segue {key_tok}, a imagem do início deste plano já com o sítio, a luz, a roupa de "
-                       "cada personagem e onde cada uma está e para onde olha. Nas References, numa frase: \""
-                       f"{key_tok} is the opening frame of this shot: start from exactly this composition — the same place, "
-                       "light, clothes and the same positions of everyone\". As posições iniciais vêm dela: não as "
-                       "descrevas em pormenor; descreve o que acontece a partir daí.") if key is not None else "",
+                      key_text,
                       "VÍDEO-GUIA: segue como @Video1 (previs cinzento com a câmara e as posições exatas)." if guide
                       else (f"SEM VÍDEO-GUIA: descreve por palavras o movimento de câmara (de onde parte, para onde vai, "
                             f"a lente) e o que cada pessoa faz a partir das posições do frame-chave {key_tok}; não refiras "
@@ -322,12 +333,14 @@ def _key_context(session: Session, t: Target) -> str:
     shot = t.obj
     scene = session.get(Scene, shot.scene_id)
     if shot.scene3d:
-        codes = scene3d.in_frame(session, shot)
+        codes = keyframe.in_shot(session, shot)  # só quem a câmara vê nesse instante
         cast = [a for a in (session.exec(select(Asset).where(Asset.project_id == t.project.id, Asset.name == c)).first()
                             for c in codes) if a is not None and a.kind in ("character", "prop", "element")]
-        first = (scene3d.moment_notes(session, shot) or [None])[0]
         n_extras, _extras = scene3d.extras_note(session, shot)
-        r = keyframe.first_moment(session, shot)
+        r = keyframe.moment(session, shot)
+        notes = scene3d.moment_notes(session, shot)
+        first = notes[r["n"] - 1] if r and len(notes) >= r["n"] else None
+        gone = keyframe.absent(session, shot)
         start = (f"PREVIS: o frame-chave é o instante do momento {r['n']} ({r['t']:g} s do plano) visto pela câmara do "
                  f"plano ({r['cam']['lens']:g} mm). O render desse instante é a primeira imagem que segue: dá o "
                  "enquadramento, a altura e o ângulo da câmara, onde está cada pessoa e para onde olha (viseira escura "
@@ -335,6 +348,9 @@ def _key_context(session: Session, t: Target) -> str:
         rows = [start,
                 "NO PREVIS, QUEM É QUEM: " + "; ".join(keyframe.cast_colours(session, shot)) if cast else "",
                 f"NESSE INSTANTE (calculado da encenação e da câmara): {first}" if first else "",
+                ("FORA DESTA IMAGEM (aparecem noutra altura do plano; NÃO os ponhas na imagem nem os nomeies no prompt): "
+                 + "; ".join(gone)) if gone else "",
+                "" if cast else ("NINGUÉM DO ELENCO NESTE INSTANTE: a imagem mostra só o sítio (e figurantes, se houver)."),
                 (f"FIGURANTES: {n_extras} — as figuras cinzento-claro do previs são pessoas comuns, com roupa do sítio e "
                  "da época, variada e com cor (nunca manequins nem estátuas)." if n_extras else ""),
                 scene3d.variation_note(session, scene)]
@@ -444,8 +460,10 @@ def enqueue(session: Session, t: Target, gen: dict | None) -> tuple[bool, str]:
         problem = keyframe.missing(session, t.obj)
         if problem:
             return False, problem
-        if t.obj.scene3d:  # parte do previs (a 1.ª imagem é a geometria); a versão da cena fica para saber se envelhece
-            params = {"base": True, "hash": moments.render_hash(session, t.obj)}
+        if t.obj.scene3d:  # parte do previs (a 1.ª imagem é a geometria); a versão da cena e o momento ficam guardados
+            r = keyframe.moment(session, t.obj)
+            params = {"base": True, "hash": moments.render_hash(session, t.obj), "moment": moments.moment_key(r),
+                      "n": r["n"], "t": r["t"]}
     if t.kind == "retrato" and not t.obj.approved_image_id:
         return False, "Aprova primeiro a folha: o retrato parte dela."
     if t.kind == "look" and not getattr(session.get(Asset, t.obj.asset_id), "approved_image_id", None):

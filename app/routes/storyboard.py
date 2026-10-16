@@ -97,7 +97,9 @@ def _scene_view(request: Request, session: Session, project: Project, scene: Sce
     for sh in shots:
         ms = moments.rows(session, sh)
         rows.append({"shot": sh, "state": shot_board_state(session, sh), "moments": ms, "lines": lines_of.get(sh.id, []),
-                     "key": keyframe.approved(session, sh)})
+                     "key": keyframe.approved(session, sh),
+                     "stills": [a["media"] for a in keyframe.all_approved(session, sh) if a["n"] is not None]
+                     or [m for m in [keyframe.approved(session, sh)] if m is not None]})
     from app import looks as L
 
     wardrobe = {}
@@ -587,6 +589,16 @@ async def shot_save(request: Request, project_id: int, shot_id: int, session: Se
         c = next((c for c in checks if c.id == int(arg)), None)
         if c:
             session.delete(c)
+    if "key_moment" in form:  # de que momento se gera o frame-chave
+        from app import keyframe
+
+        raw = text(form, "key_moment") or ""
+        keyframe.choose_moment(shot, int(raw) if raw.isdigit() else None)
+    if verb == "key_video" and arg.isdigit():  # este frame-chave aprovado segue no pedido de vídeo
+        from app import keyframe
+
+        if keyframe.use_in_video(session, shot, int(arg)):
+            flash_info(request, "Este frame-chave passa a seguir no pedido de vídeo.")
     if verb == "mview_new" and arg.isdigit():  # vista nova do local a partir da câmara deste momento
         try:
             view = moments.create_view(session, shot, int(arg))
@@ -600,7 +612,8 @@ async def shot_save(request: Request, project_id: int, shot_id: int, session: Se
     if prompt_ops.run(request, session, project, form, op):
         session.commit()
         return RedirectResponse(url + ("#frame-chave" if ":chave:" in op else "#momentos"), status_code=303)
-    anchor = {"add_check": "#continuidade", "del_check": "#continuidade", "mview_new": "#momentos"}.get(verb, "")
+    anchor = {"add_check": "#continuidade", "del_check": "#continuidade", "mview_new": "#momentos",
+              "key_video": "#frame-chave"}.get(verb, "#frame-chave" if "key_moment" in form else "")
     return RedirectResponse(url + ("" if op else "?guardado=1") + anchor, status_code=303)
 
 

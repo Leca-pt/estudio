@@ -210,24 +210,51 @@
   {% endif %}
 
   {% set kratio = "r916" if (project.aspect_ratio or "").startswith("9:16") else ("r11" if (project.aspect_ratio or "").startswith("1:1") else "r169") %}
-  {% set s5 %}{% if key.media %}<span class="fold-thumbs"><img src="{{ key.media.path|thumb }}" alt=""></span>{% endif %}{% if key.stale %}<span class="warn-t">desatualizado</span>{% elif key.media and key.sent %}<span class="ok-t">✓ aprovado · segue no pedido de vídeo</span>{% elif key.media %}aprovado, mas desligado no pedido de vídeo{% else %}opcional · nenhum aprovado{% endif %}{% if key.results %} · <span class="warn-t">{{ key.results|length }} por decidir</span>{% endif %}{% endset %}
-  {% call m.fold("frame-chave", "5 · Frame-chave", s5, open=open_step == "frame-chave" or key.results or key.jobs, tip="Uma imagem do início do take com as personagens já no sítio certo" ~ (", feita a partir do previs do primeiro momento (a câmara e as posições), da vista do local e das folhas do elenco" if shot.scene3d else ", composta pela descrição do plano, com as folhas do elenco e a imagem do local") ~ ". É o storyboard final deste plano. Aprovada, segue no pedido de vídeo como a primeira referência (o vídeo-guia continua a ser escolha tua na página Vídeo).") %}
+  {% set n_ok = key.all|length %}
+  {% set s5 %}{% for a in key.all[:4] %}<span class="fold-thumbs"><img src="{{ a.media.path|thumb }}" alt=""></span>{% endfor %}{% if key.stale %}<span class="warn-t">o que segue no vídeo está desatualizado</span>{% elif key.media and key.sent %}<span class="ok-t">✓ {{ n_ok }} aprovado{{ "s" if n_ok != 1 }} · um segue no pedido de vídeo</span>{% elif key.media %}{{ n_ok }} aprovado{{ "s" if n_ok != 1 }}, mas desligado no pedido de vídeo{% elif n_ok %}<span class="warn-t">{{ n_ok }} aprovado{{ "s" if n_ok != 1 }}, nenhum segue no vídeo</span>{% else %}opcional · nenhum aprovado{% endif %}{% if key.results %} · <span class="warn-t">{{ key.results|length }} por decidir</span>{% endif %}{% endset %}
+  {% call m.fold("frame-chave", "5 · Frames-chave", s5, open=open_step == "frame-chave" or key.results or key.jobs, tip="Imagens finais do plano com as personagens já no sítio certo" ~ (": uma por momento da câmara, feita a partir do previs desse momento (a câmara e as posições), da vista do local e das folhas de quem está em plano nesse instante. São o storyboard final do plano e o animatic da Montagem. Uma delas segue no pedido de vídeo como referência — de preferência uma em que já estão todos nas suas posições" if shot.scene3d else ", composta pela descrição do plano, com as folhas do elenco e a imagem do local. É o storyboard final deste plano e segue no pedido de vídeo como referência") ~ " (o vídeo-guia continua a ser escolha tua na página Vídeo).") %}
+    {% if key.choices %}
+      <div class="sec-b" style="display: block; padding-bottom: 0">
+        <div class="key-moments">
+          {% for c in key.choices %}
+          {% set ap = key.all|selectattr("n", "equalto", c.n)|first %}
+          <div class="key-mo{% if c.on %} on{% endif %}">
+            <div class="row" style="gap: 6px"><b>Momento {{ c.n }}</b><span class="mono dim">{{ fmt_seconds(c.t) }}</span><span class="sp"></span>
+              {% if ap and ap.video %}<span class="tag ok" title="É este frame-chave que segue no pedido de vídeo">segue no vídeo</span>{% endif %}</div>
+            {% if ap %}<a class="ph img-ph {{ kratio }}" href="/media/{{ ap.media.path }}" hx-boost="false" title="Frame-chave do momento {{ c.n }}"><img src="{{ ap.media.path|thumb }}" alt="Frame-chave do momento {{ c.n }}" loading="lazy"></a>
+            {% elif c.render %}<a class="ph img-ph {{ kratio }} prev" href="/media/{{ c.render.path }}" hx-boost="false" title="Previs do momento {{ c.n }}"><img src="{{ c.render.path|thumb }}" alt="Previs do momento {{ c.n }}" loading="lazy"><span class="still-tag">previs</span></a>
+            {% else %}<span class="slot {{ kratio }}">sem previs</span>{% endif %}
+            <span class="hint">{{ c.who|join(", ") if c.who else "ninguém do elenco em plano" }}</span>
+            {% if ap and ap.stale %}<span class="hint warn-t">⚠ feito com outra câmara ou encenação</span>{% endif %}
+            <div class="row" style="gap: 6px; flex-wrap: wrap">
+              {% if c.on %}<span class="hint">a gerar deste momento ↓</span>{% else %}<button class="btn sm" type="submit" form="{{ F }}" name="key_moment" value="{{ c.n }}">{{ "Refazer" if ap else "Gerar" }} deste momento</button>{% endif %}
+              {% if ap and not ap.video %}<button class="btn sm" type="submit" form="{{ F }}" name="op" value="key_video:{{ ap.media.id }}" title="Passa a ser este o frame-chave que segue no pedido de vídeo">Usar no vídeo</button>{% endif %}
+              {% if ap %}<form method="post" action="/projetos/{{ project.id }}/media/{{ ap.media.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o frame-chave do momento {{ c.n }}?" data-confirm-text="Sai do storyboard{{ ' e deixa de seguir no pedido de vídeo' if ap.video else '' }}; fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% for a in key.all if a.n is none %}<p class="hint">Há um frame-chave aprovado de um momento que já não existe (a câmara mudou): <a href="/media/{{ a.media.path }}" hx-boost="false">ver</a>.</p>{% endfor %}
+        {% if key.all and not key.media %}<p class="hint warn-t">Nenhum frame-chave segue no pedido de vídeo: escolhe um com «Usar no vídeo».</p>{% endif %}
+        {% if key.absent %}<p class="hint" style="margin: 8px 0 0">No momento {{ key.moment.n }}: {{ key.absent|join("; ") }} — não vão para a imagem.</p>{% endif %}
+        {% if key.previous %}<p class="hint" style="margin: 4px 0 0">O escritor vê o frame-chave do plano anterior, para manter a luz, a roupa e o sítio.</p>{% endif %}
+      </div>
+    {% else %}
       <div class="sec-b key-b">
         <div class="key-now">
           {% if key.media %}<a class="ph img-ph {{ kratio }}" href="/media/{{ key.media.path }}" hx-boost="false" title="{{ key.label }}"><img src="{{ key.media.path|thumb }}" alt="Frame-chave aprovado" loading="lazy"></a>
           <div class="row" style="gap: 6px"><span class="mono dim" style="font-size: 10.5px">{{ key.label.split(" · ")[0] }}</span><span class="sp"></span>
             <form method="post" action="/projetos/{{ project.id }}/media/{{ key.media.id }}/rejeitar" class="inline-form">{{ m.csrf() }}<button class="btn sm no" type="submit" data-confirm="Rejeitar o frame-chave?" data-confirm-text="Deixa de seguir no pedido de vídeo e fica em «Rejeitados», com o ficheiro guardado: podes repô-lo." data-confirm-ok="Rejeitar">Rejeitar</button></form></div>
-          {% elif key.render %}<a class="ph img-ph {{ kratio }}" href="/media/{{ key.render.path }}" hx-boost="false" title="Previs do primeiro momento"><img src="{{ key.render.path|thumb }}" alt="Previs do primeiro momento" loading="lazy"></a><span class="hint">O previs de onde parte.</span>
           {% else %}<span class="slot {{ kratio }}">Sem frame-chave</span>{% endif %}
         </div>
         <div class="col" style="gap: 8px; flex: 1; min-width: 0">
           <span class="hint">O início do take com as personagens no sítio: a primeira referência do vídeo.</span>
-          {% if key.stale %}<span class="hint warn-t">⚠ A câmara ou a encenação mudou depois de gerares este frame-chave: as posições podem já não bater certo. Gera outro.</span>{% endif %}
           {% if key.previous %}<span class="hint">O escritor vê o frame-chave do plano anterior, para manter a luz, a roupa e o sítio.</span>{% endif %}
         </div>
       </div>
+    {% endif %}
       <div class="sec-b" style="display: block">
-        {{ m.prompt_panel(key.panel, F, height=150, jobs=key.jobs, gen_label="Gerar frame-chave", gen_disabled=key.missing) }}
+        {{ m.prompt_panel(key.panel, F, height=150, jobs=key.jobs, gen_label=("Gerar frame-chave do momento %d" % key.moment.n) if key.moment else "Gerar frame-chave", gen_disabled=key.missing) }}
         {% if key.jobs or key.results %}<div class="results" style="margin-top: 10px">{{ m.job_tiles(key.jobs) }}{{ m.results(key.results, ratio=kratio, width=150 if kratio == "r169" else 110, edit=True, prefix="frame-chave ") }}</div>{% endif %}
         {{ m.rejected_block(key.rejected, ratio=kratio, width=110) }}
       </div>

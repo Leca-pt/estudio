@@ -152,12 +152,12 @@
 
   {% if shots %}
   {% set ar = (project.aspect_ratio or "16:9").split(" ")[0] %}
-  {% if shots|selectattr("key")|list %}
+  {% if shots|selectattr("stills")|list %}
   <div class="key-strip" style="--ar: {{ ar|replace(':', ' / ') }}" aria-label="Storyboard final">
     <div class="row" style="gap: 8px"><span class="cap">Storyboard final</span><span class="hint">os frames-chave aprovados, pela ordem dos planos (o último passo de cada plano)</span></div>
     <div class="ks-row">
       {% for s in shots %}{% set sh = s.shot %}
-      {% if s.key %}<a class="ks-card ph img-ph" href="/media/{{ s.key.path }}" hx-boost="false" title="P{{ '%02d' % sh.number }} · frame-chave"><img src="{{ s.key.path|thumb }}" alt="P{{ '%02d' % sh.number }}" loading="lazy"><span class="lb">P{{ '%02d' % sh.number }}{% if sh.duration_s %} · {{ sh.duration_s }} s{% endif %}</span></a>
+      {% if s.stills %}{% for k in s.stills %}<a class="ks-card ph img-ph" href="/media/{{ k.path }}" hx-boost="false" title="P{{ '%02d' % sh.number }} · frame-chave{% if s.stills|length > 1 %} {{ loop.index }} de {{ s.stills|length }}{% endif %}"><img src="{{ k.path|thumb }}" alt="P{{ '%02d' % sh.number }}" loading="lazy"><span class="lb">P{{ '%02d' % sh.number }}{% if s.stills|length > 1 %}.{{ loop.index }}{% elif sh.duration_s %} · {{ sh.duration_s }} s{% endif %}</span></a>{% endfor %}
       {% else %}<a class="ks-card slot" href="/projetos/{{ project.id }}/storyboard/planos/{{ sh.id }}#frame-chave" title="Gerar o frame-chave do P{{ '%02d' % sh.number }}">P{{ '%02d' % sh.number }} · sem frame-chave</a>{% endif %}
       {% endfor %}
     </div>

@@ -26,9 +26,10 @@ KINDS = {"sheet": "folha", "portrait": "retrato", "look": "look", "view": "vista
          "cover": "capa"}
 KIND_HELP = ("kind: sheet (folha de um asset), portrait (retrato de uma personagem), look (folha de um look, com look_id), "
              "view (vista de um local, screen asset:N com view_id), previs (vista do local num momento de um plano, "
-             "screen sb_shot:N com view_id), keyframe (frame-chave de um plano: o início do take com as personagens no "
-             "sítio, a partir do previs do 1.º momento — o último passo do plano no Storyboard; screen sb_shot:N; "
-             "aprovado, segue como referência no pedido de vídeo), cover (capa, screen bible ou story)")
+             "screen sb_shot:N com view_id), keyframe (frame-chave de um plano: uma imagem final do take com as "
+             "personagens no sítio, a partir do previs de um momento da câmara — o do campo «Frame-chave › Momento», "
+             "por omissão o 1.º; um aprovado por momento (storyboard final e animatic) e o utilizador escolhe qual segue "
+             "como referência no pedido de vídeo — o último passo do plano no Storyboard; screen sb_shot:N), cover (capa, screen bible ou story)")
 MAX_BYTES = 20 * 1024 * 1024
 PAID = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True)
 

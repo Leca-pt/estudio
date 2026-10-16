@@ -308,6 +308,13 @@ def validate(session: Session, project: Project, key: str, value: str, allowed: 
         if value == (fs.current or ""):
             raise AlreadySet("Já está assim.")
         return value
+    if fs.kind == "key_moment":
+        value = str(value).strip()
+        if value not in fs.options:
+            raise ProposalError(f"Tem de ser o número de um momento da câmara ({', '.join(fs.options)}).")
+        if value == (fs.current or ""):
+            raise AlreadySet("Já está assim.")
+        return value
     if fs.kind == "moment_view":
         value = str(value).strip().lower()
         if value not in fs.options:
@@ -755,6 +762,16 @@ def apply(session: Session, project: Project, key: str, value: str, context_scen
         if view.prompt:
             record(session, project.id, key, view.prompt, "assistente")
         session.add(view)
+        return
+    if key.startswith("key_moment:"):  # de que momento da câmara se gera o frame-chave
+        from app import keyframe
+
+        shot = session.get(Shot, int(key.split(":")[1]))
+        scene = session.get(Scene, shot.scene_id) if shot else None
+        if not scene or scene.project_id != project.id:
+            raise ProposalError("O plano já não existe.")
+        keyframe.choose_moment(shot, int(value))
+        session.add(shot)
         return
     if key.startswith("moment_view:"):  # a vista do local num momento da câmara: id, "auto" ou "nova"
         from app import moments

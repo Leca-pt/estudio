@@ -73,13 +73,32 @@ def _rows(session: Session, project: Project, groups) -> list[dict]:
                     gap = "Sem takes"
                 else:
                     gap = "Storyboard por fazer"
-                # sem take, o frame-chave aprovado faz de imagem do plano (animatic: «Ver seguido» mostra-o o tempo do plano)
-                tiles.append({"shot": sh, "clip": clip, "key": None if clip else keys.get(sh.key_image_id),
+                # sem take, os frames-chave aprovados fazem de imagens do plano (animatic: «Ver seguido» mostra cada um
+                # do segundo do momento dele até ao seguinte; um só, o tempo do plano todo)
+                stills = [] if clip else _stills(session, sh, keys.get(sh.key_image_id))
+                tiles.append({"shot": sh, "clip": clip, "key": stills[0]["media"] if stills else None,
+                              "hold": stills[0]["hold"] if stills else None, "more": stills[1:],
                               "gap": gap, "state": shot_clip_state(sh, roles),
                               "wip_gap": gap in ("Take por escolher", "Sem takes")})
             d = durations(session, [s.id])
             rows.append({"group": label, "scene": s, "code": scene_code(session, s), "tiles": tiles, "durations": d})
     return rows
+
+
+def _stills(session: Session, shot, video_key) -> list[dict]:
+    """Os frames-chave aprovados do plano para o animatic: [{"media", "hold" (segundos)}], pela ordem dos momentos; os
+    tempos somam a duração do plano."""
+    from app import keyframe
+
+    dur = float(shot.duration_s or 4)
+    found = [a for a in keyframe.all_approved(session, shot) if a["n"] is not None] if shot.scene3d else []
+    if not found:
+        return [{"media": video_key, "hold": dur}] if video_key is not None else []
+    # cada imagem fica a meio caminho entre o momento dela e os vizinhos (a primeira desde o início, a última até ao fim)
+    ts = [min(dur, max(0.0, a["t"])) for a in found]
+    starts = [0.0] + [(x + y) / 2 for x, y in zip(ts, ts[1:])]
+    ends = starts[1:] + [dur]
+    return [{"media": a["media"], "hold": round(max(0.5, e - b), 2)} for a, b, e in zip(found, starts, ends)]
 
 
 def montage_page(request: Request, session: Session, project: Project, stage: int):

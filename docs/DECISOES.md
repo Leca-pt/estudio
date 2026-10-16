@@ -589,3 +589,18 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   Vistas próprias da cena (opção a) ficam para depois.
 - check_layout: uma peça a flutuar só conta como «pendurada» numa parede ou fachada se estiver à mesma altura (antes,
   um prédio por cima em planta escondia o aviso).
+
+## Frames-chave por momento (2026-10-16)
+- O frame-chave só leva quem a câmara vê nesse instante (keyframe.in_shot, scene3d.codes_at): as folhas e o «quem é
+  quem» do previs. Quem só entra depois, já saiu ou está tapado vai no contexto como «FORA DESTA IMAGEM (…entra aos X
+  s)», para o gerador não o pôr lá. O pedido de vídeo continua com as folhas de todos os que aparecem no plano.
+- Um frame-chave aprovado por momento da câmara (storyboard final e animatic). «Gerar deste momento» escolhe de onde
+  se gera o próximo (shot.moments["key"] = moment_key; os pedidos guardam hash, moment, n e t). Aprovar substitui só o
+  do mesmo momento. Shot.key_image_id é o que segue no pedido de vídeo: o primeiro aprovado, ou o que o utilizador
+  escolher com «Usar no vídeo» (de preferência um em que já estão todos nas posições).
+- Frame-chave do meio do plano no vídeo: o prompt diz «a imagem deste plano aos X s (NÃO é o início)» e não serve de
+  imagem inicial nos modelos só com frames. A vista do local desse momento deixa de seguir à parte.
+- Animatic (Montagem, «Ver seguido»): sem take, cada frame-chave fica no ecrã de meio caminho entre o momento dele e os
+  vizinhos (a soma dá a duração do plano). O «Storyboard final» da cena mostra-os todos.
+- Pela conversa: campo «Frame-chave › Momento» (key_moment:N) no ecrã do plano; aprovar e escolher o que segue no
+  vídeo é sempre do utilizador.

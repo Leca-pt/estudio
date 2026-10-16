@@ -839,16 +839,28 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
             from app import keyframe as _KF
 
             _key = _KF.approved(session, shot)
-            rows.append("FRAME-CHAVE (último passo do plano: imagem do início do take com as personagens no sítio, a partir "
-                        "do previs do 1.º momento; aprovada, segue como referência no pedido de vídeo): "
-                        + ((f"aprovado ({ref_tokens.token_for(session, _key)[0]})"
-                            + (" — DESATUALIZADO: a câmara ou a encenação mudou depois" if _KF.stale(session, shot) else ""))
-                           if _key is not None else "nenhum aprovado")
+            _mo = _KF.moment(session, shot)
+            _all = _KF.all_approved(session, shot)
+            rows.append("FRAMES-CHAVE (último passo do plano: imagens finais com as personagens no sítio, uma por momento da "
+                        "câmara, a partir do previs desse momento; são o storyboard final e o animatic; UMA segue como "
+                        "referência no pedido de vídeo — de preferência uma em que já estão todos nas suas posições): "
+                        + ("; ".join(f"momento {a['n'] or '?'} ({a['t']:g} s) {ref_tokens.token_for(session, a['media'])[0]}"
+                                     + (" — SEGUE NO VÍDEO" if a["video"] else "") + (" — DESATUALIZADO" if a["stale"] else "")
+                                     for a in _all) or "nenhum aprovado")
+                        + (f". O próximo gera-se do momento {_mo['n']} ({_mo['t']:g} s)" if _mo else "")
+                        + (f"; nesse instante: {'; '.join(_KF.absent(session, shot))}" if _mo and _KF.absent(session, shot) else "")
                         + f". Prompt: {_v(shot.key_prompt)}. O prompt é do escritor de prompts (botões Gerar e Escrever do "
-                        "bloco «Frame-chave»); propõe alterações só quando o utilizador pedir.")
+                        "bloco «Frames-chave»); propõe alterações só quando o utilizador pedir. Aprovar e escolher o que "
+                        "segue no vídeo é do utilizador.")
             ctx = Context(key, f"Cena {scene.number} · Plano {shot.number}", 5, "\n\n".join(rows))
             _duration_field(ctx, session, scene, shot)
             ctx.add(spec(session, project, f"shot:{shot.id}.key_prompt", _shot_path(scene, shot)))
+            if _mo:
+                ctx.add(FieldSpec(f"key_moment:{shot.id}", f"{_shot_path(scene, shot)} › Frame-chave › Momento", "key_moment",
+                                  current=str(_mo["n"]), options=[str(k["n"]) for k in moments.keys(shot)], help=(
+                                      'value = "<número do momento da câmara>": de que momento se gera o próximo '
+                                      "frame-chave (o previs, a vista do local e as folhas de quem está em plano nesse "
+                                      "instante). Escreve depois o prompt para esse momento.")))
             for attr in ("title", "description", "shot_type", "camera_angle", "camera_movement"):
                 ctx.add(spec(session, project, f"shot:{shot.id}.{attr}", _shot_path(scene, shot)))
             from app.shot_script import script_coverage, shot_line_ids

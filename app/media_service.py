@@ -57,6 +57,11 @@ def restore_media(session: Session, media: MediaFile) -> None:
 
 def approve_media(session: Session, media: MediaFile) -> None:
     """Aprovar substitui o aprovado atual (que volta a 'por decidir')."""
+    if media.role == "key" and media.shot_id:  # frames-chave: um aprovado por momento da câmara
+        from app import keyframe
+
+        keyframe.approve(session, media)
+        return
     target, field = approval_target(session, media)
     if target is None:
         return
