@@ -96,25 +96,33 @@ def generator_options(session: Session, use: str = "generate") -> list[tuple[str
     return out
 
 
-def default_generator(session: Session, edit: bool = False, use: str | None = None) -> str | None:
-    """Modelo pré-escolhido nos botões (Configuração → Modelos e geração → Imagens); edit = para editar. Se o da
-    Configuração não serve para este uso, o primeiro que sirva (sem avisos, se houver)."""
-    use = use or ("edit" if edit else "generate")
+def default_generator(session: Session, edit: bool = False, use: str | None = None, project: Project | None = None) -> str | None:
+    """Modelo pré-escolhido nos botões: o padrão do projeto (Bíblia › Formato e modelos), senão o da Configuração
+    (Modelos e geração → Imagens); edit = para editar. Se nenhum serve para este uso, o primeiro que sirva."""
+    return generator_default(session, use or ("edit" if edit else "generate"), project)[0]
+
+
+def generator_default(session: Session, use: str, project: Project | None = None) -> tuple[str | None, str]:
+    """(modelo pré-escolhido, de onde vem: "project", "config" ou "auto")."""
     options = generator_options(session, use)
     values = [v for v, _l in options]
     cfg = get_config(session, "image_generator", {}) or {}
+    if project is not None:
+        v = project.image_edit_model if use == "edit" else project.image_model
+        if v in values:
+            return v, "project"
     if use == "edit" and cfg.get("edit") in values:
-        return cfg["edit"]
+        return cfg["edit"], "config"
     wanted = cfg.get("default")
     if wanted in values:
-        return wanted
+        return wanted, "config"
     acfg = get_config(session, "artlist", {}) or {}
     fallback = f"artlist:{acfg.get('model_group_id') or artlist.DEFAULT_MODEL}"
     clean = [v for v, l in options if "⚠" not in l]
     for v in ("gpt", fallback):
         if v in values:
-            return v
-    return (clean or values or [None])[0]
+            return v, "auto"
+    return (clean or values or [None])[0], "auto"
 
 
 def fits(session: Session, provider: str, model, use: str) -> bool:
@@ -155,7 +163,7 @@ def parse_generator(value: str | None) -> tuple[str, int | str | None]:
 def op_generator(session: Session, verb: str, form, field: str) -> tuple[str, int | None] | None:
     """Botão Gerar: (fornecedor, grupo Artlist) a partir do seletor "<campo>_gen"; None se não é um pedido de gerar."""
     if verb == "generate":
-        return parse_generator(form.get(f"{field}_gen") or default_generator(session))
+        return parse_generator(form.get(f"{field}_gen") or default_generator(session))  # sem projeto: só formulários antigos
     legacy = op_provider(verb)
     return (legacy, None) if legacy else None
 
@@ -327,7 +335,8 @@ async def edit_image(request: Request, project_id: int, media_id: int, session: 
     change = text(form, "change")
     back = _back(project, text(form, "back"))
     role = text(form, "role") or media.role
-    provider, group = parse_generator(text(form, "gen_model") or text(form, "provider") or default_generator(session, edit=True))
+    provider, group = parse_generator(text(form, "gen_model") or text(form, "provider")
+                                      or default_generator(session, edit=True, project=project))
     if role not in IMAGE_JOB_ROLES or role != media.role:
         raise HTTPException(status_code=400, detail="Papel inválido.")
     if not change:

@@ -50,6 +50,10 @@ class Project(TimestampedModel, table=True):
     video_model: Optional[str] = None  # modelo de vídeo padrão do projeto (nome); None = o da Configuração
     video_resolution: Optional[str] = None  # 480p | 720p | 1080p; None = a da Configuração
     image_resolution: Optional[str] = "2K"  # 1K | 2K | 4K: as imagens geradas (cada modelo usa a mais próxima que aceita)
+    # Modelos padrão do projeto (None = os da Configuração); cada botão pode escolher outro para uma geração
+    image_model: Optional[str] = None  # gerar imagens: "gpt", "fal:<id>", "artlist:<grupo>"
+    image_edit_model: Optional[str] = None  # editar imagens
+    voice_model: Optional[str] = None  # gerar vozes ("fal:<id>", "artlist:<id>")
 
     # Regras fixas
     exclusions: Optional[str] = None

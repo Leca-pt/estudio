@@ -828,7 +828,10 @@ def _voice_ctx(session: Session, project: Project, asset: Asset, media: list[Med
         "voice_ref": next((m for m in media if asset.voice_ref_id and m.id == asset.voice_ref_id), None),
         "voice_results": [m for m in media if m.role == "voice" and m.status == "pending"],
         "voice_jobs": gpt_jobs(session, project, "voice", asset_id=asset.id),
-        "voice_options": options, "voice_default": _voice_pick(options, cfg.get("default")),
+        "voice_options": options,
+        "voice_default": project.voice_model if any(o["value"] == project.voice_model for o in options)
+        else _voice_pick(options, cfg.get("default")),
+        "voice_default_src": "project" if any(o["value"] == project.voice_model for o in options) else "config",
         "voice_can_design": any("design" in o["caps"] for o in options),
         "voice_sample": sample, "voice_description": description,
         "voice_budget": voice_budget(session, asset),

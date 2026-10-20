@@ -968,6 +968,22 @@ def _project_video_fields(ctx, session: Session, project: Project) -> None:
     ctx.add(FieldSpec("project.video_resolution", "Vídeo › Resolução padrão do projeto", "video_resolution",
                       current=project_resolution(session, project), options=list(RESOLUTIONS), help=(
                           "480p, 720p ou 1080p; cada plano usa a mais próxima que o seu modelo aceite.")))
+    from app import voice_models
+    from app.routes.gpt import generator_default, generator_label, generator_options
+
+    for key, use, label in (("image_model", "generate", "Imagens › Modelo padrão do projeto para gerar"),
+                            ("image_edit_model", "edit", "Imagens › Modelo padrão do projeto para editar")):
+        opts = generator_options(session, use)
+        cfg = generator_label(session, generator_default(session, use)[0])
+        ctx.add(FieldSpec(f"project.{key}", label, "video_model", current=getattr(project, key) or "default",
+                          options=["default"] + [v for v, _l in opts], help=(
+                              f'"default" = igual à Configuração (hoje {cfg}). Valores: '
+                              + "; ".join(f"{v} = {l}" for v, l in opts)
+                              + ". Cada geração pode ainda escolher outro (model em generate_image).")))
+    vopts = voice_models.options(session)
+    ctx.add(FieldSpec("project.voice_model", "Vozes › Modelo padrão do projeto", "video_model",
+                      current=project.voice_model or "default", options=["default"] + [o["value"] for o in vopts], help=(
+                          '"default" = igual à Configuração. Valores: ' + "; ".join(f"{o['value']} = {o['label']}" for o in vopts))))
     ctx.add(FieldSpec("project.image_resolution", "Imagens › Resolução padrão do projeto", "video_resolution",
                       current=project.image_resolution or "2K", options=["1K", "2K", "4K"], help=(
                           "1K, 2K ou 4K: a resolução das imagens geradas (folhas, retratos, looks, vistas, previs, capa). "

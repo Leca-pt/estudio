@@ -499,7 +499,7 @@
           <span class="hint">Descrever: escreves como é a voz (idade, timbre, sotaque, ritmo) e o modelo cria-a. Catálogo: escolhes uma voz pronta do fornecedor e ouves a amostra.</span></div>
         <div class="f span3"><label for="voice_model">Modelo</label>
           <select id="voice_model" name="voice_model" class="in" data-voice-model>
-            {% for o in voice_options %}<option value="{{ o.value }}" data-caps="{{ o.caps|join(' ') }}" data-hint="{{ o.voice_hint }}" {% if o.value == voice_default %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
+            {% for o in voice_options %}<option value="{{ o.value }}" data-caps="{{ o.caps|join(' ') }}" data-hint="{{ o.voice_hint }}" {% if o.value == voice_default %}selected{% endif %}>{{ o.label }}{% if o.value == voice_default and voice_default_src == "project" %} · padrão do projeto{% endif %}</option>{% endfor %}
           </select></div>
         <div class="f span3" data-voice-when="artlist">
           <label for="voice_id_art">Voz do Artlist</label>

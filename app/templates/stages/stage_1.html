@@ -65,8 +65,9 @@
     </div>
   {% endcall %}
 
-  {% set s5 %}{{ p.aspect_ratio or "formato por escolher" }}{% if p.target_duration_s %} · {{ (p.target_duration_s)|clock }}{{ " por episódio" if project.type == "series" else "" }}{% endif %}{% endset %}
-  {% call m.fold("formato", "Formato", s5, open=not p.aspect_ratio, num="05") %}
+  {% set own = [project.image_model, project.image_edit_model, project.voice_model, project.video_model]|select|list|length %}
+  {% set s5 %}{{ p.aspect_ratio or "formato por escolher" }}{% if p.target_duration_s %} · {{ (p.target_duration_s)|clock }}{{ " por episódio" if project.type == "series" else "" }}{% endif %} · {% if own %}{{ own }} modelo(s) próprio(s){% else %}modelos da Configuração{% endif %}{% endset %}
+  {% call m.fold("formato", "Formato e modelos", s5, open=not p.aspect_ratio, num="05") %}
     <div class="sec-b">
       {{ m.select("aspect_ratio", "Formato (proporção)", options.aspect_ratio, p.aspect_ratio) }}
       {% if project.type == "series" %}
@@ -76,6 +77,19 @@
       {% else %}
         {{ m.duration_select("target_duration_s", "Duração-alvo", duration_choices, p.target_duration_s, hint="Duração total do spot.") }}
       {% endif %}
+    </div>
+    <div class="sec-b">
+      <span class="hint span3">Modelos padrão deste projeto. «Igual à Configuração» segue o que está na Configuração; o seletor de cada botão continua a deixar escolher outro para uma geração.</span>
+      <div class="f"><label for="image_model">Gerar imagens</label>
+        <select id="image_model" name="image_model" class="in"><option value="">Igual à Configuração ({{ m_image_cfg }})</option>{% for v, l in m_image %}<option value="{{ v }}" {% if v == project.image_model %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="f"><label for="image_edit_model">Editar imagens</label>
+        <select id="image_edit_model" name="image_edit_model" class="in"><option value="">Igual à Configuração ({{ m_edit_cfg }})</option>{% for v, l in m_edit %}<option value="{{ v }}" {% if v == project.image_edit_model %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="f"><label for="voice_model">Vozes</label>
+        <select id="voice_model" name="voice_model" class="in"><option value="">Igual à Configuração ({{ m_voice_cfg }})</option>{% for o in m_voice %}<option value="{{ o.value }}" {% if o.value == project.voice_model %}selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></div>
+      <div class="f span2"><label for="video_model">Vídeo</label>
+        <select id="video_model" name="video_model" class="in"><option value="">Igual à Configuração ({{ m_video_cfg }})</option>{% for md in m_video %}<option value="{{ md.name }}" {% if md.name == project.video_model %}selected{% endif %}>{{ md.name }}{% if md.cost_text %} · {{ md.cost_text }}{% endif %}{% if not md.video_refs %} · sem vídeo-guia{% endif %}</option>{% endfor %}</select></div>
+      <div class="f"><label for="video_resolution">Resolução do vídeo</label>
+        <select id="video_resolution" name="video_resolution" class="in"><option value="">Igual à Configuração ({{ m_res_cfg }})</option>{% for r in m_res %}<option value="{{ r }}" {% if r == project.video_resolution %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
     </div>
   {% endcall %}
 

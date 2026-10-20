@@ -50,7 +50,7 @@
 
     {# 2. Modelo #}
     {% set model_sum %}{% if model %}{{ model.name }} · {{ shot_res }}{% if shot.duration_s %} · {{ shot.duration_s }} s{% endif %} · <span class="dim">{{ "escolhido neste plano" if shot.model else "o padrão do projeto" }}</span>{% else %}<span class="warn-t">sem modelos de vídeo disponíveis</span>{% endif %}{% endset %}
-    {% call m.fold("modelo", "Modelo", model_sum, open=not models, tip="O modelo, a resolução e a duração deste plano. «Padrão do projeto» segue o que escolheste na etapa Vídeo; o que mudares aqui vale só para este plano. Modelos do segundo grupo só recebem a primeira (e a última) imagem, sem elenco nem vídeo-guia.") %}
+    {% call m.fold("modelo", "Modelo", model_sum, open=not models, tip="O modelo, a resolução e a duração deste plano. «Padrão do projeto» segue o que escolheste na Bíblia › Formato e modelos; o que mudares aqui vale só para este plano. Modelos do segundo grupo só recebem a primeira (e a última) imagem, sem elenco nem vídeo-guia.") %}
       <div class="sec-b">
         {% if models %}
         <div class="f span2"><label for="model">Modelo de vídeo</label>

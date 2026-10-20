@@ -194,7 +194,7 @@ def limit_text(session: Session, t: PT.Target, gen: dict | None) -> str:
                 f"{p.get('max_chars', 4000)} caracteres. {model_profiles.video_format(name)}")
     from app.routes.gpt import default_generator, generator_label
 
-    label = generator_label(session, (gen or {}).get("gen") or default_generator(session, use=t.use))
+    label = generator_label(session, (gen or {}).get("gen") or default_generator(session, use=t.use, project=t.project))
     key = model_profiles.profile_for(label, False)
     p = model_profiles.IMAGE_PROFILES[key]
     n = model_profiles.limits(cfg, key, False)["reference_max_words"]  # as frases sobre as imagens também contam

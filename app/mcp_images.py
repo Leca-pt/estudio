@@ -168,7 +168,7 @@ def generate_image(project_id: int, screen: str, kind: str, look_id: int | None 
             raise ToolError("O prompt deste ecrã está por escrever ou desatualizado: chama write_prompt primeiro.")
         if resolution is not None:
             resolution = str(resolution).strip().upper()
-            allowed = image_models.resolutions(*parse_generator(model or default_generator(s, use=t.use)))
+            allowed = image_models.resolutions(*parse_generator(model or default_generator(s, use=t.use, project=p)))
             if not allowed:
                 raise ToolError("Este modelo não tem escolha de resolução (gera no tamanho dele): tira o resolution "
                                 "ou escolhe outro modelo em list_models.")
@@ -254,8 +254,9 @@ async def list_models(project_id: int | None = None) -> str:
     from app.routes.gpt import default_generator, generator_options
 
     with Session(engine) as s:
-        default = default_generator(s, use="generate")
-        proj_res = _project(s, project_id).image_resolution if project_id else None
+        proj = _project(s, project_id) if project_id else None
+        default = default_generator(s, use="generate", project=proj)
+        proj_res = proj.image_resolution if proj else None
         options = generator_options(s, "generate")
     pairs = [(int(v.split(":")[1]), r) for v, _l in options if v.startswith("artlist:")
              for r in image_models.resolutions("artlist", int(v.split(":")[1]))]

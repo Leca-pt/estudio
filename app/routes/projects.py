@@ -166,8 +166,51 @@ def project_detail(request: Request, project_id: int, session: Session = Depends
     return RedirectResponse(f"/projetos/{project_id}/etapa/{target}", status_code=303)
 
 
-def bible_context(session: Session, project: Project) -> dict:
+def models_context(session: Session, project: Project) -> dict:
+    """Bíblia › Formato e modelos: as escolhas possíveis e o que vale hoje na Configuração (para «Igual à Configuração»)."""
+    from app import voice_models
+    from app.routes.gpt import generator_default, generator_label, generator_options
+    from app.routes.video import RESOLUTIONS, _model, video_models, video_settings
+
+    cfg_video = _model(session, None)
+    voices = voice_models.options(session)
+    cfg_voice = (get_config(session, "voice_generator", {}) or {}).get("default")
     return {
+        "m_image": generator_options(session, "generate"), "m_edit": generator_options(session, "edit"),
+        "m_image_cfg": generator_label(session, generator_default(session, "generate")[0]),
+        "m_edit_cfg": generator_label(session, generator_default(session, "edit")[0]),
+        "m_voice": voices, "m_voice_cfg": next((o["label"] for o in voices if o["value"] == cfg_voice), "o último usado"),
+        "m_video": video_models(session), "m_video_cfg": (cfg_video or {}).get("name", "—"),
+        "m_res": RESOLUTIONS, "m_res_cfg": video_settings(session)["quality"],
+    }
+
+
+def save_models(session: Session, project: Project, form) -> int:
+    """Grava os modelos padrão do projeto ("" = igual à Configuração). Devolve quantos planos mudaram de duração (o
+    modelo de vídeo novo pode não aceitar a deles)."""
+    from app import voice_models
+    from app.routes.gpt import generator_options
+    from app.routes.video import RESOLUTIONS, apply_project_default, video_models
+
+    def pick(name, allowed):
+        if name not in form:
+            return getattr(project, name)
+        v = text(form, name)
+        return v if v in allowed else None
+
+    project.image_model = pick("image_model", {v for v, _l in generator_options(session, "generate")})
+    project.image_edit_model = pick("image_edit_model", {v for v, _l in generator_options(session, "edit")})
+    project.voice_model = pick("voice_model", {o["value"] for o in voice_models.options(session)})
+    before = project.video_model
+    project.video_model = pick("video_model", {m["name"] for m in video_models(session)})
+    project.video_resolution = pick("video_resolution", set(RESOLUTIONS))
+    session.add(project)
+    session.flush()
+    return apply_project_default(session, project) if project.video_model != before else 0
+
+
+def bible_context(session: Session, project: Project) -> dict:
+    return {**models_context(session, project),
         "type_locked": type_locked(session, project),
         "prefix_locked": prefix_locked(session, project),
         "max_chars": get_config(session, "prompt_max_chars", 2000),
@@ -231,7 +274,10 @@ async def project_update(request: Request, project_id: int, session: Session = D
     if text(form, "image_resolution") in ("1K", "2K", "4K"):
         project.image_resolution = text(form, "image_resolution")
     session.add(project)
+    moved = save_models(session, project, form)
     session.commit()
+    if moved:
+        request.session["flash_info"] = f"{moved} plano(s) mudaram de duração para uma que o novo modelo de vídeo aceita."
     return RedirectResponse(f"/projetos/{project.id}/etapa/1?guardado=1", status_code=303)
 
 

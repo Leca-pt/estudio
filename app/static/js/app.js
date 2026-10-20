@@ -584,11 +584,18 @@
   // O modelo escolhido num seletor de gerar fica lembrado neste browser para esse tipo de imagem (frame-chave, vista,
   // folha…): sem isto, a página, ao atualizar-se depois do pedido, voltava a mostrar o modelo por omissão (e o pedido
   // seguinte ia para ele).
-  const genKey = (sel) => { const m = /^gen:([^:]+):/.exec(sel.name || ''); return m ? 'estudio-gen:' + m[1] : null; };
+  // A escolha lembra-se por projeto e só enquanto o padrão (do projeto ou da Configuração) for o mesmo: mudar o padrão
+  // volta a pôr o novo em todos os botões.
+  const genKey = (sel) => {
+    const m = /^gen:([^:]+):/.exec(sel.name || ''), p = /^\/projetos\/(\d+)/.exec(location.pathname);
+    return m ? 'estudio-gen:' + (p ? p[1] + ':' : '') + m[1] : null;
+  };
+  const genDefault = (sel) => { const o = [...sel.options].find((x) => x.defaultSelected); return o ? o.value : ''; };
   function restoreGens(root) {
     (root && root.querySelectorAll ? root : document).querySelectorAll('select.gen-select:not(.res-select)').forEach((sel) => {
-      const k = genKey(sel), v = k && !sel._touched ? store.get(k) : null;
-      if (v && v !== sel.value && [...sel.options].some((o) => o.value === v)) sel.value = v;
+      const k = genKey(sel), raw = k && !sel._touched ? store.get(k) : null;
+      const [v, d] = (raw || '').split('|');
+      if (v && d === genDefault(sel) && v !== sel.value && [...sel.options].some((o) => o.value === v)) sel.value = v;
     });
   }
   document.addEventListener('change', (e) => {
@@ -603,7 +610,7 @@
     }
     if (t && t.matches && t.matches('select.gen-select:not(.res-select)') && t.parentElement) {
       const k = genKey(t);
-      if (k) store.set(k, t.value);
+      if (k) store.set(k, t.value + '|' + genDefault(t));
       document.querySelectorAll(`select.gen-select[name="${CSS.escape(t.name)}"]`).forEach((o) => {
         o.parentElement && o.parentElement.querySelectorAll('select.res-select').forEach(syncRes);
       });

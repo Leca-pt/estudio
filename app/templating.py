@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
 
 from app.security import csrf_token
 
@@ -96,37 +97,47 @@ def _image_providers() -> dict:
 templates.env.globals["image_providers"] = _image_providers
 
 
-_GENS: dict[str, tuple[float, dict]] = {}  # uso → (quando, resultado): uma página com 50 botões calcula-o uma vez
+_GENS: dict[tuple, tuple[float, dict]] = {}  # (uso, projeto) → (quando, resultado): 50 botões calculam-no uma vez
 
 
-def _image_generators(use: str = "generate") -> dict:
+@pass_context
+def _image_generators(context, use: str = "generate") -> dict:
     import time
 
-    hit = _GENS.get(use)
+    project = context.get("project")
+    key = (use, getattr(project, "id", None), getattr(project, "image_model", None), getattr(project, "image_edit_model", None))
+    hit = _GENS.get(key)
     if hit and time.monotonic() - hit[0] < 3:
         return hit[1]
-    result = _image_generators_now(use)
-    _GENS[use] = (time.monotonic(), result)
+    result = _image_generators_now(use, project)
+    _GENS[key] = (time.monotonic(), result)
     return result
 
 
-def _image_generators_now(use: str = "generate") -> dict:
+SOURCE_NOTE = {"project": " · padrão do projeto", "config": " · padrão da Configuração"}
+
+
+def _image_generators_now(use: str = "generate", project=None) -> dict:
     """Modelos para o seletor de um botão: {"options": [(valor, rótulo)], "default": valor}. use: "generate",
-    "edit" ou "maquete" (os modelos que não servem para esse uso não aparecem; os limitados levam um aviso)."""
+    "edit" ou "maquete" (os modelos que não servem para esse uso não aparecem; os limitados levam um aviso). O
+    pré-escolhido é o padrão do projeto ou o da Configuração, e diz-se no rótulo de onde vem."""
     from sqlmodel import Session
 
-    from app.db import engine
-    from app.routes.gpt import default_generator, generator_options
-
     from app import image_models
-    from app.routes.gpt import parse_generator
+    from app.db import engine
+    from app.routes.gpt import generator_default, generator_options, parse_generator
+
+    def mark(opts, value, src):
+        return [(v, l + (SOURCE_NOTE.get(src, "") if v == value else "")) for v, l in opts]
 
     with Session(engine) as session:
         opts = generator_options(session, use)
         res = {v: ",".join(image_models.resolutions(*parse_generator(v))) for v, _l in opts}
-        return {"options": opts, "default": default_generator(session, use=use), "res": res,
-                "edit_options": generator_options(session, "edit"),
-                "default_edit": default_generator(session, edit=True)}
+        default, src = generator_default(session, use, project)
+        edit_default, edit_src = generator_default(session, "edit", project)
+        return {"options": mark(opts, default, src), "default": default, "source": src, "res": res,
+                "edit_options": mark(generator_options(session, "edit"), edit_default, edit_src),
+                "default_edit": edit_default}
 
 
 templates.env.globals["image_generators"] = _image_generators

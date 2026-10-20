@@ -695,3 +695,16 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - O formato passa a ser um campo da bíblia para o Assistente e o MCP (project.aspect_ratio) e o create_project do MCP
   aceita aspect_ratio.
 - O GPT Image (ChatGPT) respeita a proporção pedida no texto: dos frames-chave pedidos em 9:16, 18 de 23 saíram verticais.
+
+## 20 de outubro de 2026: modelos padrão por projeto
+
+- Três níveis, o mais específico ganha: Configuração (padrão da app) → projeto (Bíblia › 05 Formato e modelos:
+  gerar imagens, editar imagens, vozes, vídeo e resolução do vídeo; vazio = «Igual à Configuração») → o seletor de cada
+  botão (uma geração). Campos novos em Project: image_model, image_edit_model, voice_model (o vídeo já tinha
+  video_model/video_resolution, cujo formulário saiu da etapa 6, que agora só mostra o padrão com um link).
+- gpt.generator_default(session, use, project) devolve (modelo, origem); o seletor diz no rótulo «padrão do projeto» ou
+  «padrão da Configuração». A memória do browser do último escolhido passa a ser por projeto e só vale enquanto o padrão
+  for o mesmo (mudar o padrão volta a pô-lo em todos os botões).
+- Vozes: o padrão do projeto ganha ao «último usado» (que continua a ser guardado na Configuração).
+- Assistente e MCP: project.image_model, project.image_edit_model e project.voice_model ("default" = Configuração),
+  além de project.video_model e project.video_resolution.

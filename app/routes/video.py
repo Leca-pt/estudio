@@ -998,22 +998,3 @@ async def draft_render(request: Request, project_id: int, shot_id: int, media_id
     jobs.wake()
     flash_info(request, "A passar o take a 1080p no Artlist: aparece em Takes como um take novo.")
     return RedirectResponse(url + "#resultados", status_code=303)
-
-
-@router.post("/video/padrao")
-async def project_video_default(request: Request, project_id: int, session: Session = Depends(get_session)):
-    """O modelo e a resolução padrão do projeto (etapa Vídeo)."""
-    project = get_project(session, project_id)
-    form = await request.form()
-    name, res = text(form, "video_model"), text(form, "video_resolution")
-    if name and any(m["name"] == name for m in video_models(session)):
-        project.video_model = name
-    if res in RESOLUTIONS:
-        project.video_resolution = res
-    session.add(project)
-    session.flush()
-    n = apply_project_default(session, project)
-    session.commit()
-    flash_info(request, f"Padrão do projeto: {project.video_model} · {project.video_resolution}."
-               + (f" {n} plano(s) mudaram de duração para uma que o modelo aceita." if n else ""))
-    return RedirectResponse(f"/projetos/{project.id}/etapa/6", status_code=303)

@@ -712,6 +712,10 @@ def apply(session: Session, project: Project, key: str, value: str, context_scen
         project.image_resolution = value
         session.add(project)
         return
+    if key in ("project.image_model", "project.image_edit_model", "project.voice_model"):
+        setattr(project, key.split(".", 1)[1], None if value == "default" else value)
+        session.add(project)
+        return
     if key in ("project.video_model", "project.video_resolution"):
         from app.routes.video import apply_project_default
 

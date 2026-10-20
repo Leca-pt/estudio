@@ -496,7 +496,7 @@ def enqueue(session: Session, t: Target, gen: dict | None) -> tuple[bool, str]:
         return False, "Aprova primeiro a folha: o retrato parte dela."
     if t.kind == "look" and not getattr(session.get(Asset, t.obj.asset_id), "approved_image_id", None):
         return False, "Aprova primeiro a folha da personagem: o look parte dela."
-    provider, model = parse_generator(gen.get("gen") or default_generator(session, use=t.use))
+    provider, model = parse_generator(gen.get("gen") or default_generator(session, use=t.use, project=t.project))
     return queue_image(session, t.project, t.role, t.prompt or "", [m.id for m in inputs(session, t)], provider,
                        model, use=t.use, resolution=gen.get("res") or None, params=params, **t.target)
 

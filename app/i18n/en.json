@@ -2514,9 +2514,58 @@
 "As linhas deste áudio já não existem no guião: carrega-o outra vez para as linhas certas.": "This audio's lines no longer exist in the script: upload it again for the right lines.",
 "O projeto ainda não tem formato (proporção da imagem): escolhe-o na Bíblia › 05 Formato. Sem ele, as imagens e os vídeos sairiam com a proporção errada.": "The project has no format yet (image aspect ratio): choose it in Bible › 05 Format. Without it, images and videos would come out with the wrong aspect ratio.",
 "Escolher o formato": "Choose the format",
-"Formato (proporção da imagem e do vídeo)": "Format (image and video aspect ratio)"
+"Formato (proporção da imagem e do vídeo)": "Format (image and video aspect ratio)",
+"Formato e modelos": "Format and models",
+"Gerar imagens": "Generate images",
+"Editar imagens": "Edit images",
+"Vozes": "Voices",
+"padrão do projeto": "project default",
+"padrão da Configuração": "default from Settings",
+"modelos da Configuração": "models from Settings",
+"Modelos padrão deste projeto. «Igual à Configuração» segue o que está na Configuração; o seletor de cada botão continua a deixar escolher outro para uma geração.": "This project's default models. “Same as Settings” follows what is set in Settings; each button's selector still lets you pick another one for a single generation.",
+"; cada plano pode escolher outro na página de vídeo dele.": "; each shot can pick another one on its video page."
 },
 "patterns": [
+[
+"Igual à Configuração \\((.{1,200}?)\\)",
+"Same as Settings (\\1)",
+"Igual à Configuração",
+[
+"Igual à Configuração ("
+]
+],
+[
+"(\\d+) modelo\\(s\\) próprio\\(s\\)",
+"\\1 model(s) of its own",
+"próprio(s)",
+[
+"modelo(s) próprio(s)"
+]
+],
+[
+"· (.{1,40}?) \\(da Configuração\\)\\. Muda-se na",
+"· \\1 (from Settings). Change it in",
+"Muda-se na",
+[
+"(da Configuração). Muda-se na"
+]
+],
+[
+"· (.{1,40}?)\\. Muda-se na",
+"· \\1. Change it in",
+"Muda-se na",
+[
+". Muda-se na"
+]
+],
+[
+"(\\d+) plano\\(s\\) mudaram de duração para uma que o novo modelo de vídeo aceita\\.",
+"\\1 shot(s) changed to a duration the new video model accepts.",
+"mudaram de duração",
+[
+"plano(s) mudaram de duração"
+]
+],
 [
 "Áudios tirados \\((\\d+)\\)",
 "Removed audio (\\1)",
