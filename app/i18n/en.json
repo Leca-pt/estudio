@@ -2511,7 +2511,10 @@
 "As linhas deste áudio já não estão seguidas no guião (mudaram de sítio).": "This audio's lines are no longer in a row in the script (they were moved).",
 "O texto das linhas mudou depois de o áudio ser carregado.": "The text of the lines changed after the audio was uploaded.",
 "Essas linhas não são desta cena.": "Those lines aren't from this scene.",
-"As linhas deste áudio já não existem no guião: carrega-o outra vez para as linhas certas.": "This audio's lines no longer exist in the script: upload it again for the right lines."
+"As linhas deste áudio já não existem no guião: carrega-o outra vez para as linhas certas.": "This audio's lines no longer exist in the script: upload it again for the right lines.",
+"O projeto ainda não tem formato (proporção da imagem): escolhe-o na Bíblia › 05 Formato. Sem ele, as imagens e os vídeos sairiam com a proporção errada.": "The project has no format yet (image aspect ratio): choose it in Bible › 05 Format. Without it, images and videos would come out with the wrong aspect ratio.",
+"Escolher o formato": "Choose the format",
+"Formato (proporção da imagem e do vídeo)": "Format (image and video aspect ratio)"
 },
 "patterns": [
 [

@@ -161,6 +161,10 @@ def blockers(session: Session, shot: Shot, kind: str) -> list[dict]:
     project_id = scene.project_id
     sb = f"/projetos/{project_id}/storyboard/planos/{shot.id}"
     out = []
+    from app.routes.gpt import FORMAT_MISSING, project_aspect
+
+    if project_aspect(_project(session, project_id)) is None:  # sem formato não se adivinha a proporção
+        out.append({"text": FORMAT_MISSING, "actions": [_act("Escolher o formato", href=f"/projetos/{project_id}/etapa/1")]})
     if kind == "video":
         from app import video_inputs as VI
 

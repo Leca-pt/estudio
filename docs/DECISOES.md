@@ -685,3 +685,13 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - MCP (app/mcp_media.py): export_media(scope projeto/ep-N/ato-N/cena-N/plano-N/asset-N, kinds video/audio/image) dá
   links de 6 h do que está aprovado, por ordem da montagem, e as lacunas; upload_line_audio, remove_line_audio e
   keep_line_audio. open_screen da cena mostra os áudios como [audio:N].
+
+## 20 de outubro de 2026: formato do projeto obrigatório para gerar
+
+- Um projeto sem formato (Bíblia › 05 Formato) gerava em 9:16 sem avisar (o Graywake, uma série 16:9, saiu com
+  frames-chave verticais). Agora não se adivinha: gpt.project_aspect devolve None e queue_image, a edição de imagens,
+  o pedido de vídeo e outdated.blockers (com a ação «Escolher o formato») recusam com FORMAT_MISSING. Folhas, retratos
+  e capa têm proporção própria e não dependem disto.
+- O formato passa a ser um campo da bíblia para o Assistente e o MCP (project.aspect_ratio) e o create_project do MCP
+  aceita aspect_ratio.
+- O GPT Image (ChatGPT) respeita a proporção pedida no texto: dos frames-chave pedidos em 9:16, 18 de 23 saíram verticais.

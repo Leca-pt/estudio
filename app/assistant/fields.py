@@ -28,6 +28,7 @@ ENTITIES = {
         "dialogue_language": (SELECT, "Língua dos diálogos", "dialogue_language"),
         "references": (TEXT, "Referências", None), "render_style": (SELECT, "Estilo de render", "render_style"),
         "proportions": (SELECT, "Proporções", "proportions"), "palette_light": (SELECT, "Paleta e luz", "palette_light"),
+        "aspect_ratio": (SELECT, "Formato (proporção da imagem e do vídeo)", "aspect_ratio"),
         "style_block": (EN, "Bloco de estilo", None), "exclusions": (EN, "Exclusões", None),
         "project_rules": (TEXT, "Regras dos prompts", None), "world": (TEXT, "O mundo", None), "world_prompt": (EN, "O mundo nos prompts", None), "cover_prompt": (PROMPT, "Prompt da capa", None),
     }),

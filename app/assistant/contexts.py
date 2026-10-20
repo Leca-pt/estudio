@@ -446,9 +446,10 @@ def build(session: Session, project: Project, key: str, scene_hint: int | None =
         for attr in ("premise", "logline", "synopsis"):
             ctx.add(spec(session, project, f"project.{attr}", "A ideia"))
         for attr in ("genre", "tone", "audience", "dialogue_language", "references", "render_style", "proportions",
-                     "palette_light", "style_block", "exclusions", "project_rules"):
+                     "palette_light", "style_block", "aspect_ratio", "exclusions", "project_rules"):
             group = "Identidade" if attr in ("genre", "tone", "audience", "dialogue_language", "references") else \
-                "Estilo visual" if attr in ("render_style", "proportions", "palette_light", "style_block") else "Regras fixas"
+                "Estilo visual" if attr in ("render_style", "proportions", "palette_light", "style_block") else \
+                "Formato" if attr == "aspect_ratio" else "Regras fixas"
             ctx.add(spec(session, project, f"project.{attr}", group))
         ctx.add(spec(session, project, "project.cover_prompt", "Capa"))
         _project_video_fields(ctx, session, project)

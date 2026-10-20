@@ -492,8 +492,10 @@ def _created(s: Session, p: Project, field: str) -> str:
              description="Cria um projeto novo. type: series (série), film (filme) ou short (curta ou spot). prefix: 2 a 8 "
                          "letras maiúsculas ou números, único (ex.: AVT). parent_id: opcional, um projeto de onde vem "
                          "(ex.: um spot da série): copia a bíblia visual e o mundo do texto; os assets importam-se depois "
-                         "com import_assets.")
-def create_project(name: str, prefix: str, type: str, parent_id: int | None = None) -> str:
+                         "com import_assets. aspect_ratio: o formato da imagem e do vídeo — 16:9 (horizontal), 9:16 "
+                         "(vertical) ou 1:1; sem ele não se gera nada (escolhe-se depois na bíblia, campo aspect_ratio).")
+def create_project(name: str, prefix: str, type: str, parent_id: int | None = None,
+                   aspect_ratio: str | None = None) -> str:
     from app.asset_import import copy_bible
     from app.routes.projects import _validate_identity
 
@@ -502,7 +504,9 @@ def create_project(name: str, prefix: str, type: str, parent_id: int | None = No
         error = _validate_identity(s, None, name, prefix, type)
         if error:
             raise ToolError(error)
-        p = Project(name=name, prefix=prefix, type=type)
+        if aspect_ratio is not None and aspect_ratio not in ("16:9", "9:16", "1:1"):
+            raise ToolError("aspect_ratio: 16:9, 9:16 ou 1:1.")
+        p = Project(name=name, prefix=prefix, type=type, aspect_ratio=aspect_ratio)
         if parent_id is not None:
             src = _project(s, parent_id)
             p.parent_id = src.id
@@ -510,7 +514,8 @@ def create_project(name: str, prefix: str, type: str, parent_id: int | None = No
         s.add(p)
         s.commit()
         log.info("mcp: projeto criado %s (%s)", p.id, p.prefix)
-        return f"Criado o projeto {p.id} «{p.name}» ({p.prefix}, {p.type})" + (f", ligado ao projeto {parent_id}" if parent_id else "") + "."
+        return (f"Criado o projeto {p.id} «{p.name}» ({p.prefix}, {p.type})" + (f", ligado ao projeto {parent_id}" if parent_id else "")
+                + "." + ("" if p.aspect_ratio else " Ainda sem formato: escolhe-o com o utilizador (bible, aspect_ratio) antes de gerar."))
 
 
 @server.tool(annotations=READ, description="Os assets de outros projetos que se podem copiar para este (com folhas, "

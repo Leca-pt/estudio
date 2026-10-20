@@ -671,13 +671,17 @@ def queue_video(session: Session, project: Project, shot: Shot, prompt: str, aud
     images = plan["images"]
     if not prompt.strip():
         return False, "Falta o prompt de vídeo."
+    from app.routes.gpt import FORMAT_MISSING, project_aspect
+
+    if project_aspect(project) is None:
+        return False, FORMAT_MISSING
     if not images:
         return False, ("Faltam as imagens: aprova as vistas do local nos momentos do plano (Storyboard) e as folhas "
                        "do elenco.")
     guide, voices = plan["guide"], plan["voices"]
     inputs = [m.id for m in images] + ([guide.id] if guide is not None else []) + [m.id for m in voices]
     jobs.enqueue(session, project, "clip", final_prompt(prompt, model, guide, voices, session, shot),
-                 (project.aspect_ratio or "9:16").split(" ")[0],
+                 project_aspect(project),
                  inputs, kind="video_refs" if mode == "references" else "video_frames",
                  provider=provider, model_group_id=model["key"] if provider in ("fal", "bytedance") else model["group"],
                  duration_s=shot.duration_s, audio=audio, shot_id=shot.id,

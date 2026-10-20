@@ -160,7 +160,17 @@ def op_generator(session: Session, verb: str, form, field: str) -> tuple[str, in
     return (legacy, None) if legacy else None
 
 
-def aspect_for(session: Session, project: Project, role: str) -> str:
+FORMAT_MISSING = ("O projeto ainda não tem formato (proporção da imagem): escolhe-o na Bíblia › 05 Formato. Sem ele, "
+                  "as imagens e os vídeos sairiam com a proporção errada.")
+
+
+def project_aspect(project: Project) -> str | None:
+    """A proporção do projeto (ex.: "16:9"), ou None se ainda não foi escolhida — nunca se adivinha."""
+    return (project.aspect_ratio or "").split(" ")[0] or None
+
+
+def aspect_for(session: Session, project: Project, role: str) -> str | None:
+    """A proporção a pedir: folhas, retratos e capa têm a sua; o resto é a do projeto (None se não está escolhida)."""
     guides = get_config(session, "prompt_guides", {}) or {}
     if role in ("sheet", "look"):
         return guides.get("sheet_aspect") or "16:9"
@@ -168,7 +178,7 @@ def aspect_for(session: Session, project: Project, role: str) -> str:
         return guides.get("portrait_aspect") or "1:1"
     if role == "cover":
         return "16:9"
-    return (project.aspect_ratio or "9:16").split(" ")[0]
+    return project_aspect(project)
 
 
 def provider_problem(session: Session, provider: str) -> str | None:
@@ -198,6 +208,8 @@ def queue_image(session: Session, project: Project, role: str, prompt: str, inpu
         return False, "Esse modelo só gera a partir de imagens de referência, e aqui não segue nenhuma: escolhe outro."
     if not (prompt or "").strip():
         return False, "Não há prompt para gerar."
+    if aspect_for(session, project, role) is None:
+        return False, FORMAT_MISSING
     if any(j.status in ("queued", "running") for j in jobs.jobs_for(session, project, role, **target)):
         return False, "Já há uma imagem a ser gerada para aqui. Espera que termine antes de pedir outra."
     allowed = image_models.resolutions(provider, model)
@@ -325,6 +337,9 @@ async def edit_image(request: Request, project_id: int, media_id: int, session: 
         return RedirectResponse(back, status_code=303)
     if not fits(session, provider, group, "edit"):
         flash(request, "Esse modelo não edita imagens (escolhe outro).")
+        return RedirectResponse(back, status_code=303)
+    if aspect_for(session, project, role) is None:
+        flash(request, FORMAT_MISSING)
         return RedirectResponse(back, status_code=303)
     target = {k: getattr(media, k) for k in ("asset_id", "shot_id", "locview_id") if getattr(media, k)}
     jobs.enqueue(session, project, role, change, aspect_for(session, project, role), [media.id], kind="edit",
