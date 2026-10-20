@@ -61,6 +61,15 @@ async def _remember_place(request, call_next):
         places[m.group(1)] = url[:200]
         request.session["places"] = dict(list(places.items())[-5:])  # os últimos 5 projetos
         request.session["last_project"] = int(m.group(1))
+    elif m and request.method == "GET" and response.status_code >= 400:
+        # A página lembrada já não existe (ex.: um asset, uma cena ou um plano apagados): esquece-a, senão o
+        # «Voltar ao projeto» voltava sempre ao erro.
+        url = (path + (f"?{request.url.query}" if request.url.query else ""))[:200]
+        for key in ("places", "places_before_room"):
+            saved = dict(request.session.get(key) or {})
+            if saved.get(m.group(1)) in (url, path):
+                saved.pop(m.group(1))
+                request.session[key] = saved
     return response
 
 
