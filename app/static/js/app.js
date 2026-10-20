@@ -1013,6 +1013,12 @@
     if (det) { const d = document.getElementById(det.dataset.openDetails); if (d) d.open = true; }
 
     const open = t.closest('[data-open-dialog]');
+    if (open && open.dataset.laFirst) {  // áudio de falas: a janela abre com as linhas deste botão escolhidas
+      const dlg = document.getElementById(open.dataset.openDialog);
+      const f = dlg && dlg.querySelector('[data-la-first-sel]'), l = dlg && dlg.querySelector('[data-la-last-sel]');
+      if (f) f.value = open.dataset.laFirst;
+      if (l) l.value = open.dataset.laLast || open.dataset.laFirst;
+    }
     if (open) { const dlg = document.getElementById(open.dataset.openDialog); dlg.showModal(); growAll(dlg); if (dlg.matches('[data-picker]')) pickerCount(dlg); return; }
 
     const theme = t.closest('[data-theme-set]');

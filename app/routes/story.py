@@ -159,10 +159,18 @@ def _scene_cast(session: Session, project: Project, scene: Scene) -> dict:
 def _scenes_ctx(request: Request, session: Session, project: Project, scenes: list[Scene]) -> dict:
     expanded = _expanded_id(request, scenes)
     expanded_scene = next((s for s in scenes if s.id == expanded), None)
+    lines = _lines(session, expanded_scene) if expanded_scene else []
+    audio = {}
+    if expanded_scene:
+        from app import line_audio
+
+        audio = {"audio_by_line": line_audio.by_line(session, expanded_scene, lines),
+                 "audio_rejected": line_audio.rejected(session, expanded_scene), "audio_scene": expanded_scene}
     return {
         "scenes": scenes,
         "expanded": expanded,
-        "lines": _lines(session, expanded_scene) if expanded_scene else [],
+        "lines": lines,
+        **audio,
         "line_counts": _line_counts(session, [s.id for s in scenes]),
         "shot_counts": _shot_counts(session, [s.id for s in scenes]),
         "locations": {a.id: a.name for a in _assets(session, project, "location")},
@@ -548,3 +556,75 @@ async def act_save(request: Request, project_id: int, act_id: int, session: Sess
         request.session["flash_info"] = "Foi para a Reciclagem (no topo da página): podes recuperá-lo durante 30 dias."
     return _redirect(url, open_scene, saved=op is None)
 
+
+
+# ── Áudio de falas (ex.: narração gerada fora) ───────────────
+
+def _line_audio(session: Session, scene: Scene, media_id: int):
+    from app.models import MediaFile
+
+    m = session.get(MediaFile, media_id)
+    if m is None or m.scene_id != scene.id or m.role != "line_audio":
+        raise HTTPException(status_code=404, detail="Áudio não encontrado.")
+    return m
+
+
+@router.post("/cenas/{scene_id}/audio")
+async def line_audio_upload(request: Request, project_id: int, scene_id: int, session: Session = Depends(get_session)):
+    """Um ficheiro de áudio para uma ou mais linhas seguidas da cena (da primeira à última escolhidas)."""
+    from app import line_audio
+    from app.media import MAX_AUDIO_BYTES, UploadError, read_limited
+    from app.routes.files import flash, flash_info
+
+    project = get_project(session, project_id)
+    scene = _scene(session, project, scene_id)
+    form = await request.form()
+    url = _container_url(project, scene.episode_id, scene.act_id, scene.id)
+    upload = form.get("file")
+    first, last = form.get("first") or "", form.get("last") or ""
+    if not (hasattr(upload, "read") and upload.filename) or not first.isdigit():
+        flash(request, "Escolhe o ficheiro de áudio e as linhas que ele cobre.")
+        return RedirectResponse(url, status_code=303)
+    try:
+        data = await read_limited(upload, MAX_AUDIO_BYTES)
+        m, replaced = line_audio.attach(session, project, scene, int(first), int(last) if last.isdigit() else None, data)
+    except (UploadError, ValueError) as exc:
+        flash(request, str(exc))
+        return RedirectResponse(url, status_code=303)
+    session.commit()
+    flash_info(request, "Áudio guardado." + (f" {len(replaced)} áudio(s) que cobriam as mesmas linhas foram para "
+                                             "«Rejeitados»." if replaced else ""))
+    return RedirectResponse(url, status_code=303)
+
+
+@router.post("/cenas/{scene_id}/audio/{media_id}/{action}")
+def line_audio_action(request: Request, project_id: int, scene_id: int, media_id: int, action: str,
+                      session: Session = Depends(get_session)):
+    """Tirar (vai para «Rejeitados»), Manter (vale para o texto atual) ou Repor (volta, tirando os que se sobrepõem)."""
+    from app import line_audio
+    from app.media_service import reject_media
+    from app.routes.files import flash, flash_info
+
+    project = get_project(session, project_id)
+    scene = _scene(session, project, scene_id)
+    m = _line_audio(session, scene, media_id)
+    url = _container_url(project, scene.episode_id, scene.act_id, scene.id)
+    if action == "tirar":
+        reject_media(session, m)
+        flash_info(request, "O áudio foi para «Rejeitados».")
+    elif action == "manter":
+        reason = line_audio.keep(session, scene, m)
+        if reason:
+            flash(request, reason)
+            return RedirectResponse(url, status_code=303)
+        flash_info(request, "O áudio fica a valer para o texto atual.")
+    elif action == "repor":
+        reason = line_audio.restore(session, scene, m)
+        if reason:
+            flash(request, reason)
+            return RedirectResponse(url, status_code=303)
+        flash_info(request, "O áudio voltou ao guião.")
+    else:
+        raise HTTPException(status_code=404)
+    session.commit()
+    return RedirectResponse(url, status_code=303)

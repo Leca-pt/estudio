@@ -79,7 +79,7 @@ def approve_media(session: Session, media: MediaFile) -> None:
 
 # O que o utilizador gerou ou carregou fica guardado ao rejeitar (em «Rejeitados», de onde se repõe); os ficheiros que a
 # app refaz sozinha (vídeo-guia, renders da maquete, profundidade) apagam-se.
-KEEP_ON_REJECT = {"clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame", "key", "model3d"}
+KEEP_ON_REJECT = {"line_audio", "clip", "sheet", "portrait", "look", "locview", "cover", "voice", "photo", "shotref", "frame", "key", "model3d"}
 
 
 def reject_media(session: Session, media: MediaFile) -> None:
@@ -115,6 +115,8 @@ def back_url(project: Project, media: MediaFile) -> str:
     if media.asset_id:
         anchor = {"portrait": "retrato", "photo": "fotos", "voice": "voz", "look": "looks", "model3d": "modelo3d"}.get(media.role, "resultados")
         return f"/projetos/{project.id}/assets/{media.asset_id}#{anchor}"
+    if media.role == "line_audio" and media.scene_id:
+        return f"/projetos/{project.id}/historia/cenas/{media.scene_id}"
     if media.role == "clip":
         return f"/projetos/{project.id}/video/planos/{media.shot_id}#" + ("take-escolhido" if media.status == "approved" else "resultados")
     if media.role == "cover":

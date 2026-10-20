@@ -145,7 +145,8 @@ None of these is required; each one enables part of the generation.
 The app is an MCP server at `<PUBLIC_URL>/mcp`, with OAuth (dynamic client registration) and your login as the
 authorization. In Claude: Settings → Connectors → Add custom connector → `<PUBLIC_URL>/mcp`. In ChatGPT: developer
 mode → Apps & connectors → Create, with the same address and OAuth. The tools cover projects, story and script,
-assets (including their reference photos: list/download, upload, remove), 3D sets, storyboard, video, the Writers'
+assets (including their reference photos: list/download, upload, remove), 3D sets, storyboard, video, audio for
+script lines (e.g. narration made elsewhere), downloads of everything approved for editing elsewhere, the Writers'
 room and the Agenda; nothing is approved without you, and paid generations ask for cost confirmation.
 
 ## Interface language

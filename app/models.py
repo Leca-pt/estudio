@@ -274,7 +274,7 @@ class MediaFile(TimestampedModel, table=True):
     project_id: int = Field(foreign_key="project.id", ondelete="CASCADE", index=True)
     path: str
     kind: str  # image | video | audio
-    role: str = ""  # sheet | portrait | look (folha de um look) | voice (áudio) | photo | locrender/locdepth/locview (vistas da maquete) | render (momento de um plano) | preview3d | guide (vídeo-guia) | clip | frame | cover
+    role: str = ""  # sheet | portrait | look (folha de um look) | voice (áudio) | photo | locrender/locdepth/locview (vistas da maquete) | render (momento de um plano) | preview3d | guide (vídeo-guia) | clip | frame | cover | line_audio (áudio de falas do guião)
     source: str = "upload"  # upload | gpt-image | artlist
     status: str = "pending"  # pending | approved | rejected
     duration_ms: Optional[int] = None  # vídeos e áudios
@@ -285,6 +285,11 @@ class MediaFile(TimestampedModel, table=True):
     shot_id: Optional[int] = Field(default=None, foreign_key="shot.id", ondelete="CASCADE", index=True)
     locview_id: Optional[int] = Field(default=None, foreign_key="locationview.id", ondelete="CASCADE")
     look_id: Optional[int] = Field(default=None, foreign_key="characterlook.id", ondelete="CASCADE")
+
+    # Áudio de falas (role line_audio, com scene_id): as linhas seguidas do guião que o ficheiro cobre, pela ordem, e o
+    # texto delas quando foi carregado (para saber se o guião mudou depois).
+    lines: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    basis: Optional[str] = None
 
 
 class OptionList(TimestampedModel, table=True):

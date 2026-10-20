@@ -6,12 +6,10 @@ aprovação (media_service.approve_media / reject_media). Nada é aprovado sozin
 decidir» até approve_image. As referências são as que a app anexa (prompt_targets.inputs: só imagens aprovadas).
 """
 
-import base64
 import io
 import re
 from typing import Any
 
-import httpx
 from mcp.server.mcpserver import Image
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -284,27 +282,9 @@ async def list_models(project_id: int | None = None) -> str:
 
 async def _fetch_image(image_url: str | None, image_base64: str | None) -> bytes:
     """Os bytes de uma imagem enviada por endereço https ou em base64 (até 20 MB)."""
-    if bool(image_url) == bool(image_base64):
-        raise ToolError("Envia image_url ou image_base64 (só um).")
-    if image_url:
-        if not image_url.startswith("https://"):
-            raise ToolError("O image_url tem de ser https://.")
-        try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
-                resp = await client.get(image_url)
-        except httpx.HTTPError as exc:
-            raise ToolError(f"Não consegui descarregar a imagem: {exc}") from exc
-        if resp.status_code >= 400:
-            raise ToolError(f"Não consegui descarregar a imagem (HTTP {resp.status_code}).")
-        data = resp.content
-    else:
-        try:
-            data = base64.b64decode(image_base64.split(",", 1)[-1], validate=False)
-        except ValueError as exc:
-            raise ToolError("image_base64 inválido.") from exc
-    if len(data) > MAX_BYTES:
-        raise ToolError("A imagem passa de 20 MB.")
-    return data
+    from app.mcp_video import _fetch
+
+    return await _fetch(image_url, image_base64, MAX_BYTES, "image")
 
 
 @server.tool(annotations=READ, structured_output=False,

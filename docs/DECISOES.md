@@ -669,3 +669,19 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   referências dessa zona, até ao máximo da app) e remove_reference_photo (reject_media, como «Tirar»: vai para
   «Rejeitados»).
 - A gravação dos ficheiros carregados passou para files.store_bytes, usada pelo formulário da app e pelo conector.
+
+## 20 de outubro de 2026: áudio das falas e downloads para montagem (MCP)
+
+- Áudio carregado (ex.: a narração de um documentário gerada no ElevenLabs) liga-se a falas do guião, por escolha do
+  utilizador: um ficheiro cobre UMA OU MAIS linhas seguidas da cena (as falas podem estar partidas e o áudio ser um só).
+  MediaFile role line_audio com scene_id, lines (ids pela ordem) e basis (hash do texto das linhas ao carregar);
+  app/line_audio.py. Uma linha só está num áudio: carregar outro que a apanhe manda o anterior para «Rejeitados».
+- Desatualizado (regra de propagação): linha apagada, linhas já não seguidas ou texto mudado → aviso no guião com
+  «Carregar outro» e «Manter» (só quando só o texto mudou); no export do MCP vem outdated com o motivo; no zip da
+  Montagem o ficheiro leva _DESATUALIZADO no nome. Não entra em nenhum pedido de geração (por agora).
+- Guião: botão de carregar em cada linha (abre a janela com essa linha escolhida; «Até à linha» para várias); o
+  leitor aparece na primeira linha do intervalo, as outras dizem «no áudio da linha N»; «Áudios tirados» com Repor.
+- Zip da Montagem: os áudios vão em audio/ (PRJ_T1E01_C02_L03-05_audio.mp3).
+- MCP (app/mcp_media.py): export_media(scope projeto/ep-N/ato-N/cena-N/plano-N/asset-N, kinds video/audio/image) dá
+  links de 6 h do que está aprovado, por ordem da montagem, e as lacunas; upload_line_audio, remove_line_audio e
+  keep_line_audio. open_screen da cena mostra os áudios como [audio:N].

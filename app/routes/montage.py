@@ -152,6 +152,14 @@ def export_zip(request: Request, project_id: int, session: Session = Depends(get
                     n += 1
                     ext = PurePosixPath(clip.path).suffix
                     entries.append((f"{n:02d}_{project.prefix}_{code}_P{sh.number:02d}{ext}", clip))
+            from app import line_audio  # o áudio das falas carregado no guião vai numa pasta à parte
+
+            for c in line_audio.clips(session, s):
+                m = c["media"]
+                if media_available(m):
+                    stale = "_DESATUALIZADO" if c["problem"] else ""
+                    name = line_audio.file_name(project, code, c, "")
+                    entries.append((f"audio/{name}{stale}{PurePosixPath(m.path).suffix}", m))
     if not entries:
         raise HTTPException(status_code=404, detail="Ainda não há clips aprovados neste âmbito.")
     suffix = "" if scope == "projeto" else f"_{scope}"

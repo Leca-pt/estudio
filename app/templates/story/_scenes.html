@@ -93,12 +93,38 @@
             <button class="ib sm" type="button" data-line-move="-1" aria-label="Subir linha" title="Subir linha">{{ i.icon("chev-up", 14) }}</button>
             <button class="ib sm" type="button" data-line-move="1" aria-label="Descer linha" title="Descer linha">{{ i.icon("chev-down", 14) }}</button>
             <button class="ib sm" type="button" data-line-del aria-label="Remover linha" title="Remover linha (guarda para confirmar)">{{ i.icon("x", 14) }}</button>
+            <button class="ib sm" type="button" data-open-dialog="la-dlg" data-la-first="{{ ln.id }}" aria-label="Carregar áudio desta linha" title="Carregar áudio (desta linha ou de várias seguidas)">{{ i.icon("upload", 14) }}</button>
           </div>
+          {% set au = audio_by_line.get(ln.id) if audio_by_line is defined else None %}
+          {% if au and au.starts %}
+          <div class="ln-audio {% if au.problem %}stale{% endif %}">
+            <audio controls preload="none" src="/media/{{ au.media.path }}"></audio>
+            <span class="hint">Áudio · {% if au.first == au.last %}linha {{ au.first }}{% else %}linhas {{ au.first }}–{{ au.last }}{% endif %}{% if au.media.duration_ms %} · {{ ("%.1f"|format(au.media.duration_ms / 1000))|replace(".", ",") }} s{% endif %}</span>
+            <span class="sp"></span>
+            {% if au.problem %}
+            <span class="la-warn">{{ i.icon("warn", 13) }}{{ au.problem }}</span>
+            <button class="btn sm" type="button" data-open-dialog="la-dlg" data-la-first="{{ au.ids[0] }}" data-la-last="{{ au.ids[-1] }}">Carregar outro</button>
+            {% if "texto" in au.problem %}<button class="btn sm" type="submit" form="la-{{ au.media.id }}-manter">Manter</button>{% endif %}
+            {% endif %}
+            <button class="btn sm" type="submit" form="la-{{ au.media.id }}-tirar" data-confirm="Tirar este áudio?" data-confirm-text="Fica em «Rejeitados», de onde o podes repor." data-confirm-ok="Tirar">Tirar</button>
+          </div>
+          {% elif au %}
+          <div class="ln-audio-in hint">↳ no áudio da linha {{ au.first }}</div>
+          {% endif %}
         </div>
         {% else %}
         <div class="script-empty">Sem linhas. Usa “+ Ação” ou “+ Diálogo”.</div>
         {% endfor %}
       </div>
+      {% if audio_rejected %}
+      <details class="la-rej"><summary class="hint">Áudios tirados ({{ audio_rejected|length }})</summary>
+        {% for r in audio_rejected %}
+        <div class="ln-audio"><audio controls preload="none" src="/media/{{ r.path }}"></audio>
+          <span class="hint">{{ (r.lines or [])|length }} linha(s){% if r.duration_ms %} · {{ ("%.1f"|format(r.duration_ms / 1000))|replace(".", ",") }} s{% endif %}</span><span class="sp"></span>
+          <button class="btn sm" type="submit" form="la-{{ r.id }}-repor">Repor</button></div>
+        {% endfor %}
+      </details>
+      {% endif %}
     </div>
   </div>
   {% endif %}

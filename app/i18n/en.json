@@ -2489,9 +2489,80 @@
 "⚠ feito com outra câmara ou encenação": "⚠ made with a different camera or staging",
 "✓ aprovada": "✓ approved",
 "✓ aprovado": "✓ approved",
-"✓ modelo carregado": "✓ model loaded"
+"✓ modelo carregado": "✓ model loaded",
+"Áudio": "Audio",
+"Carregar áudio": "Upload audio",
+"Carregar áudio desta linha": "Upload audio for this line",
+"Carregar áudio (desta linha ou de várias seguidas)": "Upload audio (for this line or several in a row)",
+"Da linha": "From line",
+"Até à linha": "To line",
+"Carregar outro": "Upload another",
+"Tirar este áudio?": "Remove this audio?",
+"Fica em «Rejeitados», de onde o podes repor.": "It stays in “Rejected”, where you can restore it.",
+"MP3, WAV, M4A, OGG ou FLAC, até 25 MB (os que não são MP3 ou WAV ficam em MP3).": "MP3, WAV, M4A, OGG or FLAC, up to 25 MB (anything other than MP3 or WAV is converted to MP3).",
+"Um ficheiro pode cobrir várias linhas seguidas (ex.: a narração de um parágrafo partido em várias falas). As linhas que já tinham áudio passam para este; o antigo fica em «Rejeitados».": "One file can cover several lines in a row (e.g. the narration of a paragraph split into several lines). Lines that already had audio move to this one; the old one goes to “Rejected”.",
+"Áudio guardado.": "Audio saved.",
+"O áudio foi para «Rejeitados».": "The audio went to “Rejected”.",
+"O áudio fica a valer para o texto atual.": "The audio now counts for the current text.",
+"O áudio voltou ao guião.": "The audio is back in the script.",
+"Escolhe o ficheiro de áudio e as linhas que ele cobre.": "Choose the audio file and the lines it covers.",
+"O áudio não está ligado a nenhuma linha.": "The audio isn't linked to any line.",
+"Uma das linhas deste áudio foi apagada do guião.": "One of this audio's lines was deleted from the script.",
+"As linhas deste áudio já não estão seguidas no guião (mudaram de sítio).": "This audio's lines are no longer in a row in the script (they were moved).",
+"O texto das linhas mudou depois de o áudio ser carregado.": "The text of the lines changed after the audio was uploaded.",
+"Essas linhas não são desta cena.": "Those lines aren't from this scene.",
+"As linhas deste áudio já não existem no guião: carrega-o outra vez para as linhas certas.": "This audio's lines no longer exist in the script: upload it again for the right lines."
 },
 "patterns": [
+[
+"Áudios tirados \\((\\d+)\\)",
+"Removed audio (\\1)",
+"tirados",
+[
+"Áudios tirados ("
+]
+],
+[
+"↳ no áudio da linha (\\d+)",
+"↳ in the audio of line \\1",
+"áudio da linha",
+[
+"↳ no áudio da linha"
+]
+],
+[
+"(\\d+) linha\\(s\\)",
+"\\1 line(s)",
+"linha(s)",
+[
+"linha(s)"
+]
+],
+[
+"Áudio guardado\\. (\\d+) áudio\\(s\\) que cobriam as mesmas linhas foram para «Rejeitados»\\.",
+"Audio saved. \\1 audio file(s) covering the same lines went to “Rejected”.",
+"cobriam",
+[
+"Áudio guardado.",
+"que cobriam as mesmas linhas"
+]
+],
+[
+"(.{1,200}?) Carrega o áudio outra vez para as linhas certas\\.",
+"\\1 Upload the audio again for the right lines.",
+"Carrega o áudio",
+[
+"Carrega o áudio outra vez"
+]
+],
+[
+"áudio: não é um áudio válido \\(aceita-se MP3, WAV, M4A, OGG ou FLAC\\)\\.",
+"audio: not a valid audio file (MP3, WAV, M4A, OGG or FLAC accepted).",
+"não é um áudio válido",
+[
+"áudio: não é um áudio válido"
+]
+],
 [
 "(P\\d+) cobre a linha (\\d+)",
 "\\1 covers line \\2",

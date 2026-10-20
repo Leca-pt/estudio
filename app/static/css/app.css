@@ -1332,3 +1332,12 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .var-note summary { cursor: pointer; list-style: none; }
 .var-note summary::-webkit-details-marker { display: none; }
 .var-note p { margin: 4px 0 0 18px; }
+
+/* Áudio de falas no guião (dentro da linha, a toda a largura) */
+.ln-audio { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0 2px; }
+.ln-audio audio { height: 32px; max-width: 320px; }
+.ln-audio.stale audio { opacity: .6; }
+.ln-audio .la-warn { color: var(--wip); display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
+.ln-audio-in { grid-column: 1 / -1; padding-left: 2px; }
+.la-rej { margin-top: 8px; }
+.la-rej .ln-audio { border-top: 1px solid var(--line); }

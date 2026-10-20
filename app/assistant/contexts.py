@@ -174,6 +174,15 @@ def scene_summary(session: Session, scene: Scene, with_lines: bool = True) -> st
                 where = ", ".join(f"P{s.number:02d}" for s in r["shots"]) or "SEM PLANO"
                 rows.append(f"  Linha {r['n']} [line:{ln.id}] " + (f"{who or 'Diálogo'}: “{ln.text}”" if ln.kind == "dialogue"
                                                                     else f"Ação: {ln.text}") + f" — {where}")
+            from app import line_audio
+
+            clips = line_audio.clips(session, scene)
+            if clips:
+                rows.append("Áudio das falas (ficheiros carregados, cada um cobre linhas seguidas):")
+                for c in clips:
+                    rng = f"linha {c['first']}" if c["first"] == c["last"] else f"linhas {c['first']}–{c['last']}"
+                    dur = f", {c['media'].duration_ms / 1000:.1f} s" if c["media"].duration_ms else ""
+                    rows.append(f"  [audio:{c['media'].id}] {rng}{dur}" + (f" — DESATUALIZADO: {c['problem']}" if c["problem"] else ""))
         else:
             rows.append("Guião: vazio.")
     return "\n".join(rows)

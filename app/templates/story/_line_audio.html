@@ -1,0 +1,35 @@
+{# Áudio de falas da cena aberta: a janela para carregar e os formulários das ações (fora do formulário principal). #}
+{% import "_macros.html" as m with context %}
+{% if audio_scene is defined and audio_scene %}
+{% set base = "/projetos/%d/historia/cenas/%d/audio"|format(project.id, audio_scene.id) %}
+<dialog class="dlg" id="la-dlg" data-keep-open aria-label="Carregar áudio">
+  <form method="post" action="{{ base }}" enctype="multipart/form-data">
+    {{ m.csrf() }}
+    <div class="zone-dlg-h"><h2 class="h2">Carregar áudio</h2><span class="sp"></span>
+      <button class="ib" type="button" data-close-dialog aria-label="Fechar">{{ i.icon("x", 16) }}</button></div>
+    <div class="dlg-b" style="gap: 12px">
+      <span class="hint">Um ficheiro pode cobrir várias linhas seguidas (ex.: a narração de um parágrafo partido em várias falas). As linhas que já tinham áudio passam para este; o antigo fica em «Rejeitados».</span>
+      <label class="col" style="gap: 4px"><span>Da linha</span>
+        <select class="in" name="first" data-la-first-sel>
+          {% for ln in lines %}<option value="{{ ln.id }}">{{ loop.index }} · {% if ln.kind == "dialogue" %}{{ characters.get(ln.character_id, "") }}: {% endif %}{{ ln.text|truncate(70) }}</option>{% endfor %}
+        </select></label>
+      <label class="col" style="gap: 4px"><span>Até à linha</span>
+        <select class="in" name="last" data-la-last-sel>
+          {% for ln in lines %}<option value="{{ ln.id }}">{{ loop.index }} · {% if ln.kind == "dialogue" %}{{ characters.get(ln.character_id, "") }}: {% endif %}{{ ln.text|truncate(70) }}</option>{% endfor %}
+        </select></label>
+      <input class="in" type="file" name="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/ogg,audio/flac,.mp3,.wav,.m4a,.ogg,.flac" required>
+      <span class="hint">MP3, WAV, M4A, OGG ou FLAC, até 25 MB (os que não são MP3 ou WAV ficam em MP3).</span>
+    </div>
+    <div class="dlg-f"><span class="sp"></span>
+      <button class="btn" type="button" data-close-dialog>Cancelar</button>
+      <button class="btn pri" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+{% for c in (audio_by_line or {}).values() if c.starts %}
+<form id="la-{{ c.media.id }}-tirar" method="post" action="{{ base }}/{{ c.media.id }}/tirar" hidden>{{ m.csrf() }}</form>
+<form id="la-{{ c.media.id }}-manter" method="post" action="{{ base }}/{{ c.media.id }}/manter" hidden>{{ m.csrf() }}</form>
+{% endfor %}
+{% for r in audio_rejected or [] %}
+<form id="la-{{ r.id }}-repor" method="post" action="{{ base }}/{{ r.id }}/repor" hidden>{{ m.csrf() }}</form>
+{% endfor %}
+{% endif %}

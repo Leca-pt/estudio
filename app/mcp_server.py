@@ -233,6 +233,11 @@ VÍDEO: generate_video gera um take na app com o que está no plano (sem confirm
 confirm_cost=true só depois de o utilizador aceitar) — write_video_prompt antes, se faltar o prompt; upload_take carrega um
 take gerado fora (ex.: o link de um vídeo do Artlist); approve_take / reject_take / restore_take só quando o utilizador
 disser. VOZES: list_voices, upload_voice (áudio para a ficha da personagem), approve_voice / reject_voice.
+ÁUDIO DAS FALAS (ex.: narração gerada no ElevenLabs): upload_line_audio liga um ficheiro a uma ou mais linhas SEGUIDAS
+do guião de uma cena ([line:N] em open_screen(scene:N)); os áudios aparecem lá como [audio:N]; remove_line_audio tira,
+keep_line_audio (só quando o utilizador disser) aceita um áudio desatualizado pelo texto atual.
+MONTAGEM FORA DA APP: export_media dá links (6 h) do que está aprovado — takes escolhidos por ordem, áudio das falas,
+frames-chave, ou as imagens e a voz de um asset — e as lacunas (planos sem take).
 AGENDA (de todos os projetos): agenda_today e list_agenda leem; add_agenda_item, update_agenda_item,
 delete_agenda_item e add_recurring_posts mudam. Cada item é um bloco de tempo (start → due) ou um dia (só due), sem
 subtarefas.
@@ -606,7 +611,7 @@ def delete_asset(project_id: int, asset_id: int) -> str:
                 + (" Era usado em: " + ", ".join(x for x in used if x) + "." if any(used) else ""))
 
 
-from app import mcp_images, mcp_layout, mcp_maquete, mcp_agenda, mcp_takes, mcp_video, mcp_writing  # noqa: E402,F401 — as ferramentas de imagens e de maquetes registam-se aqui
+from app import mcp_images, mcp_layout, mcp_maquete, mcp_agenda, mcp_media, mcp_takes, mcp_video, mcp_writing  # noqa: E402,F401 — as ferramentas de imagens e de maquetes registam-se aqui
 
 
 for _tool in server._tool_manager.list_tools():  # o nome do utilizador (AUTHOR_NAME) nas descrições das ferramentas
