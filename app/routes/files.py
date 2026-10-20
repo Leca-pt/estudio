@@ -29,6 +29,26 @@ def flash_info(request: Request, message: str) -> None:
     request.session["flash_info"] = message
 
 
+def store_bytes(session: Session, project: Project, folder: str, kind: str, role: str, data: bytes, ext: str,
+                status: str = "pending", duration_ms: int | None = None, **target) -> MediaFile:
+    """Grava um ficheiro já validado na pasta do projeto (vN.ext, a seguir aos que já existem) e cria o MediaFile."""
+    base = PurePosixPath(safe_segment(project.prefix), *[safe_segment(p) for p in folder.split("/")])
+    stmt = select(func.count()).select_from(MediaFile).where(MediaFile.role == role)
+    for field, value in target.items():
+        stmt = stmt.where(getattr(MediaFile, field) == value)
+    n = session.exec(stmt).one() + 1
+    rel = base / f"v{n}.{ext}"
+    while (media_root() / rel).exists():
+        n += 1
+        rel = base / f"v{n}.{ext}"
+    write_file(str(rel), data)
+    media = MediaFile(project_id=project.id, path=str(rel), kind=kind, role=role, status=status, duration_ms=duration_ms,
+                      **target)
+    session.add(media)
+    session.flush()
+    return media
+
+
 async def save_uploads(
     request: Request, session: Session, project: Project, folder: str, kind: str, role: str, status: str = "pending",
     **target
@@ -39,11 +59,6 @@ async def save_uploads(
     if not files:
         flash(request, "Escolhe pelo menos um ficheiro.")
         return 0
-    base = PurePosixPath(safe_segment(project.prefix), *[safe_segment(p) for p in folder.split("/")])
-    stmt = select(func.count()).select_from(MediaFile).where(MediaFile.role == role)
-    for field, value in target.items():
-        stmt = stmt.where(getattr(MediaFile, field) == value)
-    n = session.exec(stmt).one()
     errors, saved = [], 0
     for upload in files:
         try:
@@ -62,14 +77,7 @@ async def save_uploads(
         except UploadError as exc:
             errors.append(str(exc))
             continue
-        n += 1
-        rel = base / f"v{n}.{ext}"
-        while (media_root() / rel).exists():
-            n += 1
-            rel = base / f"v{n}.{ext}"
-        write_file(str(rel), data)
-        session.add(MediaFile(project_id=project.id, path=str(rel), kind=kind, role=role,
-                              status=status, duration_ms=duration, **target))
+        store_bytes(session, project, folder, kind, role, data, ext, status=status, duration_ms=duration, **target)
         saved += 1
     session.commit()
     if errors:

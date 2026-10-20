@@ -660,3 +660,12 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   traduzido com um glossário (scratchpad i18n/GLOSSARY.md, copiado para app/i18n/GLOSSARY.md). Ao acrescentar texto
   à app, acrescentar a tradução ao en.json (o crawler com I18N_COLLECT lista o que falta).
 - Custo: ~40 ms na página mais pesada (cena com guião longo) com a cache de frases; nada em português.
+
+## 20 de outubro de 2026: fotos de referência dos assets pelo conector MCP
+
+- list_reference_photos (photo_id, tamanho, zonas que as usam, endereço /pub/ref de 1 h para o original; base64 opcional),
+  upload_reference_photo (image_url https ou image_base64, png/jpg/webp até 20 MB; guardada como na ficha: em
+  assets/<código>/fotos, logo aprovada, porque as fotos não têm aprovar/rejeitar; num local, zone=<divisão> junta-a às
+  referências dessa zona, até ao máximo da app) e remove_reference_photo (reject_media, como «Tirar»: vai para
+  «Rejeitados»).
+- A gravação dos ficheiros carregados passou para files.store_bytes, usada pelo formulário da app e pelo conector.

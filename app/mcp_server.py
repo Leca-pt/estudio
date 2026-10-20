@@ -210,6 +210,8 @@ Como trabalhar:
 IMAGENS (folhas, retratos, looks, vistas, previs dos planos, capa): A) na app — write_prompt escreve o prompt,
 generate_image gera candidatas em segundo plano (list_models para escolher o modelo), generation_status acompanha;
 B) fora — get_reference_images dá as referências (endereços de 1 h) e o prompt, upload_image envia o resultado.
+FOTOS DE REFERÊNCIA de um asset (o sítio, a pessoa ou o objeto real, carregadas na ficha): list_reference_photos lista e
+dá para descarregar, upload_reference_photo junta uma (num local, zone= liga-a a uma divisão), remove_reference_photo tira.
 Depois list_candidates / view_candidates, e approve_image ou reject_image. Nada fica aprovado sozinho; uma geração
 paga do Artlist só avança com confirm_cost=true depois de o utilizador aceitar o custo.
 MAQUETES 3D: view_layout mostra uma maquete (asset:N) ou o cenário de uma cena (sb_scene:N) — "top" é a planta com

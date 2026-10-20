@@ -141,8 +141,8 @@ Nada disto é obrigatório; cada um liga uma parte da geração.
 A app é um servidor MCP em `<PUBLIC_URL>/mcp`, com OAuth (registo dinâmico de clientes) e o teu login como
 autorização. No Claude: Definições → Conectores → Adicionar conector personalizado → `<PUBLIC_URL>/mcp`. No ChatGPT:
 modo de programador → Apps e conectores → Criar, com o mesmo endereço e OAuth. As ferramentas cobrem projetos,
-história e guião, assets, maquetes, storyboard, vídeo, Sala de argumentistas e Agenda; nada é aprovado sem ti e
-gerações pagas pedem a confirmação do custo.
+história e guião, assets (incluindo as fotos de referência: listar/descarregar, enviar, tirar), maquetes, storyboard,
+vídeo, Sala de argumentistas e Agenda; nada é aprovado sem ti e gerações pagas pedem a confirmação do custo.
 
 ## Idioma da interface
 

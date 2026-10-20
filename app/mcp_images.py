@@ -282,6 +282,31 @@ async def list_models(project_id: int | None = None) -> str:
 
 # ── B) gerar fora e enviar ────────────────────────────────────────────────────
 
+async def _fetch_image(image_url: str | None, image_base64: str | None) -> bytes:
+    """Os bytes de uma imagem enviada por endereço https ou em base64 (até 20 MB)."""
+    if bool(image_url) == bool(image_base64):
+        raise ToolError("Envia image_url ou image_base64 (só um).")
+    if image_url:
+        if not image_url.startswith("https://"):
+            raise ToolError("O image_url tem de ser https://.")
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
+                resp = await client.get(image_url)
+        except httpx.HTTPError as exc:
+            raise ToolError(f"Não consegui descarregar a imagem: {exc}") from exc
+        if resp.status_code >= 400:
+            raise ToolError(f"Não consegui descarregar a imagem (HTTP {resp.status_code}).")
+        data = resp.content
+    else:
+        try:
+            data = base64.b64decode(image_base64.split(",", 1)[-1], validate=False)
+        except ValueError as exc:
+            raise ToolError("image_base64 inválido.") from exc
+    if len(data) > MAX_BYTES:
+        raise ToolError("A imagem passa de 20 MB.")
+    return data
+
+
 @server.tool(annotations=READ, structured_output=False,
              description="As imagens que a app anexaria como referência para este ecrã e tipo (as aprovadas do próprio "
                          "asset e as das referências da folha), com um endereço temporário (1 h) e, se pedido, em base64; "
@@ -321,26 +346,7 @@ async def upload_image(project_id: int, screen: str, kind: str, image_url: str |
 
     from app import jobs
 
-    if bool(image_url) == bool(image_base64):
-        raise ToolError("Envia image_url ou image_base64 (só um).")
-    if image_url:
-        if not image_url.startswith("https://"):
-            raise ToolError("O image_url tem de ser https://.")
-        try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
-                resp = await client.get(image_url)
-        except httpx.HTTPError as exc:
-            raise ToolError(f"Não consegui descarregar a imagem: {exc}") from exc
-        if resp.status_code >= 400:
-            raise ToolError(f"Não consegui descarregar a imagem (HTTP {resp.status_code}).")
-        data = resp.content
-    else:
-        try:
-            data = base64.b64decode(image_base64.split(",", 1)[-1], validate=False)
-        except ValueError as exc:
-            raise ToolError("image_base64 inválido.") from exc
-    if len(data) > MAX_BYTES:
-        raise ToolError("A imagem passa de 20 MB.")
+    data = await _fetch_image(image_url, image_base64)
     try:
         im = PILImage.open(io.BytesIO(data))
         fmt = (im.format or "").upper()
@@ -486,3 +492,114 @@ def reject_image(candidate_id: int) -> str:
         s.commit()
         log.info("mcp: imagem %s rejeitada", candidate_id)
         return f"Rejeitada: imagem {candidate_id} (fica em «Rejeitados»; o utilizador pode repô-la)."
+
+
+# ── Fotos de referência dos assets ────────────────────────────────────────────
+# As fotos carregadas na ficha (o sítio, a pessoa ou o objeto real): vão como referência da folha e, num local, das
+# zonas que as escolheram. Como na app, não têm aprovar/rejeitar: entram logo como referência; tirar põe-nas em
+# «Rejeitados» (o utilizador pode repô-las).
+
+def _asset_of(s: Session, p: Project, asset_id: int) -> Asset:
+    a = s.get(Asset, asset_id)
+    if a is None or a.project_id != p.id:
+        raise ToolError(f"Não existe o asset {asset_id} no projeto {p.id}. Vê os assets em project_map.")
+    return a
+
+
+def _photo_zones(a: Asset, photo_id: int) -> list[str]:
+    return [z or "(sem nome)" for z, ids in (a.zone_refs or {}).items() if photo_id in [int(i) for i in ids if str(i).isdigit()]]
+
+
+@server.tool(annotations=READ, structured_output=False,
+             description="As fotos de referência de um asset (as que o utilizador carregou na ficha: o sítio, a pessoa ou o "
+                         "objeto real), com photo_id, tamanho, as zonas da maquete que as usam (locais) e um endereço "
+                         "temporário (1 h) para descarregar o ficheiro original; include_base64=true junta as imagens.")
+def list_reference_photos(project_id: int, asset_id: int, include_base64: bool = False) -> list[Any]:
+    from PIL import Image as PILImage
+
+    from app import artlist
+    from app.asset_refs import asset_photos
+    from app.media import media_root
+
+    with Session(engine) as s:
+        p = _project(s, project_id)
+        a = _asset_of(s, p, asset_id)
+        lines, out = [], []
+        for n, m in enumerate(asset_photos(s, a), 1):
+            path = media_root() / m.path
+            if not path.is_file():
+                continue
+            try:
+                with PILImage.open(path) as im:
+                    size = f"{im.width}x{im.height}"
+            except OSError:
+                size = "?"
+            zones = _photo_zones(a, m.id)
+            url = f"{PUBLIC}/pub/ref/{artlist.share(path, ttl_s=3600)}.png"  # a rota serve o ficheiro tal como é (jpg/webp incluídos)
+            lines.append(f"{n}. photo_id {m.id} — {path.name}, {size}"
+                         + (f", referência das zonas: {', '.join(zones)}" if zones else "") + f"\n   {url}")
+            if include_base64:
+                out += [f"{n}. photo_id {m.id}", Image(data=_thumb(path, 1536), format="jpeg")]
+        use = ("Vão como referência das zonas que as escolheram (campo zonerefs do ecrã do local) e o Assistente usa-as "
+               "para descrever o local." if a.kind == "location" else
+               "Vão como referência da folha, antes dos assets escolhidos em sheet_refs.")
+        head = f"Fotos de referência de {a.name} ({len(lines)}):\n" + ("\n".join(lines) or "nenhuma") + "\n\n" + use
+        return [head, *out]
+
+
+@server.tool(annotations=WRITE, title="Enviar foto de referência",
+             description="Junta uma foto de referência à ficha de um asset (image_url https ou image_base64; png, jpg ou "
+                         "webp, até 20 MB), como o «Carregar fotos» da app: entra logo como referência (não há aprovar). "
+                         "Num local, zone=<nome da divisão> também a escolhe como referência dessa zona.")
+async def upload_reference_photo(project_id: int, asset_id: int, image_url: str | None = None,
+                                 image_base64: str | None = None, zone: str | None = None) -> str:
+    from app import location3d
+    from app.media import UploadError, image_extension
+    from app.routes.files import store_bytes
+
+    data = await _fetch_image(image_url, image_base64)
+    try:
+        ext = image_extension(data, "imagem")
+    except UploadError as exc:
+        raise ToolError(str(exc)) from exc
+    with Session(engine) as s:
+        p = _project(s, project_id)
+        a = _asset_of(s, p, asset_id)
+        if zone is not None:
+            if a.kind != "location":
+                raise ToolError("Só os locais têm zonas.")
+            names = [z["name"] for z in location3d.zones(a.layout3d) if z.get("name")]
+            if zone not in names:
+                raise ToolError(f"Não existe a zona «{zone}» na maquete. Zonas: {', '.join(names) or 'nenhuma'}.")
+            if len(location3d.zone_refs(a, zone)) >= location3d.MAX_ZONE_REFS:
+                raise ToolError(f"A zona «{zone}» já tem {location3d.MAX_ZONE_REFS} referências (o máximo). Muda o campo "
+                                "zonerefs do ecrã do local primeiro.")
+        media = store_bytes(s, p, f"assets/{a.name}/fotos", "image", "photo", data, ext, status="approved", asset_id=a.id)
+        if zone is not None:
+            refs = dict(a.zone_refs or {})
+            refs[zone] = list(dict.fromkeys([*refs.get(zone, []), media.id]))
+            a.zone_refs = refs
+            s.add(a)
+        s.commit()
+        log.info("mcp: foto de referência %s em %s (projeto %s)", media.id, a.name, project_id)
+        return (f"Foto de referência guardada: photo_id {media.id} em {a.name}"
+                + (f", escolhida como referência da zona «{zone}»." if zone else "."))
+
+
+@server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=False),
+             title="Tirar foto de referência",
+             description="Tira uma foto de referência de um asset, como o botão «Tirar» da app: deixa de ir como referência "
+                         "(da folha e das zonas) e o ficheiro fica em «Rejeitados», de onde o utilizador a pode repor.")
+def remove_reference_photo(photo_id: int) -> str:
+    from app.media_service import reject_media
+
+    with Session(engine) as s:
+        m = s.get(MediaFile, photo_id)
+        if m is None or m.role != "photo":
+            raise ToolError(f"A foto {photo_id} não existe (ou não é uma foto de referência). Vê list_reference_photos.")
+        if m.status == "rejected":
+            return f"A foto {photo_id} já tinha sido tirada (está em «Rejeitados»)."
+        reject_media(s, m)
+        s.commit()
+        log.info("mcp: foto de referência %s tirada", photo_id)
+        return f"Foto {photo_id} tirada: deixa de ir como referência (fica em «Rejeitados»; o utilizador pode repô-la)."
