@@ -17,6 +17,7 @@ from sqlmodel import Session, select
 
 from app import prompt_targets as PT
 from app.db import engine
+from app.options import get_config
 from app.mcp_server import PUBLIC, READ, WRITE, _project, log, server
 from app.models import Asset, CharacterLook, ImageJob, LocationView, MediaFile, Project, Scene, Shot
 
@@ -245,38 +246,83 @@ def generation_status(generation_id: str) -> str:
         return f"Geração {generation_id}: {head} ({len(ready)}/{total} prontas)\n" + "\n".join(rows)
 
 
-@server.tool(annotations=READ, description="Os modelos de imagem disponíveis na app agora, com o valor a usar em model, o "
-                                           "fornecedor, as resoluções que cada um aceita (para resolution em "
-                                           "generate_image) e o custo por resolução; indica o de omissão e a "
-                                           "resolução padrão do projeto, se indicares project_id.")
-async def list_models(project_id: int | None = None) -> str:
-    from app import artlist, image_models, video_cost
-    from app.routes.gpt import default_generator, generator_options
+@server.tool(annotations=READ, description=(
+    "Os modelos disponíveis na app agora, por tipo (kinds: image, edit, voice, video; por omissão todos), com o valor a "
+    "usar, o fornecedor e o custo. Imagens: as resoluções de cada um (resolution em generate_image). Vídeo: o nome a pôr "
+    "no campo do modelo do plano (shot:N.video_model) ou do projeto (project.video_model), resoluções, durações e o que "
+    "aceita (referências, imagem inicial e final, vídeo-guia, vozes, som). Com project_id diz também os padrões do "
+    "projeto; sem padrão próprio valem os da Configuração."))
+async def list_models(project_id: int | None = None, kinds: list[str] | None = None) -> str:
+    from app import artlist, image_models, video_cost, voice_models
+    from app.routes.gpt import generator_default, generator_label, generator_options
+    from app.routes.video import project_model, project_resolution, video_models
 
+    want = set(kinds or ["image", "edit", "voice", "video"])
+    bad = want - {"image", "edit", "voice", "video"}
+    if bad:
+        raise ToolError(f"kinds desconhecidos: {', '.join(sorted(bad))} (usa image, edit, voice, video).")
     with Session(engine) as s:
         proj = _project(s, project_id) if project_id else None
-        default = default_generator(s, use="generate", project=proj)
-        proj_res = proj.image_resolution if proj else None
         options = generator_options(s, "generate")
-    pairs = [(int(v.split(":")[1]), r) for v, _l in options if v.startswith("artlist:")
-             for r in image_models.resolutions("artlist", int(v.split(":")[1]))]
-    quotes = await video_cost.image_quotes(pairs)  # cotações do Artlist (guardadas; as que faltam pedem-se agora)
-    out = []
-    for value, label in options:
-        provider, _, key = value.partition(":")
-        model_key = int(key) if provider == "artlist" and key.isdigit() else key or None
-        res = image_models.resolutions(provider, model_key)
-        if provider == "gpt":
-            cost = "subscrição (sem custo por imagem)"
-        elif provider == "artlist":
-            cost = ", ".join(f"{r}: {quotes[(model_key, r)]} cr." if (model_key, r) in quotes else f"{r}: a cotar" for r in res) \
-                or (f"{artlist.MODELS[model_key]['cost']} cr." if artlist.MODELS.get(model_key, {}).get("cost") else "—")
-        else:
-            cost = (image_models.FAL.get(key) or {}).get("price") or "—"
-        out.append(f"- {value} — {label.split(' · ')[0]} · {provider} · resoluções {', '.join(res) or 'tamanho fixo do modelo'}"
-                   f" · custo {cost}" + (" · (omissão)" if value == default else ""))
-    head = "Modelos de imagem (model=…)" + (f"; resolução padrão do projeto: {proj_res}" if proj_res else "") + ":\n"
-    return head + "\n".join(out)
+        edit_options = generator_options(s, "edit")
+        img_default, img_src = generator_default(s, "generate", proj)
+        edit_default, edit_src = generator_default(s, "edit", proj)
+        voices = voice_models.options(s)
+        voice_cfg = (get_config(s, "voice_generator", {}) or {}).get("default")
+        voice_default = proj.voice_model if proj and any(o["value"] == proj.voice_model for o in voices) else voice_cfg
+        videos = video_models(s)
+        vid_default = (project_model(s, proj) or {}).get("name") if proj else next((m["name"] for m in videos if m.get("default")), None)
+        vid_res = project_resolution(s, proj) if proj else None
+        proj_res = proj.image_resolution if proj else None
+        edit_label = generator_label(s, edit_default) if edit_default else "—"
+    src_txt = {"project": "padrão do projeto", "config": "padrão da Configuração", "auto": "o primeiro que serve"}
+    sections = []
+    if "image" in want or "edit" in want:
+        pairs = [(int(v.split(":")[1]), r) for v, _l in options if v.startswith("artlist:")
+                 for r in image_models.resolutions("artlist", int(v.split(":")[1]))]
+        quotes = await video_cost.image_quotes(pairs)  # cotações do Artlist (guardadas; as que faltam pedem-se agora)
+    if "image" in want:
+        out = []
+        for value, label in options:
+            provider, _, key = value.partition(":")
+            model_key = int(key) if provider == "artlist" and key.isdigit() else key or None
+            res = image_models.resolutions(provider, model_key)
+            if provider == "gpt":
+                cost = "subscrição (sem custo por imagem)"
+            elif provider == "artlist":
+                cost = ", ".join(f"{r}: {quotes[(model_key, r)]} cr." if (model_key, r) in quotes else f"{r}: a cotar" for r in res) \
+                    or (f"{artlist.MODELS[model_key]['cost']} cr." if artlist.MODELS.get(model_key, {}).get("cost") else "—")
+            else:
+                cost = (image_models.FAL.get(key) or {}).get("price") or "—"
+            out.append(f"- {value} — {label.split(' · ')[0]} · {provider} · resoluções {', '.join(res) or 'tamanho fixo do modelo'}"
+                       f" · custo {cost}" + (f" · ({src_txt[img_src]})" if value == img_default else ""))
+        sections.append("IMAGENS — gerar (model=… em generate_image)" + (f"; resolução padrão do projeto: {proj_res}" if proj_res else "")
+                        + ":\n" + "\n".join(out))
+    if "edit" in want:
+        sections.append("IMAGENS — editar: " + (f"{edit_default} — {edit_label} ({src_txt[edit_src]})" if edit_default else "nenhum")
+                        + ". Os que editam: " + (", ".join(v for v, _l in edit_options) or "nenhum") + ".")
+    if "voice" in want:
+        out = [f"- {o['value']} — {o['label']}" + (" · (padrão do projeto)" if proj and o["value"] == proj.voice_model else
+                                                   " · (padrão da Configuração / o último usado)" if o["value"] == voice_default else "")
+               for o in voices]
+        sections.append("VOZES (gerar a voz de referência de uma personagem):\n" + ("\n".join(out) or "nenhum fornecedor ligado"))
+    if "video" in want:
+        out = []
+        for m in videos:
+            accepts = (["referências (até %s imagens)" % m.get("max_images", 9)] if m.get("refs") else []) + ["imagem inicial e final"] \
+                + (["vídeo-guia"] if m.get("video_refs") else []) + (["vozes de referência"] if m.get("audio_refs") else []) \
+                + (["som"] if m.get("audio") or m.get("audio_always") else [])
+            durs = m.get("durations_s") or []
+            dur = f"{min(durs)}–{max(durs)} s" if durs else "—"
+            cost = m.get("cost_text") or (f"{m['cost']} cr." if m.get("cost") else "cotado por plano (quote_shot)")
+            out.append(f"- {m['name']} · {m['provider']} · {m.get('resolution') or '—'} · {dur} · aceita: {', '.join(accepts)}"
+                       f" · custo {cost}" + (" · (padrão do projeto)" if proj and proj.video_model and m["name"] == vid_default else
+                                             " · (padrão da Configuração)" if m["name"] == vid_default else ""))
+        sections.append("VÍDEO (o nome vai em shot:N.video_model ou project.video_model; quote_shot dá o custo exato do plano)"
+                        + (f"; resolução padrão do projeto: {vid_res}" if vid_res else "") + ":\n" + ("\n".join(out) or "nenhum fornecedor ligado")
+                        + "\nSó os modelos com «vídeo-guia» e «vozes de referência» recebem o vídeo-guia da maquete e as vozes; "
+                          "os outros partem só da imagem inicial (e final).")
+    return "\n\n".join(sections)
 
 
 # ── B) gerar fora e enviar ────────────────────────────────────────────────────

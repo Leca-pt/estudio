@@ -229,6 +229,8 @@ TAKES: list_takes dá os takes de um plano (estado, modelo, resolução, custo, 
 que seguiu); frame_from_take guarda um fotograma como referência de outro plano (shot_ref:N) ou imagem de uma vista
 (view:asset:view — só sem personagens); quote_shot dá o custo do próximo take. get_field lê um campo inteiro (o
 open_screen corta os longos); set_fields grava vários campos do mesmo ecrã de uma vez (não uses set_field em paralelo).
+MODELOS: list_models dá os de imagem, edição, voz e vídeo, com custos, o que cada modelo de vídeo aceita e os padrões
+(do projeto, se o tiver, senão da Configuração); o modelo de um plano muda-se em shot:N.video_model.
 VÍDEO: generate_video gera um take na app com o que está no plano (sem confirm_cost só devolve o custo; com
 confirm_cost=true só depois de o utilizador aceitar) — write_video_prompt antes, se faltar o prompt; upload_take carrega um
 take gerado fora (ex.: o link de um vídeo do Artlist); approve_take / reject_take / restore_take só quando o utilizador
