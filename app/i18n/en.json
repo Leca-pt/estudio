@@ -2527,6 +2527,16 @@
 },
 "patterns": [
 [
+"(\\d+) palavras: acima de (\\d+) com estrutura temporal \\((.{1,80}?), perfil (.{1,40}?)\\)\\.",
+"\\1 words: over \\2 with a timed structure (\\3, profile \\4).",
+"estrutura temporal",
+[
+"palavras: acima de",
+"com estrutura temporal (",
+", perfil"
+]
+],
+[
 "Igual à Configuração \\((.{1,200}?)\\)",
 "Same as Settings (\\1)",
 "Igual à Configuração",

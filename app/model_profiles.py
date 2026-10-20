@@ -49,7 +49,7 @@ IMAGE_PROFILES = {
 VIDEO_PROFILES = {
     "short": {
         "name": "Prompt curto",
-        "models": "Grok Imagine Video, Luma Ray",
+        "models": "Grok Imagine Video, Luma Ray, Flux 3 (sem guia publicado)",
         "match": ("grok", "luma"),
         "max_chars": 4000, "video_max_words": 100, "video_max_words_timed": 150,
         "layout": "paragraph", "timeline": False,
@@ -134,6 +134,7 @@ VIDEO_PROFILES = {
         "name": "Kling",
         "models": "Kling v3, Kling O3",
         "match": ("kling",),
+        "ref_format": "@Image{n}",  # o O3 por referências: image_urls nomeadas @Image1, @Image2… (esquema da fal)
         "max_chars": 2500, "video_max_words": 180, "video_max_words_timed": 220,
         "layout": "sections", "timeline": False,
         "dialogue": '[<personagem>, <tom>]: "…" (etiqueta única e sempre igual; o gesto antes da fala, sem pronomes)',

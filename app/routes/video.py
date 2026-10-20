@@ -49,9 +49,9 @@ def video_models(session: Session) -> list[dict]:
     vs = video_settings(session)
     fal = [{"name": m["name"], "kind": "video", "group": None, "provider": "fal", "key": k, "cost": None,
             "cost_text": f"≈ ${image_models.fal_video_cost(k, m['res'][0], 10)} ({m['res'][0]}, 10 s)",
-            "resolution": " / ".join(m["res"]), "durations_s": m["durations"], "refs": True, "video_refs": True,
-            "audio_refs": True, "end_frame": True, "audio": True, "audio_always": False,
-            **{k: m[k] for k in ("max_images", "max_videos", "max_audios", "max_audio_s", "max_files") if k in m}}
+            "resolution": " / ".join(m["res"]), "durations_s": m["durations"], "audio_always": False,
+            **image_models.fal_video_caps(m),
+            **{x: m[x] for x in ("max_images", "max_videos", "max_audios", "max_audio_s", "max_files") if x in m}}
            for k, m in image_models.FAL_VIDEO.items()] if fal_enabled(session) else []
     art = [{"name": m["name"], "kind": "video", "group": gid, "provider": "artlist", "cost": m.get("cost"),
             "video_refs": bool(m.get("video_refs")), "audio_refs": bool(m.get("audio_refs")), "resolution": " / ".join(lab for lab, _v in m["res"]),

@@ -312,47 +312,121 @@ def fit(caps: set, use: str) -> tuple[bool, str]:
 # ── Vídeo pela fal ────────────────────────────────────────────────────────────────────────────────────────────────
 # Cada modelo: o pedido com referências (imagens @Image1…, vídeos @Video1…: o vídeo-guia da maquete) e o pedido com
 # imagem inicial (e final). Preço da fal por 1000 tokens de vídeo; tokens ≈ largura × altura × 24 fps × segundos / 1024.
+# Seedance (por referências: imagens @Image1…, vídeo-guia @Video1, vozes @Audio1; ou imagem inicial e final)
+_SEEDANCE = {"family": "seedance", "refs_ok": True, "video_refs": True, "audio_refs": True}
 FAL_VIDEO: dict[str, dict] = {
     "seedance-2.0": {"name": "Seedance 2.0 · fal.ai", "refs": "bytedance/seedance-2.0/reference-to-video",
                      "i2v": "bytedance/seedance-2.0/image-to-video", "max_images": 9, "max_videos": 3, "max_audios": 3,
                      "max_audio_s": 15, "max_files": 12,
-                     "durations": list(range(4, 16)), "res": ["480p", "720p", "1080p"], "per_ktok": 0.014},
+                     "durations": list(range(4, 16)), "res": ["480p", "720p", "1080p"], "per_ktok": 0.014, **_SEEDANCE},
     "seedance-2.0-fast": {"name": "Seedance 2.0 Fast · fal.ai", "refs": "bytedance/seedance-2.0/fast/reference-to-video",
                           "i2v": "bytedance/seedance-2.0/fast/image-to-video", "max_images": 9, "max_videos": 3,
                           "max_audios": 3, "max_audio_s": 15, "max_files": 12,
-                          "durations": list(range(4, 16)), "res": ["480p", "720p"], "per_ktok": 0.0112},
+                          "durations": list(range(4, 16)), "res": ["480p", "720p"], "per_ktok": 0.0112, **_SEEDANCE},
     "seedance-2.0-mini": {"name": "Seedance 2.0 Mini · fal.ai", "refs": "bytedance/seedance-2.0/mini/reference-to-video",
                           "i2v": "bytedance/seedance-2.0/mini/image-to-video", "max_images": 9, "max_videos": 3,
                           "max_audios": 3, "max_audio_s": 15, "max_files": 12,
-                          "durations": list(range(4, 16)), "res": ["480p", "720p"], "per_ktok": 0.007},
+                          "durations": list(range(4, 16)), "res": ["480p", "720p"], "per_ktok": 0.007, **_SEEDANCE},
     "seedance-2.5": {"name": "Seedance 2.5 · fal.ai", "refs": "bytedance/seedance-2.5/reference-to-video",
                      "i2v": "bytedance/seedance-2.5/image-to-video", "max_images": 30, "max_videos": 10, "max_audios": 10,
                      "max_audio_s": 30, "max_files": 50,
-                     "durations": list(range(4, 31)), "res": ["480p", "720p", "1080p"], "per_ktok": 0.0214},
+                     "durations": list(range(4, 31)), "res": ["480p", "720p", "1080p"], "per_ktok": 0.0214, **_SEEDANCE},
+    # Os outros: só imagem inicial (e final) — sem referências de elenco, sem vídeo-guia, sem vozes — exceto o Kling O3
+    # por referências (até 4 imagens, @Image1…). Preços da página de cada modelo na fal (20 out. 2026).
+    "flux-3": {"name": "Flux 3 · fal.ai", "family": "flux3", "i2v": "blackforestlabs/flux-3/image-to-video",
+               "flf": "blackforestlabs/flux-3/first-last-frame-to-video", "durations": list(range(5, 21)),
+               "res": ["720p", "1080p"], "price_s": {"720p": 0.17, "1080p": 0.29}},
+    "flux-3-draft": {"name": "Flux 3 Draft · fal.ai", "family": "flux3", "no_res": True,
+                     "i2v": "blackforestlabs/flux-3/image-to-video/draft",
+                     "flf": "blackforestlabs/flux-3/first-last-frame-to-video/draft", "durations": list(range(5, 21)),
+                     "res": ["720p"], "price_s": {"720p": 0.06}},
+    "flux-3-max": {"name": "Flux 3 Max · fal.ai", "family": "flux3max", "i2v": "blackforestlabs/flux-3-max/image-to-video",
+                   "durations": list(range(5, 21)), "res": ["720p", "1080p"], "price_s": {"720p": 0.17, "1080p": 0.29}},
+    "kling-3-pro": {"name": "Kling 3 Pro · fal.ai", "family": "kling", "i2v": "fal-ai/kling-video/v3/pro/image-to-video",
+                    "durations": list(range(3, 16)), "res": ["1080p"], "price_audio": {True: 0.168, False: 0.112}},
+    "kling-3-standard": {"name": "Kling 3 Standard · fal.ai", "family": "kling",
+                         "i2v": "fal-ai/kling-video/v3/standard/image-to-video",
+                         "durations": list(range(3, 16)), "res": ["720p"], "price_audio": {True: 0.126, False: 0.084}},
+    "kling-o3-pro": {"name": "Kling O3 Pro · fal.ai", "family": "kling_o3",
+                     "refs": "fal-ai/kling-video/o3/pro/reference-to-video", "i2v": "fal-ai/kling-video/o3/pro/image-to-video",
+                     "max_images": 4, "durations": list(range(3, 16)), "res": ["1080p"],
+                     "price_audio": {True: 0.14, False: 0.112}},
+    "wan-3.0": {"name": "Wan 3.0 · fal.ai", "family": "wan", "i2v": "alibaba/wan-3.0/image-to-video",
+                "durations": list(range(2, 16)), "res": ["480p", "720p", "1080p"],
+                "price_s": {"480p": 0.05, "720p": 0.10, "1080p": 0.20}},
+    "ltx-2.5-pro": {"name": "LTX 2.5 Pro · fal.ai", "family": "ltx", "i2v": "lightricks/ltx-2.5/image-to-video/pro",
+                    "durations": [6, 8, 10], "res": ["720p", "1080p"], "price_s": {"720p": 0.12, "1080p": 0.17}},
 }
 VIDEO_PIXELS = {"480p": (854, 480), "720p": (1280, 720), "1080p": (1920, 1080)}
 VIDEO_RATIOS = {"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}
 
 
-def fal_video_cost(key: str, resolution: str, seconds: int) -> float:
-    """Custo estimado (USD) de um clip, pela tabela de tokens da fal."""
-    w, h = VIDEO_PIXELS.get(resolution, VIDEO_PIXELS["720p"])
-    return round(FAL_VIDEO[key]["per_ktok"] * w * h * 24 * seconds / 1024 / 1000, 2)
+def fal_video_cost(key: str, resolution: str, seconds: int, audio: bool = True) -> float:
+    """Custo estimado (USD) de um clip: pela tabela de tokens (Seedance), por segundo e resolução, ou por segundo com
+    ou sem som (Kling)."""
+    m = FAL_VIDEO[key]
+    res = resolution if resolution in m["res"] else m["res"][0]
+    if "per_ktok" in m:
+        w, h = VIDEO_PIXELS.get(res, VIDEO_PIXELS["720p"])
+        return round(m["per_ktok"] * w * h * 24 * seconds / 1024 / 1000, 2)
+    if "price_audio" in m:
+        return round(m["price_audio"][bool(audio)] * seconds, 2)
+    return round(m["price_s"][res] * seconds, 2)
+
+
+def fal_video_caps(m: dict) -> dict:
+    """O que o modelo aceita, para a app escolher o modo e as imagens: refs (várias imagens de referência),
+    video_refs (vídeo-guia), audio_refs (vozes), end_frame (imagem final), audio (gera som)."""
+    return {"refs": bool(m.get("refs_ok") or m.get("refs")), "video_refs": bool(m.get("video_refs")),
+            "audio_refs": bool(m.get("audio_refs")), "end_frame": True, "audio": True}
 
 
 def fal_video_request(key: str, mode: str, prompt: str, aspect: str | None, image_urls: list[str],
                       video_urls: list[str], seconds: int | None, resolution: str, audio: bool) -> tuple[str, dict]:
+    """(endpoint, argumentos) do pedido à fal, no formato de cada família de modelos."""
     m = FAL_VIDEO[key]
     a = (aspect or "16:9").split(" ")[0]
     res = resolution if resolution in m["res"] else m["res"][0]
-    base = {"prompt": prompt, "duration": str(seconds) if seconds in m["durations"] else "auto",
-            "resolution": res, "aspect_ratio": a if a in VIDEO_RATIOS else "auto", "generate_audio": bool(audio)}
-    if mode == "references":
-        args = base | {"image_urls": image_urls[: m["max_images"]]}
-        if video_urls:
-            args["video_urls"] = video_urls[: m["max_videos"]]
-        return m["refs"], args
-    args = base | {"image_url": image_urls[0]}
-    if len(image_urls) > 1:
-        args["end_image_url"] = image_urls[1]
-    return m["i2v"], args
+    durs = m["durations"]
+    dur = seconds if seconds in durs else min(durs, key=lambda d: abs(d - (seconds or durs[0])))
+    family = m.get("family", "seedance")
+    start, end = image_urls[0], (image_urls[1] if len(image_urls) > 1 else None)
+    if family == "seedance":
+        base = {"prompt": prompt, "duration": str(seconds) if seconds in durs else "auto",
+                "resolution": res, "aspect_ratio": a if a in VIDEO_RATIOS else "auto", "generate_audio": bool(audio)}
+        if mode == "references":
+            args = base | {"image_urls": image_urls[: m["max_images"]]}
+            if video_urls:
+                args["video_urls"] = video_urls[: m["max_videos"]]
+            return m["refs"], args
+        args = base | {"image_url": start}
+        if end:
+            args["end_image_url"] = end
+        return m["i2v"], args
+    flux_ratios = {"21:9", "2:1", "16:9", "4:3", "1:1", "3:4", "9:16"}
+    if family == "flux3":
+        args = {"prompt": prompt, "duration": dur, "aspect_ratio": a if a in flux_ratios else "auto",
+                "generate_audio": bool(audio)} | ({} if m.get("no_res") else {"resolution": res})
+        if end:
+            return m["flf"], args | {"start_image_url": start, "end_image_url": end}
+        return m["i2v"], args | {"image_url": start}
+    if family == "flux3max":
+        return m["i2v"], {"prompt": prompt, "image_url": start, "duration": dur, "resolution": res,
+                          "aspect_ratio": a if a in flux_ratios else "auto", "generate_audio": bool(audio)} \
+            | ({"end_image_url": end} if end else {})
+    if family in ("kling", "kling_o3"):
+        base = {"prompt": prompt, "duration": str(dur), "generate_audio": bool(audio)}
+        if family == "kling_o3" and mode == "references":
+            return m["refs"], base | {"image_urls": image_urls[: m["max_images"]],
+                                      "aspect_ratio": a if a in ("16:9", "9:16", "1:1") else "16:9"}
+        first = "image_url" if family == "kling_o3" else "start_image_url"
+        return m["i2v"], base | {first: start} | ({"end_image_url": end} if end else {})
+    if family == "wan":
+        return m["i2v"], {"prompt": prompt, "start_image_url": start, "duration": dur, "resolution": res,
+                          "aspect_ratio": a if a in ("16:9", "4:3", "1:1", "3:4", "9:16") else "adaptive",
+                          "audio": bool(audio)} | ({"end_image_url": end} if end else {})
+    if family == "ltx":
+        return m["i2v"], {"prompt": prompt, "image_url": start, "duration": dur, "resolution": res,
+                          "aspect_ratio": a if a in ("16:9", "9:16") else "auto", "generate_audio": bool(audio)} \
+            | ({"end_image_url": end} if end else {})
+    raise ValueError(f"Família de modelo desconhecida: {family}.")

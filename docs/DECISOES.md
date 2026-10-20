@@ -708,3 +708,17 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - Vozes: o padrão do projeto ganha ao «último usado» (que continua a ser guardado na Configuração).
 - Assistente e MCP: project.image_model, project.image_edit_model e project.voice_model ("default" = Configuração),
   além de project.video_model e project.video_resolution.
+
+## 20 de outubro de 2026: mais modelos de vídeo da fal.ai
+
+- FAL_VIDEO passa a ter famílias (image_models.fal_video_request monta o pedido no formato de cada uma) e capacidades
+  (fal_video_caps): Seedance (como antes: referências, vídeo-guia e vozes), Flux 3 / Flux 3 Draft (imagem inicial; com
+  imagem final vai ao endpoint first-last-frame), Flux 3 Max, Kling 3 Pro e Standard, Kling O3 Pro (por referências: até
+  4 imagens @Image1…; ou imagem inicial e final), Wan 3.0 e LTX 2.5 Pro. Só os Seedance recebem vídeo-guia e vozes.
+- Os pedidos foram validados contra o OpenAPI de cada endpoint da fal (campos obrigatórios, nomes, enums) e o percurso
+  completo (botão → fila → pedido) testado numa cópia com a fal simulada; nenhum gerado a sério.
+- Custos: os Seedance pela tabela de tokens (API de preços da fal); os outros pela tabela da página de cada modelo
+  (por segundo e resolução, ou por segundo com/sem som no Kling), datada de 20 out. 2026. O Flux 3 Max está em
+  promoção até 7 nov. (75 % mais barato); a app mostra o preço normal.
+- Perfis de prompt: o Kling ganha ref_format @Image{n} (o O3 por referências); o Flux 3 usa o perfil curto (sem guia
+  publicado pela BFL).
