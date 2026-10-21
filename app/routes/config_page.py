@@ -208,7 +208,18 @@ def _fal_ctx(session: Session, stored: dict) -> dict:
         if m["id"] in image_models.RECOMMENDED:
             continue
         groups.setdefault(m["category"], []).append((m["id"], None, f"{m['name']} · {m['id']}"))
-    return {"fal_on": True, "fal_catalog_n": len(catalog.get("models", [])), "fal_updated": catalog.get("updated"),
+    vcat = get_config(session, "fal_video_catalog", {}) or {}
+    vactive = get_config(session, "fal_video_models", {}) or {}
+    builtin = {m.get(k) for m in image_models.FAL_VIDEO.values() for k in ("i2v", "refs", "flf") if m.get(k)}
+    vgroups = {"image-to-video": [], "video-to-video": []}
+    for m in vcat.get("models", []):
+        if m["id"] not in builtin:
+            vgroups.setdefault(m["category"], []).append((m["id"], None, f"{m['name']} · {m['id']}"))
+    video = {"falv_catalog_n": len(vcat.get("models", [])), "falv_updated": vcat.get("updated"), "falv_active": vactive,
+             "falv_builtin": [m["name"] for m in image_models.FAL_VIDEO.values()],
+             "falv_groups": [("Imagem → vídeo", vgroups["image-to-video"]),
+                             ("Por referências (imagens e vídeos)", vgroups["video-to-video"])]}
+    return {**video, "fal_on": True, "fal_catalog_n": len(catalog.get("models", [])), "fal_updated": catalog.get("updated"),
             "fal_active": active, "fal_recommended": [image_models.FAL[k]["name"] for k in image_models.RECOMMENDED],
             "fal_groups": [("Texto → imagem", groups["text-to-image"]), ("Imagem → imagem (edição, referências, "
                            "estrutura e ferramentas)", groups["image-to-image"])]}
@@ -705,6 +716,69 @@ def fal_catalog_refresh(request: Request, session: Session = Depends(get_session
         except Exception as exc:  # rede, resposta inesperada
             flash(request, f"Não foi possível obter o catálogo da fal ({exc.__class__.__name__}).")
     return RedirectResponse("/configuracao/modelos#fal", status_code=303)
+
+
+@router.post("/fal/video/catalogo")
+def fal_video_catalog_refresh(request: Request, session: Session = Depends(get_session)):
+    """Descarrega a lista atual dos modelos de vídeo da fal (não gasta créditos)."""
+    from app import fal_video_catalog
+    from app.routes.files import flash, flash_info
+
+    key = _fal_key(session)
+    if not key:
+        flash(request, "Guarda primeiro a chave da fal.ai em Chaves de API.")
+    else:
+        try:
+            catalog = fal_video_catalog.refresh(key)
+            set_config(session, "fal_video_catalog", catalog)
+            session.commit()
+            flash_info(request, f"Catálogo de vídeo da fal atualizado: {len(catalog['models'])} modelos.")
+        except Exception as exc:  # rede, resposta inesperada
+            flash(request, f"Não foi possível obter o catálogo da fal ({exc.__class__.__name__}).")
+    return RedirectResponse("/configuracao/modelos#fal-video", status_code=303)
+
+
+@router.post("/fal/video/modelos")
+async def fal_video_models_save(request: Request, session: Session = Depends(get_session)):
+    """Modelos de vídeo do catálogo que aparecem nos seletores: lê o esquema de cada um novo (que imagens, vídeos e
+    vozes aceita, durações, resoluções, som) e o preço; os que a app não sabe chamar ficam de fora, com o motivo."""
+    import asyncio
+
+    from app import fal, fal_video_catalog, image_models
+    from app.routes.files import flash, flash_info
+
+    form = await request.form()
+    listed = (get_config(session, "fal_video_catalog", {}) or {}).get("models", [])
+    names = {m["id"]: m["name"] for m in listed}
+    texts = {m["id"]: m.get("pricing") for m in listed}
+    chosen = [e for e in dict.fromkeys(form.getlist("fal_video_model")) if e in names]
+    current = get_config(session, "fal_video_models", {}) or {}
+    kept = {e: current[e] for e in chosen if e in current}
+    new = [e for e in chosen if e not in current][:40]
+    failed = []
+    for endpoint in new:
+        try:
+            model = await asyncio.to_thread(fal_video_catalog.adapter, endpoint, names[endpoint])
+            kept[endpoint] = {"name": model["name"], "model": model}
+        except fal_video_catalog.Unusable as exc:
+            failed.append(f"{names[endpoint]} ({exc})")
+        except Exception as exc:
+            failed.append(f"{names[endpoint]} (esquema indisponível: {exc.__class__.__name__})")
+    key = _fal_key(session)
+    if key and new:
+        prices = await fal.prices(key, [e for e in new if e in kept])
+        for e in new:
+            if e in kept:
+                fal_video_catalog.apply_price(kept[e]["model"], prices.get(e), texts.get(e))
+    set_config(session, "fal_video_models", kept)
+    session.commit()
+    image_models.sync_video(kept)
+    flash_info(request, f"{len(kept)} modelo(s) de vídeo do catálogo ativos nos seletores"
+               + (f"; {len(new) - len(failed)} novo(s)." if new else "."))
+    if failed:
+        flash(request, "Ficaram de fora (a app não os sabe chamar): " + "; ".join(failed[:8])
+              + ("…" if len(failed) > 8 else ""))
+    return RedirectResponse("/configuracao/modelos#fal-video", status_code=303)
 
 
 @router.post("/fal/modelos")

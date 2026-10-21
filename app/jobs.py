@@ -100,9 +100,10 @@ def _resolve_refs(session: Session, job: ImageJob, prompt: str, medias: list[Med
     from app import model_profiles, ref_tokens
 
     if job.role == "clip" and job.provider == "fal":
-        from app.image_models import FAL_VIDEO
+        from app.image_models import fal_video
 
-        model = {"name": (FAL_VIDEO.get(job.model or "") or {}).get("name"), "refs": True}
+        fm = fal_video(job.model)
+        model = {"name": fm.get("name"), "refs": True, "ref_format": fm.get("ref_format")}
     elif job.role == "clip" and job.provider == "bytedance":
         from app.bytedance import MODELS
 
@@ -111,7 +112,7 @@ def _resolve_refs(session: Session, job: ImageJob, prompt: str, medias: list[Med
         model = artlist.VIDEO_MODELS.get(int(job.model_group_id or artlist.DEFAULT_VIDEO_MODEL)) or {}
     if job.role == "clip":
         if job.kind == "video_refs" and model.get("refs"):
-            fmt, frames = model_profiles.ref_format_for(model.get("name")), False
+            fmt, frames = model.get("ref_format") or model_profiles.ref_format_for(model.get("name")), False
         else:  # modo Frames, ou modelo sem referências múltiplas (a 1.ª imagem segue como Start Frame)
             fmt, frames = None, True
     else:
@@ -219,7 +220,9 @@ async def _fal_video(ctx: dict, prompt: str, aspect: str | None, images: list, v
     from app import fal, image_models
 
     key = ctx.get("model") or ""
-    if key not in image_models.FAL_VIDEO:
+    if not image_models.fal_video(key):
+        image_models.sync_from_db()  # um modelo do catálogo, depois de um reinício
+    if not image_models.fal_video(key):
         raise fal.FalError(f"Modelo de vídeo da fal desconhecido: {key}.")
     if not ctx.get("fal_key"):
         raise fal.FalError("Falta a chave da fal.ai (Configuração → Chaves de API).")

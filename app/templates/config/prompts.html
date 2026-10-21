@@ -118,11 +118,26 @@
     </div>
     <div class="sec-f"><span class="hint">Ao ativar um modelo, a app lê o esquema dele e descobre sozinha o que sabe fazer (só texto, referências, edição, seguir a maquete) e como se pede. Os que precisam de campos que a app não sabe preencher ficam de fora, com o motivo. O preço é o da fal no momento.</span></div>
   </section>
+  <section class="sec" id="fal-video">
+    <div class="sec-h"><h2 class="h2">Modelos de vídeo da fal.ai</h2><span class="sp"></span><span class="dim" style="font-size: 11.5px">quais aparecem nos seletores de vídeo</span></div>
+    <div class="sec-b" style="display: flex; flex-direction: column; gap: 10px">
+      <div><span class="l">Embutidos (testados na app, sempre ativos)</span>
+        <div class="row" style="gap: 6px; flex-wrap: wrap; margin-top: 4px">{% for n in falv_builtin %}<span class="tag">{{ n }}</span>{% endfor %}</div></div>
+      <div><span class="l">Do catálogo ({{ falv_active|length }} ativo(s))</span>
+        <div class="row" style="gap: 6px; flex-wrap: wrap; margin-top: 4px">{% for e, m in falv_active.items() %}{% set md = m.model %}<span class="tag" title="{{ e }}{% if md.price_text %} — {{ md.price_text }}{% endif %}">{{ m.name }} · {{ "referências" if md.refs else "imagem inicial" }}{% if md.video_refs %} · vídeo-guia{% endif %}{% if md.price_s %} · ≈ ${{ md.price_s.values()|list|first }}/s{% if md.price_s|length > 1 %}–{{ md.price_s.values()|list|last }}/s{% endif %}{% elif md.price_flat %} · ≈ ${{ md.price_flat }}/vídeo{% elif md.per_ktok %} · ≈ ${{ md.per_ktok }}/1000 tokens{% endif %}</span>{% else %}<span class="hint">Nenhum.</span>{% endfor %}</div></div>
+      <div class="row" style="gap: 8px; flex-wrap: wrap">
+        {% if falv_catalog_n %}<button class="btn sm" type="button" data-open-dialog="pick-fal-video">Escolher modelos do catálogo ({{ falv_catalog_n }})</button>{% endif %}
+        <button class="btn sm ghost" type="submit" form="falv-refresh-form" data-busy-label="A descarregar…">{{ "Atualizar catálogo" if falv_catalog_n else "Descarregar catálogo da fal" }}</button>
+        {% if falv_updated %}<span class="hint">atualizado em {{ falv_updated[:16]|replace("T", " ") }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="sec-f"><span class="hint">Ao ativar um modelo, a app lê o esquema dele e descobre sozinha o que aceita (imagem inicial e final, várias imagens de referência, vídeo-guia, vozes, som), as durações, as resoluções e o preço. Os que precisam de campos que a app não sabe preencher ficam de fora, com o motivo. Ferramentas como efeitos, avatares, lip-sync e ampliar não aparecem.</span></div>
+  </section>
   {% endif %}
   <section class="sec" id="video">
     <div class="sec-h"><h2 class="h2">Vídeo</h2><span class="dim" style="font-size: 11.5px">o modelo pré-escolhido em cada plano, a resolução e o som (para qualquer fornecedor)</span></div>
     <div class="sec-b">
-      {{ provider_pair("vid", "Fornecedor", "Modelo por omissão (projetos novos)", vid_groups, vid_default, vid_pending, "video_default", hint="Cada projeto tem o seu modelo e a sua resolução padrão (etapa Vídeo) e cada plano pode escolher outro. Os modelos que aceitam várias imagens recebem as vistas do local, as folhas do elenco e, se aceitarem vídeo, o vídeo-guia; os outros só a imagem inicial (e final).") }}
+      {{ provider_pair("vid", "Fornecedor", "Modelo por omissão (projetos novos)", vid_groups, vid_default, vid_pending, "video_default", hint="Cada projeto pode ter o seu modelo e a sua resolução padrão (Bíblia › Formato e modelos) e cada plano pode escolher outro. Os modelos que aceitam várias imagens recebem as vistas do local, as folhas do elenco e, se aceitarem vídeo, o vídeo-guia; os outros só a imagem inicial (e final).") }}
       <div class="f"><label for="video_quality">Resolução do vídeo</label><select id="video_quality" name="video_quality" class="in">{% for q in ["480p", "720p", "1080p"] %}<option value="{{ q }}" {% if video_quality == q %}selected{% endif %}>{{ q }}{{ " · mais barato, para testar" if q == "480p" }}</option>{% endfor %}</select></div>
       <label class="ck-row" style="border: 0"><input type="checkbox" name="video_audio" value="1" {% if video_audio %}checked{% endif %}><span>Com som por omissão (voz, efeitos, ambiente)</span></label>
     </div>
@@ -236,6 +251,10 @@
 {% if fal_on %}
 <form id="fal-refresh-form" method="post" action="/configuracao/fal/catalogo">{{ m.csrf() }}</form>
 <form id="fal-models-form" method="post" action="/configuracao/fal/modelos">{{ m.csrf() }}</form>
+<form id="falv-refresh-form" method="post" action="/configuracao/fal/video/catalogo">{{ m.csrf() }}</form>
+<form id="falv-models-form" method="post" action="/configuracao/fal/video/modelos">{{ m.csrf() }}</form>
+{% if falv_catalog_n %}{{ m.picker("pick-fal-video", "Modelos de vídeo da fal.ai", falv_groups, falv_active.keys()|list, "fal_video_model", "falv-models-form",
+    hint="Marca os que queres nos seletores de vídeo. Os embutidos não aparecem aqui (já estão sempre ativos).") }}{% endif %}
 {% if fal_catalog_n %}{{ m.picker("pick-fal", "Modelos da fal.ai", fal_groups, fal_active.keys()|list, "fal_model", "fal-models-form",
     hint="Marca os que queres nos botões Gerar. Muitos dos de imagem → imagem são ferramentas (ampliar, tirar fundo…): a app só ativa os que sabe chamar com um prompt.") }}{% endif %}
 {% endif %}

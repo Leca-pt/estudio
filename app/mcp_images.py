@@ -316,7 +316,7 @@ async def list_models(project_id: int | None = None, kinds: list[str] | None = N
             dur = f"{min(durs)}–{max(durs)} s" if durs else "—"
             cost = m.get("cost_text") or (f"{m['cost']} cr." if m.get("cost") else "cotado por plano (quote_shot)")
             out.append(f"- {m['name']} · {m['provider']} · {m.get('resolution') or '—'} · {dur} · aceita: {', '.join(accepts)}"
-                       f" · custo {cost}" + (" · (padrão do projeto)" if proj and proj.video_model and m["name"] == vid_default else
+                       f" · custo {cost}" + (f" (página da fal: «{m['price_text'][:200]}»)" if m.get("price_text") else "") + (" · (padrão do projeto)" if proj and proj.video_model and m["name"] == vid_default else
                                              " · (padrão da Configuração)" if m["name"] == vid_default else ""))
         sections.append("VÍDEO (o nome vai em shot:N.video_model ou project.video_model; quote_shot dá o custo exato do plano)"
                         + (f"; resolução padrão do projeto: {vid_res}" if vid_res else "") + ":\n" + ("\n".join(out) or "nenhum fornecedor ligado")

@@ -163,6 +163,7 @@ def sync_from_db() -> None:
 
     with Session(engine) as session:
         sync(get_config(session, "fal_models", {}) or {})
+        sync_video(get_config(session, "fal_video_models", {}) or {})
 
 
 CAP_WORDS = {"structure": "segue a maquete", "refs": "referências", "edit": "edita"}
@@ -354,37 +355,69 @@ FAL_VIDEO: dict[str, dict] = {
     "wan-3.0": {"name": "Wan 3.0 · fal.ai", "family": "wan", "i2v": "alibaba/wan-3.0/image-to-video",
                 "durations": list(range(2, 16)), "res": ["480p", "720p", "1080p"],
                 "price_s": {"480p": 0.05, "720p": 0.10, "1080p": 0.20}},
+    "kling-4": {"name": "Kling 4 · fal.ai", "family": "kling4", "refs": "kling/v4/reference-to-video",
+                "i2v": "kling/v4/reference-to-video", "max_images": 10, "max_videos": 5, "video_refs": True,
+                "end": False, "audio": False, "durations": list(range(3, 31)), "res": ["720p", "1080p"],
+                "price_s": {"720p": 0.157, "1080p": 0.235},
+                # com vídeo de referência (o vídeo-guia): por segundo de entrada + saída, no mínimo 2× a saída
+                "price_s_video": {"720p": 0.094, "1080p": 0.141}},
     "ltx-2.5-pro": {"name": "LTX 2.5 Pro · fal.ai", "family": "ltx", "i2v": "lightricks/ltx-2.5/image-to-video/pro",
                     "durations": [6, 8, 10], "res": ["720p", "1080p"], "price_s": {"720p": 0.12, "1080p": 0.17}},
 }
+FAL_VIDEO_CATALOG: dict[str, dict] = {}  # os ativados do catálogo da fal (Configuração), por endpoint
+
+
+def fal_video(key: str | None) -> dict:
+    """Um modelo de vídeo da fal: os embutidos (testados) ou um ativado do catálogo; {} se não existe."""
+    return FAL_VIDEO.get(key or "") or FAL_VIDEO_CATALOG.get(key or "") or {}
+
+
+def all_fal_video() -> dict[str, dict]:
+    return {**FAL_VIDEO, **{k: v for k, v in FAL_VIDEO_CATALOG.items() if k not in FAL_VIDEO}}
+
+
+def sync_video(models: dict | None) -> None:
+    """Os modelos de vídeo do catálogo ativados (configuração "fal_video_models") passam a existir na app."""
+    FAL_VIDEO_CATALOG.clear()
+    for endpoint, entry in (models or {}).items():
+        if isinstance(entry, dict) and entry.get("model"):
+            FAL_VIDEO_CATALOG[endpoint] = entry["model"]
+
+
 VIDEO_PIXELS = {"480p": (854, 480), "720p": (1280, 720), "1080p": (1920, 1080)}
 VIDEO_RATIOS = {"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}
 
 
-def fal_video_cost(key: str, resolution: str, seconds: int, audio: bool = True) -> float:
+def fal_video_cost(key: str, resolution: str, seconds: int, audio: bool = True, guide: bool = False) -> float:
     """Custo estimado (USD) de um clip: pela tabela de tokens (Seedance), por segundo e resolução, ou por segundo com
-    ou sem som (Kling)."""
-    m = FAL_VIDEO[key]
+    ou sem som (Kling 3); guide = segue um vídeo de referência (o Kling 4 cobra-o à parte)."""
+    m = fal_video(key)
     res = resolution if resolution in m["res"] else m["res"][0]
     if "per_ktok" in m:
         w, h = VIDEO_PIXELS.get(res, VIDEO_PIXELS["720p"])
         return round(m["per_ktok"] * w * h * 24 * seconds / 1024 / 1000, 2)
     if "price_audio" in m:
         return round(m["price_audio"][bool(audio)] * seconds, 2)
-    return round(m["price_s"][res] * seconds, 2)
+    if guide and "price_s_video" in m:
+        return round(m["price_s_video"][res] * seconds * 2, 2)
+    if "price_flat" in m:
+        return round(m["price_flat"], 2)
+    if "price_s" in m:
+        return round(m["price_s"].get(res, max(m["price_s"].values())) * seconds, 2)
+    return 0.0
 
 
 def fal_video_caps(m: dict) -> dict:
     """O que o modelo aceita, para a app escolher o modo e as imagens: refs (várias imagens de referência),
     video_refs (vídeo-guia), audio_refs (vozes), end_frame (imagem final), audio (gera som)."""
     return {"refs": bool(m.get("refs_ok") or m.get("refs")), "video_refs": bool(m.get("video_refs")),
-            "audio_refs": bool(m.get("audio_refs")), "end_frame": True, "audio": True}
+            "audio_refs": bool(m.get("audio_refs")), "end_frame": m.get("end", True), "audio": m.get("audio", True)}
 
 
 def fal_video_request(key: str, mode: str, prompt: str, aspect: str | None, image_urls: list[str],
                       video_urls: list[str], seconds: int | None, resolution: str, audio: bool) -> tuple[str, dict]:
     """(endpoint, argumentos) do pedido à fal, no formato de cada família de modelos."""
-    m = FAL_VIDEO[key]
+    m = fal_video(key)
     a = (aspect or "16:9").split(" ")[0]
     res = resolution if resolution in m["res"] else m["res"][0]
     durs = m["durations"]
@@ -425,6 +458,20 @@ def fal_video_request(key: str, mode: str, prompt: str, aspect: str | None, imag
         return m["i2v"], {"prompt": prompt, "start_image_url": start, "duration": dur, "resolution": res,
                           "aspect_ratio": a if a in ("16:9", "4:3", "1:1", "3:4", "9:16") else "adaptive",
                           "audio": bool(audio)} | ({"end_image_url": end} if end else {})
+    if family == "kling4":  # um só endpoint: referências (@Image1…, @Video1…) e, sem elas, a imagem inicial
+        args = {"prompt": prompt, "duration": dur, "resolution": res,
+                "aspect_ratio": a if a in ("16:9", "9:16", "1:1", "21:9") else "auto"}
+        if mode == "references":
+            args["image_urls"] = image_urls[: m["max_images"]]
+            if video_urls:
+                args["video_urls"] = video_urls[: m["max_videos"]]
+        else:
+            args["start_image_url"] = start
+        return m["refs"], args
+    if family == "catalog":
+        from app import fal_video_catalog
+
+        return fal_video_catalog.request(m, mode, prompt, a, image_urls, video_urls, dur, res, audio)
     if family == "ltx":
         return m["i2v"], {"prompt": prompt, "image_url": start, "duration": dur, "resolution": res,
                           "aspect_ratio": a if a in ("16:9", "9:16") else "auto", "generate_audio": bool(audio)} \

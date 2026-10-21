@@ -586,7 +586,7 @@
 "Demorou demasiado e foi cancelado. Tenta outra vez; às vezes o fornecedor está sobrecarregado.": "It took too long and was cancelled. Try again; sometimes the provider is overloaded.",
 "Desatualizado": "Outdated",
 "Descarregar": "Download",
-"Descarregar catálogo da fal": "Download fal catalog",
+"Descarregar catálogo da fal": "Download the fal catalog",
 "Descarregar em PDF": "Download as PDF",
 "Descarregar em PDF (demora uns segundos)": "Download as PDF (takes a few seconds)",
 "Descarregar imagem aprovada": "Download approved image",
@@ -2523,9 +2523,64 @@
 "padrão da Configuração": "default from Settings",
 "modelos da Configuração": "models from Settings",
 "Modelos padrão deste projeto. «Igual à Configuração» segue o que está na Configuração; o seletor de cada botão continua a deixar escolher outro para uma geração.": "This project's default models. “Same as Settings” follows what is set in Settings; each button's selector still lets you pick another one for a single generation.",
-"; cada plano pode escolher outro na página de vídeo dele.": "; each shot can pick another one on its video page."
+"; cada plano pode escolher outro na página de vídeo dele.": "; each shot can pick another one on its video page.",
+"estimativa": "estimate",
+"só imagem inicial": "start image only",
+"vistas, elenco e vídeo-guia": "views, cast and guide video",
+"Modelos de vídeo da fal.ai": "fal.ai video models",
+"quais aparecem nos seletores de vídeo": "which ones show up in the video selectors",
+"Embutidos (testados na app, sempre ativos)": "Built-in (tested in the app, always on)",
+"Por referências (imagens e vídeos)": "By references (images and videos)",
+"Imagem → vídeo": "Image → video",
+"preço: ver na fal": "price: see on fal",
+"Marca os que queres nos seletores de vídeo. Os embutidos não aparecem aqui (já estão sempre ativos).": "Tick the ones you want in the video selectors. Built-in models don't show here (they're always on).",
+"Ao ativar um modelo, a app lê o esquema dele e descobre sozinha o que aceita (imagem inicial e final, várias imagens de referência, vídeo-guia, vozes, som), as durações, as resoluções e o preço. Os que precisam de campos que a app não sabe preencher ficam de fora, com o motivo. Ferramentas como efeitos, avatares, lip-sync e ampliar não aparecem.": "When you turn a model on, the app reads its schema and works out by itself what it accepts (start and end image, several reference images, guide video, voices, sound), its durations, resolutions and price. Models that need fields the app can't fill are left out, with the reason. Tools such as effects, avatars, lip-sync and upscaling don't show up.",
+"Cada projeto pode ter o seu modelo e a sua resolução padrão (Bíblia › Formato e modelos) e cada plano pode escolher outro. Os modelos que aceitam várias imagens recebem as vistas do local, as folhas do elenco e, se aceitarem vídeo, o vídeo-guia; os outros só a imagem inicial (e final).": "Each project can have its own default model and resolution (Bible › Format and models) and each shot can pick another one. Models that accept several images get the location views, the cast sheets and, if they accept video, the guide video; the others only the start (and end) image.",
+"O modelo, a resolução e a duração deste plano. «Padrão do projeto» segue o que escolheste na Bíblia › Formato e modelos; o que mudares aqui vale só para este plano. Modelos do segundo grupo só recebem a primeira (e a última) imagem, sem elenco nem vídeo-guia.": "This shot's model, resolution and duration. “Project default” follows what you chose in Bible › Format and models; what you change here applies to this shot only. Models in the second group only get the first (and last) image, with no cast or guide video.",
+"não parte de imagens (só texto ou só vídeo)": "doesn't start from images (text or video only)",
+"exige sempre imagem inicial e final (usa a versão imagem → vídeo do mesmo modelo)": "always needs a start and end image (use the image → video version of the same model)"
 },
 "patterns": [
+[
+"a partir de \\$(\\d+(?:\\.\\d+)?) \\((\\d+p), (\\d+) s\\)",
+"from $\\1 (\\2, \\3 s)",
+"a partir de",
+[
+"a partir de $"
+]
+],
+[
+"Escolher modelos do catálogo \\((\\d+)\\)",
+"Choose models from the catalog (\\1)",
+"Escolher modelos do catálogo",
+[
+"Escolher modelos do catálogo ("
+]
+],
+[
+"Catálogo de vídeo da fal atualizado: (\\d+) modelos\\.",
+"fal video catalog updated: \\1 models.",
+"Catálogo de vídeo",
+[
+"Catálogo de vídeo da fal atualizado:"
+]
+],
+[
+"(\\d+) modelo\\(s\\) de vídeo do catálogo ativos nos seletores(.{0,40})",
+"\\1 catalog video model(s) on in the selectors\\2",
+"modelo(s) de vídeo do catálogo",
+[
+"modelo(s) de vídeo do catálogo ativos"
+]
+],
+[
+"; (\\d+) novo\\(s\\)\\.",
+"; \\1 new.",
+"novo(s)",
+[
+"novo(s)."
+]
+],
 [
 "(\\d+) palavras: acima de (\\d+) com estrutura temporal \\((.{1,80}?), perfil (.{1,40}?)\\)\\.",
 "\\1 words: over \\2 with a timed structure (\\3, profile \\4).",

@@ -722,3 +722,21 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   promoção até 7 nov. (75 % mais barato); a app mostra o preço normal.
 - Perfis de prompt: o Kling ganha ref_format @Image{n} (o O3 por referências); o Flux 3 usa o perfil curto (sem guia
   publicado pela BFL).
+
+## 21 de outubro de 2026: Kling 4 e catálogo de vídeo da fal
+
+- Kling 4 (kling/v4/reference-to-video) embutido: um só endpoint, por referências (até 10 imagens @Image1…, até 5
+  vídeos @Video1… — recebe o vídeo-guia) ou, sem referências, com imagem inicial (não tem imagem final nem som).
+  Preço por segundo por resolução; com vídeo de referência a fal cobra entrada + saída (no mínimo 2× a saída): a app
+  mostra o maior dos dois.
+- «Todos os modelos da fal» como catálogo, igual ao das imagens: Configuração → Modelos de vídeo da fal.ai → Atualizar
+  catálogo (imagem→vídeo e vídeo→vídeo, sem efeitos, avatares, lip-sync, ampliar…; 275 em 21 out.) e escolher os que
+  entram nos seletores. Ao ativar, app/fal_video_catalog.py lê o esquema (imagem inicial/final, lista de referências e
+  máximo, vídeos e áudios de referência, durações e se vão como número ou texto, resoluções 480p/720p/1080p, proporções,
+  som, sintaxe @Image1) — 142 dos 275 são utilizáveis; os outros ficam de fora com o motivo (sem imagens, campos que a
+  app não preenche, exigem sempre imagem final). Os pedidos dos 142 validados contra o esquema de cada um.
+- Preço dos do catálogo: o texto publicado na página de cada modelo (por resolução, com/sem som, por segundo ou por
+  vídeo) — a API de preços só dá o escalão mais baixo; se o texto não se percebe ou dá menos do que esse escalão,
+  fica o da API como «a partir de». Mostrado como «estimativa», com o texto original (Configuração e list_models).
+- image_models.fal_video() junta embutidos e catálogo; tudo o que listava ou chamava FAL_VIDEO passa por aí, e os
+  seletores, a Bíblia, a Configuração, o Assistente e o MCP (list_models) mostram os ativados.

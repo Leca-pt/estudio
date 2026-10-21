@@ -245,7 +245,7 @@ def job_view(session: Session, job: ImageJob) -> dict:
     elif job.provider == "fal" and job.role == "clip":
         from app import image_models
 
-        label = (image_models.FAL_VIDEO.get(job.model or "") or {}).get("name", "fal.ai")
+        label = image_models.fal_video(job.model).get("name", "fal.ai")
     elif job.provider == "bytedance":
         from app import bytedance
 

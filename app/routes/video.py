@@ -47,12 +47,17 @@ def video_models(session: Session) -> list[dict]:
     from app import artlist
 
     vs = video_settings(session)
+    image_models.sync_video(get_config(session, "fal_video_models", {}) or {})  # os ativados do catálogo
     fal = [{"name": m["name"], "kind": "video", "group": None, "provider": "fal", "key": k, "cost": None,
-            "cost_text": f"≈ ${image_models.fal_video_cost(k, m['res'][0], 10)} ({m['res'][0]}, 10 s)",
+            "cost_text": (("a partir de " if str(m.get("price_src", "")).startswith("a partir") else "≈ ")
+                          + f"${image_models.fal_video_cost(k, m['res'][0], 10)} ({m['res'][0]}, 10 s)"
+                          + (" · estimativa" if m.get("family") == "catalog" else "")) if m.get("family") != "catalog"
+            or any(x in m for x in ("price_s", "price_flat", "per_ktok")) else "preço: ver na fal",
+            "price_text": m.get("price_text"),
             "resolution": " / ".join(m["res"]), "durations_s": m["durations"], "audio_always": False,
             **image_models.fal_video_caps(m),
             **{x: m[x] for x in ("max_images", "max_videos", "max_audios", "max_audio_s", "max_files") if x in m}}
-           for k, m in image_models.FAL_VIDEO.items()] if fal_enabled(session) else []
+           for k, m in image_models.all_fal_video().items()] if fal_enabled(session) else []
     art = [{"name": m["name"], "kind": "video", "group": gid, "provider": "artlist", "cost": m.get("cost"),
             "video_refs": bool(m.get("video_refs")), "audio_refs": bool(m.get("audio_refs")), "resolution": " / ".join(lab for lab, _v in m["res"]),
             "durations_s": sorted({int(d) for d in m["durations"]}), "refs": bool(m.get("refs")),
@@ -243,7 +248,7 @@ def take_labels(session: Session, clips: list[MediaFile]) -> dict[int, str]:
         job = jobs.get(c.id)
         model = None
         if job and job.provider == "fal":
-            model = (image_models.FAL_VIDEO.get(job.model or "") or {}).get("name") or job.model
+            model = image_models.fal_video(job.model).get("name") or job.model
         elif job and job.provider == "bytedance":
             from app import bytedance
 

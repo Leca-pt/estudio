@@ -65,9 +65,10 @@ def _bytedance(model: dict, res: str, seconds: int) -> dict | None:
 async def _fal(model: dict, res: str, seconds: int, frames: bool = False, audio: bool = True) -> dict | None:
     from app import api_keys, image_models
 
-    m = image_models.FAL_VIDEO.get(model.get("key") or "") or {}
+    m = image_models.fal_video(model.get("key"))
     if m and "per_ktok" not in m:  # cobrados por segundo (ou com/sem som): a tabela da página do modelo
-        usd = image_models.fal_video_cost(model["key"], res, seconds, audio)
+        usd = max(image_models.fal_video_cost(model["key"], res, seconds, audio),  # com vídeo-guia pode custar mais
+                  image_models.fal_video_cost(model["key"], res, seconds, audio, guide=True))
         return {"text": f"≈ ${usd:.2f} na fal", "credits": None, "usd": usd, "source": "tabela", "at": time.time()}
     endpoint = (m.get("i2v") if frames else m.get("refs")) or m.get("refs") or m.get("i2v")
     if not endpoint:
