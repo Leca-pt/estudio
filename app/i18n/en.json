@@ -2557,15 +2557,31 @@
 "as imagens que o escritor vê": "the images the writer sees",
 "as vozes": "the voices",
 "os dados de que o prompt depende (versão escrita antes de a app guardar o pormenor)": "the data the prompt depends on (version written before the app kept the details)",
-"os dados de que o prompt depende": "the data the prompt depends on"
+"os dados de que o prompt depende": "the data the prompt depends on",
+"O prompt está desatualizado": "The prompt is outdated",
+"Prompt desatualizado": "Outdated prompt",
+"O escritor escreveu este prompt antes de mudar:": "The writer wrote this prompt before these changed:",
+"Reescrever: o escritor volta a escrevê-lo com os dados atuais e a geração segue logo a seguir (a versão atual fica em Versões, para comparares ou repores). Continuar: gera já com o texto tal como está.": "Rewrite: the writer writes it again with the current data and the generation follows right after (the current version stays in Versions, so you can compare or restore it). Continue: generates now with the text as it is.",
+"Gerar com o texto atual": "Generate with the current text",
+"Reescrever o prompt e gerar": "Rewrite the prompt and generate",
+"O prompt está desatualizado: ao gerar escolhes reescrevê-lo ou continuar": "The prompt is outdated: when generating you choose to rewrite it or continue",
+"O custo é o que aparece ao lado do botão.": "The cost is the one shown next to the button."
 },
 "patterns": [
 [
-"Desatualizado: mudou (.{1,400}?)\\. Escolhe «Reescrever e gerar» \\(o escritor volta a escrevê-lo; a versão atual fica em Versões\\) ou «Gerar com este texto»\\.",
-"Outdated: \\1 changed. Choose “Rewrite and generate” (the writer writes it again; the current version stays in Versions) or “Generate with this text”.",
+"Desatualizado: mudou (.{1,400}?)\\. Ao gerar, escolhes reescrevê-lo ou continuar com este texto\\.",
+"Outdated: \\1 changed. When generating, you choose to rewrite it or continue with this text.",
 "Desatualizado: mudou",
 [
-"Desatualizado: mudou"
+"Ao gerar, escolhes reescrevê-lo"
+]
+],
+[
+"Custa ≈ (.{1,60}?)\\.",
+"Costs ≈ \\1.",
+"Custa",
+[
+"Custa ≈"
 ]
 ],
 [

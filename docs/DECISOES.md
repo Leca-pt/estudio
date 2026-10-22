@@ -778,3 +778,7 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - Vale para todos os prompts (frames-chave, vídeo, folhas, retratos, looks, capa e vistas, também nos cartões das vistas).
   Prompt por escrever continua a ser escrito automaticamente. No MCP, generate_image/generate_video recusam com o motivo
   e só geram com o texto atual com keep_prompt=true (quando o utilizador disser).
+- (mesmo dia) A escolha passou a ser uma janela: o «Gerar» abre «O prompt está desatualizado» com o que mudou e
+  «Cancelar» / «Gerar com o texto atual» / «Reescrever o prompt e gerar» (macro stale_dialog; também nos cartões das
+  vistas). Corrigido de caminho: as janelas fechavam-se no submit antes de o pedido partir e o htmx esquecia o botão
+  carregado (o pedido ia sem «op»); agora fecham-se um instante depois.

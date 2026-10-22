@@ -1341,3 +1341,6 @@ details.world-sec[open] > summary .fold-sum { display: none; }
 .ln-audio-in { grid-column: 1 / -1; padding-left: 2px; }
 .la-rej { margin-top: 8px; }
 .la-rej .ln-audio { border-top: 1px solid var(--line); }
+
+/* Janela «prompt desatualizado» */
+.stale-dlg { width: min(620px, 94vw); }

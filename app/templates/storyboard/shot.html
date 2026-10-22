@@ -153,8 +153,8 @@
           {% if not gens.options %}<span class="hint">Sem modelos de imagem ligados (Configuração → Ligações ou Chaves de API).</span>{% else %}
           {% if r.task and r.task.status == "failed" %}<span class="hint c-no">{{ r.task.error or "Não foi possível escrever o prompt." }}</span>{% endif %}
           <span class="gen-split"><select name="gen:vista:{{ r.view.id }}" class="gen-select" form="{{ F }}" aria-label="Modelo">{% for v, l in gens.options %}<option value="{{ v }}" data-res="{{ gens.res.get(v, '') }}"{% if v == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % r.view.id, F) }}
-            {% if r.pstate == "stale" %}<button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgenw:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="Desatualizado: mudou {{ r.stale_why|join('; ') }}. O escritor volta a escrevê-lo (a versão atual fica em Versões) e gera a seguir">{{ i.icon("image", 13) }}Reescrever e gerar</button>
-            <button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgenk:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="Gera com o prompt tal como está">Gerar com este texto</button>
+            {% if r.pstate == "stale" %}<button class="btn sm gpt-btn" type="button" data-open-dialog="stale-vista-{{ r.view.id }}" title="O prompt está desatualizado: ao gerar escolhes reescrevê-lo ou continuar">{{ i.icon("image", 13) }}Gerar imagem</button>
+            {{ m.stale_dialog("stale-vista-%d" % r.view.id, F, "vista", r.view.id|string, r.stale_why) }}
             {% else %}<button class="btn sm gpt-btn" type="submit" form="{{ F }}" name="op" value="pgen:vista:{{ r.view.id }}" data-busy-text="A pedir…" title="O escritor de prompts escreve o prompt da vista e a imagem gera-se logo a seguir">{{ i.icon("image", 13) }}Gerar imagem</button>{% endif %}</span>
             {% if r.pstate == "stale" %}<span class="hint warn-t">Prompt desatualizado: mudou {{ r.stale_why|join("; ") }}.</span>{% endif %}
           {% endif %}{% endif %}

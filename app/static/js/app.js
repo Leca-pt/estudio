@@ -710,7 +710,8 @@
   // o fundo do modal por cima da página, a bloquear os cliques); um modal fecha-se quando submete o seu formulário.
   document.addEventListener('submit', e => {
     const d = e.submitter && e.submitter.closest('dialog');
-    if (d && d.open && !d.hasAttribute('data-keep-open')) d.close();  // os de trabalho (ex.: uma zona) ficam abertos
+    // fecha depois de o pedido partir: fechar já tirava o foco ao botão e o htmx esquecia-o (o pedido ia sem o «op»)
+    if (d && d.open && !d.hasAttribute('data-keep-open')) setTimeout(() => d.open && d.close(), 0);  // os de trabalho (ex.: uma zona) ficam abertos
   }, true);
   // O que o utilizador mexeu e ainda não gravou (um seletor de modelo, um prompt a meio) não é reposto pelo morph:
   // fica marcado ao mudar e deixa de estar marcado quando o formulário dele é submetido.
