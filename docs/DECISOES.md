@@ -740,3 +740,15 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   fica o da API como «a partir de». Mostrado como «estimativa», com o texto original (Configuração e list_models).
 - image_models.fal_video() junta embutidos e catálogo; tudo o que listava ou chamava FAL_VIDEO passa por aí, e os
   seletores, a Bíblia, a Configuração, o Assistente e o MCP (list_models) mostram os ativados.
+
+## 22 de outubro de 2026: avatares que falam (Kling AI Avatar v2 Standard/Pro, VEED Fabric 1.0)
+
+- Família "avatar" em FAL_VIDEO: imagem + áudio → a pessoa da imagem a dizer o áudio; o vídeo dura o áudio (não se
+  escolhe a duração; o pedido regista a do áudio). Preços por segundo: $0.056 (Standard), $0.115 (Pro), $0.08/$0.15
+  (Fabric 480p/720p).
+- O áudio é o das falas do guião das linhas que o plano cobre (escolha do utilizador; exceção à regra de que o áudio das
+  falas não vai a modelos de vídeo — só estes o recebem). Vários áudios juntam-se pela ordem (jobs._join_audio).
+  line_audio.for_shot: sem linhas marcadas, sem áudio ou com áudio desatualizado → bloqueio em «Antes de gerar» com
+  «Abrir o guião da cena» (outdated.blockers) e o pedido recusado.
+- Segue só a primeira imagem do plano (sem referências, vídeo-guia nem vozes). Perfil de prompt «Avatar que fala»:
+  curto, só expressão, olhar, tom e gestos; o Fabric não recebe prompt.

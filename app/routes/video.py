@@ -49,12 +49,14 @@ def video_models(session: Session) -> list[dict]:
     vs = video_settings(session)
     image_models.sync_video(get_config(session, "fal_video_models", {}) or {})  # os ativados do catálogo
     fal = [{"name": m["name"], "kind": "video", "group": None, "provider": "fal", "key": k, "cost": None,
-            "cost_text": (("a partir de " if str(m.get("price_src", "")).startswith("a partir") else "≈ ")
+            "cost_text": (f"≈ ${min(m['price_s'].values())}" + (f"–{max(m['price_s'].values())}" if len(set(m['price_s'].values())) > 1 else "")
+                          + "/s (dura o áudio das falas)") if m.get("avatar") else
+            (("a partir de " if str(m.get("price_src", "")).startswith("a partir") else "≈ ")
                           + f"${image_models.fal_video_cost(k, m['res'][0], 10)} ({m['res'][0]}, 10 s)"
                           + (" · estimativa" if m.get("family") == "catalog" else "")) if m.get("family") != "catalog"
             or any(x in m for x in ("price_s", "price_flat", "per_ktok")) else "preço: ver na fal",
             "price_text": m.get("price_text"),
-            "resolution": " / ".join(m["res"]), "durations_s": m["durations"], "audio_always": False,
+            "resolution": " / ".join(m["res"]), "durations_s": m["durations"],
             **image_models.fal_video_caps(m),
             **{x: m[x] for x in ("max_images", "max_videos", "max_audios", "max_audio_s", "max_files") if x in m}}
            for k, m in image_models.all_fal_video().items()] if fal_enabled(session) else []
@@ -442,8 +444,16 @@ def request_plan(session: Session, shot: Shot, model: dict | None) -> dict:
         images = send_refs(session, shot, cap)
     else:
         images = chosen_frames or frame_inputs(session, shot, model)
+    avatar_problem = None
+    if model and model.get("avatar"):  # avatar que fala: a primeira imagem e o áudio das falas do plano
+        from app import line_audio
+
+        images, guide = images[:1], None
+        clips, avatar_problem = line_audio.for_shot(session, shot)
+        voices = [c["media"] for c in clips]
+        total_s = sum((m.duration_ms or 0) for m in voices) / 1000
     return {"images": images, "guide": guide, "voices": voices, "missing": missing, "dropped": dropped, "limits": lim,
-            "voice_s": total_s, "mode": mode}
+            "voice_s": total_s, "mode": mode, "avatar_problem": avatar_problem}
 
 
 # ── Vozes de quem fala no plano ───────────────────────────────
@@ -683,13 +693,16 @@ def queue_video(session: Session, project: Project, shot: Shot, prompt: str, aud
     if not images:
         return False, ("Faltam as imagens: aprova as vistas do local nos momentos do plano (Storyboard) e as folhas "
                        "do elenco.")
+    if plan.get("avatar_problem"):
+        return False, plan["avatar_problem"]
     guide, voices = plan["guide"], plan["voices"]
     inputs = [m.id for m in images] + ([guide.id] if guide is not None else []) + [m.id for m in voices]
     jobs.enqueue(session, project, "clip", final_prompt(prompt, model, guide, voices, session, shot),
                  project_aspect(project),
                  inputs, kind="video_refs" if mode == "references" else "video_frames",
                  provider=provider, model_group_id=model["key"] if provider in ("fal", "bytedance") else model["group"],
-                 duration_s=shot.duration_s, audio=audio, shot_id=shot.id,
+                 duration_s=(round(plan["voice_s"]) or shot.duration_s) if model.get("avatar") else shot.duration_s,
+                 audio=audio, shot_id=shot.id,
                  params={"resolution": shot_resolution(session, shot, model), "model_name": model["name"],
                          "quote": (video_cost.shot_cached(video_cost.shot_args(session, shot)) or {}).get("credits"),
                          "sent": sent_list(session, images, guide, voices, mode), "guide": guide is not None})

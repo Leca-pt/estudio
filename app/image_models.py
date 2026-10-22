@@ -361,6 +361,19 @@ FAL_VIDEO: dict[str, dict] = {
                 "price_s": {"720p": 0.157, "1080p": 0.235},
                 # com vídeo de referência (o vídeo-guia): por segundo de entrada + saída, no mínimo 2× a saída
                 "price_s_video": {"720p": 0.094, "1080p": 0.141}},
+    # Avatares que falam: uma imagem (a primeira do plano) e o áudio das falas que o plano cobre → a pessoa da imagem a
+    # dizer esse áudio; o vídeo dura o mesmo que o áudio (por isso não se escolhe a duração).
+    "kling-avatar-2-standard": {"name": "Kling AI Avatar v2 Standard · fal.ai", "family": "avatar", "avatar": True,
+                                "i2v": "fal-ai/kling-video/ai-avatar/v2/standard", "prompt": True, "end": False,
+                                "audio": False, "durations": list(range(1, 121)), "res": ["720p"],
+                                "price_s": {"720p": 0.056}},
+    "kling-avatar-2-pro": {"name": "Kling AI Avatar v2 Pro · fal.ai", "family": "avatar", "avatar": True,
+                           "i2v": "fal-ai/kling-video/ai-avatar/v2/pro", "prompt": True, "end": False, "audio": False,
+                           "durations": list(range(1, 121)), "res": ["1080p"], "price_s": {"1080p": 0.115}},
+    "veed-fabric-1.0": {"name": "VEED Fabric 1.0 · fal.ai", "family": "avatar", "avatar": True, "i2v": "veed/fabric-1.0",
+                        "prompt": False, "res_field": True, "end": False, "audio": False,
+                        "durations": list(range(1, 121)), "res": ["480p", "720p"],
+                        "price_s": {"480p": 0.08, "720p": 0.15}},
     "ltx-2.5-pro": {"name": "LTX 2.5 Pro · fal.ai", "family": "ltx", "i2v": "lightricks/ltx-2.5/image-to-video/pro",
                     "durations": [6, 8, 10], "res": ["720p", "1080p"], "price_s": {"720p": 0.12, "1080p": 0.17}},
 }
@@ -411,7 +424,8 @@ def fal_video_caps(m: dict) -> dict:
     """O que o modelo aceita, para a app escolher o modo e as imagens: refs (várias imagens de referência),
     video_refs (vídeo-guia), audio_refs (vozes), end_frame (imagem final), audio (gera som)."""
     return {"refs": bool(m.get("refs_ok") or m.get("refs")), "video_refs": bool(m.get("video_refs")),
-            "audio_refs": bool(m.get("audio_refs")), "end_frame": m.get("end", True), "audio": m.get("audio", True)}
+            "audio_refs": bool(m.get("audio_refs")), "end_frame": m.get("end", True), "audio": m.get("audio", True),
+            "avatar": bool(m.get("avatar")), "audio_always": bool(m.get("avatar"))}
 
 
 def fal_video_request(key: str, mode: str, prompt: str, aspect: str | None, image_urls: list[str],
@@ -468,6 +482,13 @@ def fal_video_request(key: str, mode: str, prompt: str, aspect: str | None, imag
         else:
             args["start_image_url"] = start
         return m["refs"], args
+    if family == "avatar":  # o áudio junta-se em jobs._fal_video (audio_url)
+        args = {"image_url": start}
+        if m.get("prompt") and prompt.strip():
+            args["prompt"] = prompt
+        if m.get("res_field"):
+            args["resolution"] = res
+        return m["i2v"], args
     if family == "catalog":
         from app import fal_video_catalog
 

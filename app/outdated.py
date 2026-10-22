@@ -167,6 +167,15 @@ def blockers(session: Session, shot: Shot, kind: str) -> list[dict]:
         out.append({"text": FORMAT_MISSING, "actions": [_act("Escolher o formato", href=f"/projetos/{project_id}/etapa/1")]})
     if kind == "video":
         from app import video_inputs as VI
+        from app.routes.video import shot_model as _sm
+
+        if (_sm(session, shot) or {}).get("avatar"):  # avatar que fala: precisa do áudio das falas, atualizado
+            from app import line_audio
+
+            _clips, problem = line_audio.for_shot(session, shot)
+            if problem:
+                out.append({"text": problem, "actions": [_act("Abrir o guião da cena",
+                                                              href=f"/projetos/{project_id}/historia/cenas/{shot.scene_id}")]})
 
         plan = request_plan(session, shot, shot_model(session, shot))
         sent = {m.id for m in plan["images"]}

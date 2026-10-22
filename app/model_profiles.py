@@ -130,6 +130,18 @@ VIDEO_PROFILES = {
                 "são ignoradas; o Lite não aceita imagens de referência.",
         "source": "Google Cloud (guia oficial do Veo 3.1; limite de 1024 tokens).",
     },
+    "avatar": {
+        "name": "Avatar que fala",
+        "models": "Kling AI Avatar v2, VEED Fabric 1.0",
+        "match": ("avatar", "fabric"),
+        "max_chars": 1500, "video_max_words": 60, "video_max_words_timed": 60,
+        "layout": "paragraph", "timeline": False,
+        "dialogue": "nenhuma (a fala vem do áudio das falas do plano)", "sound": "nenhum (é o áudio das falas)",
+        "hint": "a pessoa da imagem diz o áudio das falas do plano: descreve só a expressão, o olhar, o tom e os gestos "
+                "(e um movimento de câmara ligeiro, se houver); não voltes a descrever a imagem nem o cenário, não "
+                "inventes ação nova nem escrevas a fala. O VEED Fabric não recebe prompt.",
+        "source": "fal.ai (esquemas do Kling AI Avatar v2 e do VEED Fabric 1.0: imagem + áudio; o vídeo dura o áudio).",
+    },
     "kling": {
         "name": "Kling",
         "models": "Kling v3, Kling O3",

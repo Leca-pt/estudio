@@ -2538,9 +2538,37 @@
 "Cada projeto pode ter o seu modelo e a sua resolução padrão (Bíblia › Formato e modelos) e cada plano pode escolher outro. Os modelos que aceitam várias imagens recebem as vistas do local, as folhas do elenco e, se aceitarem vídeo, o vídeo-guia; os outros só a imagem inicial (e final).": "Each project can have its own default model and resolution (Bible › Format and models) and each shot can pick another one. Models that accept several images get the location views, the cast sheets and, if they accept video, the guide video; the others only the start (and end) image.",
 "O modelo, a resolução e a duração deste plano. «Padrão do projeto» segue o que escolheste na Bíblia › Formato e modelos; o que mudares aqui vale só para este plano. Modelos do segundo grupo só recebem a primeira (e a última) imagem, sem elenco nem vídeo-guia.": "This shot's model, resolution and duration. “Project default” follows what you chose in Bible › Format and models; what you change here applies to this shot only. Models in the second group only get the first (and last) image, with no cast or guide video.",
 "não parte de imagens (só texto ou só vídeo)": "doesn't start from images (text or video only)",
-"exige sempre imagem inicial e final (usa a versão imagem → vídeo do mesmo modelo)": "always needs a start and end image (use the image → video version of the same model)"
+"exige sempre imagem inicial e final (usa a versão imagem → vídeo do mesmo modelo)": "always needs a start and end image (use the image → video version of the same model)",
+"Este modelo põe a pessoa da imagem a dizer o áudio das falas: marca primeiro as linhas do guião que o plano cobre.": "This model makes the person in the image say the line audio: first mark the script lines the shot covers.",
+"Este modelo põe a pessoa da imagem a dizer o áudio das falas, e as linhas deste plano ainda não têm áudio: carrega-o no guião da cena.": "This model makes the person in the image say the line audio, and this shot's lines have no audio yet: upload it in the scene's script.",
+"Abrir o guião da cena": "Open the scene's script",
+"Falta o áudio das falas do plano (carrega-o no guião da cena).": "The shot's line audio is missing (upload it in the scene's script)."
 },
 "patterns": [
+[
+"≈ \\$([\\d.]+)–([\\d.]+)/s \\(dura o áudio das falas\\)",
+"≈ $\\1–\\2/s (lasts as long as the line audio)",
+"dura o áudio",
+[
+"/s (dura o áudio das falas)"
+]
+],
+[
+"≈ \\$([\\d.]+)/s \\(dura o áudio das falas\\)",
+"≈ $\\1/s (lasts as long as the line audio)",
+"dura o áudio",
+[
+"/s (dura o áudio das falas)"
+]
+],
+[
+"O áudio das falas deste plano está desatualizado \\((.{1,200}?)\\): carrega outro ou carrega em «Manter» no guião\\.",
+"This shot's line audio is outdated (\\1): upload another or click “Keep” in the script.",
+"está desatualizado",
+[
+"O áudio das falas deste plano está desatualizado ("
+]
+],
 [
 "a partir de \\$(\\d+(?:\\.\\d+)?) \\((\\d+p), (\\d+) s\\)",
 "from $\\1 (\\2, \\3 s)",

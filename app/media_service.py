@@ -132,6 +132,9 @@ def download_name(session: Session, project: Project, media: MediaFile) -> str:
     name = PurePosixPath(media.path).name  # vN.ext
     ext = PurePosixPath(media.path).suffix
     approved = media.status == "approved"
+    if media.role == "line_audio" and media.scene_id:  # áudio de falas do guião
+        scene = session.get(Scene, media.scene_id)
+        return f"{project.prefix}_{scene_code(session, scene)}_falas_{name}"
     if media.asset_id:
         asset = session.get(Asset, media.asset_id)
         if media.role == "portrait":

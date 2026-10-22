@@ -146,3 +146,23 @@ def restore(session: Session, scene: Scene, m: MediaFile) -> str | None:
     m.status = "approved"
     session.add(m)
     return None
+
+
+def for_shot(session: Session, shot) -> tuple[list[dict], str | None]:
+    """O áudio das falas que um plano cobre (para os modelos de avatar que falam): os áudios que apanham alguma das
+    linhas marcadas no plano, pela ordem do guião, e o motivo se não pode seguir (sem áudio, ou desatualizado)."""
+    from app.models import ShotLineLink
+
+    scene = session.get(Scene, shot.scene_id)
+    mine = set(session.exec(select(ShotLineLink.line_id).where(ShotLineLink.shot_id == shot.id)).all())
+    if not mine:
+        return [], "Este modelo põe a pessoa da imagem a dizer o áudio das falas: marca primeiro as linhas do guião que o plano cobre."
+    found = [c for c in clips(session, scene) if set(c["ids"]) & mine]
+    if not found:
+        return [], ("Este modelo põe a pessoa da imagem a dizer o áudio das falas, e as linhas deste plano ainda não têm "
+                    "áudio: carrega-o no guião da cena.")
+    stale = next((c for c in found if c["problem"]), None)
+    if stale:
+        return found, (f"O áudio das falas deste plano está desatualizado ({stale['problem'].rstrip('.').lower()}): "
+                       "carrega outro ou carrega em «Manter» no guião.")
+    return found, None

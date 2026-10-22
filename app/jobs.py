@@ -214,6 +214,22 @@ async def _image(provider: str, ctx: dict, prompt: str, aspect: str | None, inpu
     return await gpt_image.generate(prompt, aspect, inputs, mode == "edit", timeout, base=mode == "base")
 
 
+def _join_audio(paths: list) -> "Path":
+    """Um só ficheiro com os áudios pela ordem (um só: ele próprio). Fica numa pasta temporária."""
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    if len(paths) == 1:
+        return paths[0]
+    out = Path(tempfile.mkdtemp(prefix="falas-")) / "falas.mp3"
+    args = ["ffmpeg", "-v", "error", "-y"] + [x for p in paths for x in ("-i", str(p))]
+    args += ["-filter_complex", "".join(f"[{n}:a]" for n in range(len(paths))) + f"concat=n={len(paths)}:v=0:a=1[a]",
+             "-map", "[a]", "-b:a", "192k", str(out)]
+    subprocess.run(args, check=True, timeout=120)
+    return out
+
+
 async def _fal_video(ctx: dict, prompt: str, aspect: str | None, images: list, videos: list, kind: str,
                      duration: int | None, audio: bool, quality: str, timeout: int, audios: list | None = None) -> bytes:
     """Clip pela fal: com referências (imagens @Image1…, o vídeo-guia @Video1) ou imagem inicial (e final)."""
@@ -244,6 +260,14 @@ async def _fal_video(ctx: dict, prompt: str, aspect: str | None, images: list, v
         audio_urls.append(await fal.upload(ctx["fal_key"], path, AUDIO_TYPES.get(path.suffix.lower().lstrip("."), "audio/mpeg")))
     endpoint, args = image_models.fal_video_request(key, mode, prompt, aspect, image_urls, video_urls, duration,
                                                     quality, audio)
+    if image_models.fal_video(key).get("avatar"):  # avatar que fala: o áudio das falas (vários juntam-se por ordem)
+        if not audios:
+            raise fal.FalError("Falta o áudio das falas do plano (carrega-o no guião da cena).")
+        path = _join_audio([p for p, _l in audios])
+        args["audio_url"] = await fal.upload(ctx["fal_key"], path, AUDIO_TYPES.get(path.suffix.lower().lstrip("."), "audio/mpeg"))
+        _stage(ctx.get("job_id"), "a gerar o avatar na fal")
+        return await fal.run(ctx["fal_key"], endpoint, args, timeout, output="video",
+                             on_status=lambda t: _stage(ctx.get("job_id"), t))
     if audio_urls:
         args["audio_urls"] = audio_urls[:3]
     _stage(ctx.get("job_id"), "a gerar o vídeo na fal" + (" (com o vídeo-guia)" if video_urls else "")
