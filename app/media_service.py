@@ -75,6 +75,11 @@ def approve_media(session: Session, media: MediaFile) -> None:
     setattr(target, field, media.id)
     session.add(media)
     session.add(target)
+    if previous_id and previous_id != media.id:  # os planos que tinham escolhido a anterior passam para esta
+        from app import video_inputs
+
+        session.flush()
+        video_inputs.heal_project(session, media.project_id, {previous_id})
 
 
 # O que o utilizador gerou ou carregou fica guardado ao rejeitar (em «Rejeitados», de onde se repõe); os ficheiros que a
@@ -86,8 +91,8 @@ def reject_media(session: Session, media: MediaFile) -> None:
     """Rejeitar: retira-o de onde estava aprovado. Takes, imagens, vozes e fotos ficam guardados em «Rejeitados» (podem
     ser repostos); os ficheiros técnicos que a app refaz apagam-se.
 
-    As ligações como referência de planos ficam, para o plano mostrar o aviso
-    de que uma referência escolhida foi rejeitada."""
+    As escolhas dos planos que a tinham (frame inicial/final, imagens ligadas) passam para a aprovada no lugar dela;
+    sem substituta ficam, e o plano mostra-as em «Antes de gerar» (video_inputs.gone)."""
     from app.media import delete_file
 
     if media.role not in KEEP_ON_REJECT:
@@ -107,6 +112,11 @@ def reject_media(session: Session, media: MediaFile) -> None:
     from app.models import LocationView
 
     session.exec(update(LocationView).where(LocationView.image_id == media.id).values(image_id=None))
+    if media.kind == "image":  # os planos que a tinham escolhido passam para a aprovada no lugar dela, se houver
+        from app import video_inputs
+
+        session.flush()
+        video_inputs.heal_project(session, media.project_id, {media.id})
 
 
 def back_url(project: Project, media: MediaFile) -> str:

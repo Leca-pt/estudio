@@ -169,6 +169,19 @@ def blockers(session: Session, shot: Shot, kind: str) -> list[dict]:
         from app import video_inputs as VI
         from app.routes.video import shot_model as _sm
 
+        lost = VI.gone(session, shot)
+        if lost:  # escolhas do plano que apontam para imagens que já não podem seguir: o pedido sairia sem elas
+            names = []
+            for mid in lost:
+                m = session.get(MediaFile, mid)
+                why = ("apagada" if m is None else "rejeitada" if m.status == "rejected" else
+                       "já não é candidata deste plano" if m.status == "approved" else "substituída")
+                names.append(f"{m.role if m else 'imagem'} {mid} ({why})")
+            out.append({"text": f"Este plano tem escolhidas {len(lost)} imagem(ns) que já não podem seguir: "
+                                + ", ".join(names) + ". O pedido sairia sem elas (ex.: sem a frame inicial ou sem a cara de "
+                                "uma personagem).",
+                        "actions": [_act("Tirar essas escolhas (a app volta a escolher)", op="inputs_drop"),
+                                    _act("Ver o que segue no pedido", href=f"/projetos/{project_id}/video/planos/{shot.id}#imagens")]})
         if (_sm(session, shot) or {}).get("avatar"):  # avatar que fala: precisa do áudio das falas, atualizado
             from app import line_audio
 
@@ -256,6 +269,11 @@ def apply_op(session: Session, shot: Shot, op: str) -> str | None:
         shot.video_inputs = {**(shot.video_inputs or {}), "guide": False}
         session.add(shot)
         return "O vídeo-guia deixou de seguir neste plano (podes voltar a ligá-lo em «O que segue no pedido»)."
+    elif verb == "inputs_drop":
+        from app import video_inputs
+
+        n = video_inputs.drop_gone(session, shot)
+        return f"{n} escolha(s) que já não existiam saíram do plano: a app volta a escolher as imagens."
     elif verb == "vimg_ok" and arg.isdigit():
         view = session.get(LocationView, int(arg))
         if view is not None:

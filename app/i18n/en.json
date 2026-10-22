@@ -2542,9 +2542,27 @@
 "Este modelo põe a pessoa da imagem a dizer o áudio das falas: marca primeiro as linhas do guião que o plano cobre.": "This model makes the person in the image say the line audio: first mark the script lines the shot covers.",
 "Este modelo põe a pessoa da imagem a dizer o áudio das falas, e as linhas deste plano ainda não têm áudio: carrega-o no guião da cena.": "This model makes the person in the image say the line audio, and this shot's lines have no audio yet: upload it in the scene's script.",
 "Abrir o guião da cena": "Open the scene's script",
-"Falta o áudio das falas do plano (carrega-o no guião da cena).": "The shot's line audio is missing (upload it in the scene's script)."
+"Falta o áudio das falas do plano (carrega-o no guião da cena).": "The shot's line audio is missing (upload it in the scene's script).",
+"Tirar essas escolhas (a app volta a escolher)": "Remove those choices (the app picks again)",
+"Ver o que segue no pedido": "See what goes with the request"
 },
 "patterns": [
+[
+"Este plano tem escolhidas (\\d+) imagem\\(ns\\) que já não podem seguir: (.{1,400}?)\\. O pedido sairia sem elas \\(ex\\.: sem a frame inicial ou sem a cara de uma personagem\\)\\.",
+"This shot has \\1 chosen image(s) that can no longer be sent: \\2. The request would go without them (e.g. without the start frame or without a character's face).",
+"já não podem seguir",
+[
+"imagem(ns) que já não podem seguir:"
+]
+],
+[
+"(\\d+) escolha\\(s\\) que já não existiam saíram do plano: a app volta a escolher as imagens\\.",
+"\\1 choice(s) that no longer existed were removed from the shot: the app picks the images again.",
+"já não existiam",
+[
+"escolha(s) que já não existiam"
+]
+],
 [
 "≈ \\$([\\d.]+)–([\\d.]+)/s \\(dura o áudio das falas\\)",
 "≈ $\\1–\\2/s (lasts as long as the line audio)",
@@ -8014,6 +8032,9 @@
 "hoje": "today",
 "Hoje": "Today",
 "ontem": "yesterday",
-"Ontem": "Yesterday"
+"Ontem": "Yesterday",
+"rejeitada": "rejected",
+"substituída": "replaced",
+"apagada": "deleted"
 }
 }

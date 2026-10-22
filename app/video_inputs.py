@@ -139,7 +139,7 @@ def parse(session: Session, shot: Shot, model: dict | None, value) -> tuple[list
     current = items(session, shot, model)
     on = {i["id"]: i["on"] for i in current["images"]}
     order = [i["id"] for i in current["images"]]
-    modes = dict(c["modes"])
+    modes = {k: v for k, v in c["modes"].items() if k in p}  # as que já não existem não contam (nem se mostram)
     voices_off = set(c["voices_off"])
     allowed_modes = ["ref"] + (["start_frame"] if ok["start_frame"] else []) + (["end_frame"] if ok["end_frame"] else [])
     rows = data.get("items") or []
@@ -210,3 +210,102 @@ def parse(session: Session, shot: Shot, model: dict | None, value) -> tuple[list
     if modes:
         cfg["modes"] = {str(k): v for k, v in modes.items()}
     return video_refs, (cfg or None), notes
+
+
+# ── Escolhas que apontam para imagens que mudaram ─────────────
+# As escolhas do plano (frame inicial/final, imagens ligadas) guardam ids de imagens. Quando uma imagem é substituída
+# (aprova-se outra por cima: frame-chave do mesmo momento, folha, retrato, look, vista) ou rejeitada, a escolha passa
+# para a aprovada no lugar dela. Sem substituta fica como está e o plano mostra-a em «Antes de gerar» (outdated): nunca
+# se perde em silêncio.
+
+def successor(session: Session, media_id: int) -> int | None:
+    """A imagem aprovada que ocupa hoje o lugar desta (ela própria, se continua aprovada); None se não há."""
+    from sqlmodel import select
+
+    from app.media_service import approval_target
+
+    m = session.get(MediaFile, media_id)
+    if m is None:
+        return None
+    if m.status == "approved":
+        return m.id
+    if m.role == "key" and m.shot_id:
+        sh = session.get(Shot, m.shot_id)
+        cur = session.get(MediaFile, sh.key_image_id) if sh and sh.key_image_id else None
+        if cur is not None and cur.status == "approved":
+            return cur.id
+        last = session.exec(select(MediaFile).where(MediaFile.shot_id == m.shot_id, MediaFile.role == "key",
+                                                    MediaFile.status == "approved").order_by(MediaFile.id.desc())).first()
+        return last.id if last else None
+    target, field = approval_target(session, m)
+    now = getattr(target, field, None) if target is not None else None
+    cur = session.get(MediaFile, now) if now else None
+    return cur.id if cur is not None and cur.status == "approved" else None
+
+
+def heal(session: Session, shot: Shot) -> int:
+    """Passa as escolhas do plano das imagens substituídas para as que estão no lugar delas. Devolve quantas mudaram."""
+    raw = dict(shot.video_inputs or {})
+    modes, changed = {}, 0
+    for k, v in (raw.get("modes") or {}).items():
+        if not str(k).isdigit():
+            continue
+        new = successor(session, int(k)) or int(k)
+        changed += new != int(k)
+        if str(new) not in modes:
+            modes[str(new)] = v
+    refs = None
+    if shot.video_refs is not None:
+        refs = []
+        for i in shot.video_refs:
+            new = successor(session, int(i)) or int(i)
+            changed += new != int(i)
+            if new not in refs:
+                refs.append(new)
+    if changed:
+        if raw.get("modes") is not None:
+            raw["modes"] = modes
+            shot.video_inputs = raw
+        if refs is not None:
+            shot.video_refs = refs
+        session.add(shot)
+    return changed
+
+
+def heal_project(session: Session, project_id: int, media_ids: set[int] | None = None) -> int:
+    """heal() nos planos do projeto que escolheram alguma destas imagens (todas, sem media_ids)."""
+    from sqlmodel import select
+
+    from app.models import Scene
+
+    n = 0
+    shots = session.exec(select(Shot).join(Scene, Scene.id == Shot.scene_id).where(
+        Scene.project_id == project_id, (Shot.video_inputs.isnot(None)) | (Shot.video_refs.isnot(None)))).all()
+    for sh in shots:
+        chosen = set(config(sh)["modes"]) | {int(i) for i in sh.video_refs or []}
+        if media_ids is None or chosen & media_ids:
+            n += heal(session, sh)
+    return n
+
+
+def gone(session: Session, shot: Shot) -> list[int]:
+    """As imagens escolhidas no plano que já não podem seguir (rejeitadas, substituídas sem substituta, ou que já não
+    são candidatas do plano)."""
+    p = pool(session, shot)
+    chosen = list(config(shot)["modes"]) + [int(i) for i in shot.video_refs or []]
+    return [i for i in dict.fromkeys(chosen) if i not in p]
+
+
+def drop_gone(session: Session, shot: Shot) -> int:
+    """«Tirar essas escolhas»: as que já não podem seguir saem do plano."""
+    bad = set(gone(session, shot))
+    if not bad:
+        return 0
+    raw = dict(shot.video_inputs or {})
+    if raw.get("modes"):
+        raw["modes"] = {k: v for k, v in raw["modes"].items() if not (str(k).isdigit() and int(k) in bad)}
+        shot.video_inputs = raw
+    if shot.video_refs is not None:
+        shot.video_refs = [i for i in shot.video_refs if int(i) not in bad]
+    session.add(shot)
+    return len(bad)

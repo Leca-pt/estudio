@@ -239,6 +239,10 @@ def approve(session: Session, media: MediaFile) -> None:
             or _moment_of(session, shot, current) == mine):
         shot.key_image_id = media.id
         session.add(shot)
+    from app import video_inputs  # a frame inicial/final escolhida passa do frame-chave anterior para este
+
+    session.flush()
+    video_inputs.heal(session, shot)
 
 
 def use_in_video(session: Session, shot: Shot, media_id: int) -> bool:

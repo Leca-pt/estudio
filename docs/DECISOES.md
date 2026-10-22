@@ -752,3 +752,16 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   «Abrir o guião da cena» (outdated.blockers) e o pedido recusado.
 - Segue só a primeira imagem do plano (sem referências, vídeo-guia nem vozes). Perfil de prompt «Avatar que fala»:
   curto, só expressão, olhar, tom e gestos; o Fabric não recebe prompt.
+
+## 22 de outubro de 2026: escolhas de imagens dos planos que apontavam para imagens antigas
+
+- Problema: o plano guarda a frame inicial/final e as imagens ligadas por id. Aprovar frames-chave (ou folhas,
+  retratos…) novos por cima deixava a escolha nos antigos, invisíveis na página: marcar a nova como frame inicial dava
+  «Só pode haver uma frame inicial e uma frame final» e o pedido ficava com 0 imagens (Graywake C01 P01–P02: sem a
+  frame inicial nem a cara do Elias).
+- video_inputs.successor/heal: a escolha passa para a aprovada no lugar da antiga (o frame-chave que segue no plano;
+  a folha/retrato/look/vista aprovada do mesmo sítio). Corre ao aprovar (approve_media, keyframe.approve), ao rejeitar
+  (reject_media) e uma vez na migração 0064 para os dados que já estavam assim.
+- Sem substituta, a escolha fica e o plano mostra-a em «Antes de gerar» (video_inputs.gone → outdated.blockers) com
+  «Tirar essas escolhas»: o pedido não sai em silêncio sem a frame inicial ou sem a cara de alguém. Ao gravar «O que
+  segue no pedido», as escolhas que já não existem não contam para o limite de uma frame inicial.
