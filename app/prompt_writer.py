@@ -291,7 +291,8 @@ async def _run(task_id: int) -> None:
                     t.obj.video_prompt_model = (shot_model(session, t.obj) or {}).get("name")
                 session.add(t.obj)
                 session.flush()
-                prompt_versions.record(session, project.id, t.field_key, value, "assistente", basis=PT.basis(session, t))
+                prompt_versions.record(session, project.id, t.field_key, value, "assistente", basis=PT.basis(session, t),
+                                       parts=PT.basis_parts(session, t))
                 done += 1
             session.commit()
             if not done:

@@ -765,3 +765,16 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - Sem substituta, a escolha fica e o plano mostra-a em «Antes de gerar» (video_inputs.gone → outdated.blockers) com
   «Tirar essas escolhas»: o pedido não sai em silêncio sem a frame inicial ou sem a cara de alguém. Ao gravar «O que
   segue no pedido», as escolhas que já não existem não contam para o limite de uma frame inicial.
+
+## 22 de outubro de 2026: prompt desatualizado — o utilizador escolhe reescrever ou não
+
+- Antes, «Gerar» com um prompt escrito pelo escritor e desatualizado (os dados mudaram) reescrevia-o sozinho antes de
+  gerar, sem dizer porquê (caso: frame-chave do Graywake C08 P04 reescrito porque os planos à volta mudaram, não por
+  causa da troca de modelo — o modelo de imagem não faz parte da impressão digital).
+- Agora o «Gerar» dá lugar a «Reescrever e gerar» (pgenw) e «Gerar com este texto» (pgenk: PT.keep_written grava a
+  versão como válida para os dados atuais), com o motivo: PromptVersion.parts guarda a impressão parte a parte (guia,
+  bíblia/regras, o que o prompt descreve, modelo de vídeo, imagens que seguem, imagens vistas, vozes) e
+  PT.stale_reasons diz quais mudaram. Versões escritas antes disto dizem só «os dados de que o prompt depende».
+- Vale para todos os prompts (frames-chave, vídeo, folhas, retratos, looks, capa e vistas, também nos cartões das vistas).
+  Prompt por escrever continua a ser escrito automaticamente. No MCP, generate_image/generate_video recusam com o motivo
+  e só geram com o texto atual com keep_prompt=true (quando o utilizador disser).

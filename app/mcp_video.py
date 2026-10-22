@@ -111,8 +111,11 @@ async def write_video_prompt(project_id: int, shot_id: int) -> str:
                          "confirm_cost não gera nada: devolve o custo cotado pelo fornecedor para mostrares ao utilizador. "
                          "Só com confirm_cost=true, DEPOIS de o utilizador aceitar esse custo, o pedido segue. audio: com "
                          "som (por omissão o da Configuração). Corre em segundo plano (alguns minutos): devolve um "
-                         "generation_id para generation_status; o take aparece em list_takes por decidir.")
-async def generate_video(project_id: int, shot_id: int, confirm_cost: bool = False, audio: bool | None = None) -> dict[str, Any]:
+                         "generation_id para generation_status; o take aparece em list_takes por decidir. Se o prompt "
+                         "escrito pelo escritor ficou desatualizado, não gera: diz o que mudou e o utilizador escolhe — "
+                         "reescrever (write_video_prompt) ou gerar com o texto atual (keep_prompt=true, só quando ele disser).")
+async def generate_video(project_id: int, shot_id: int, confirm_cost: bool = False, audio: bool | None = None,
+                         keep_prompt: bool = False) -> dict[str, Any]:
     from app import jobs, video_cost
     from app.options import video_settings
     from app.routes.video import shot_model
@@ -121,9 +124,17 @@ async def generate_video(project_id: int, shot_id: int, confirm_cost: bool = Fal
         p = _project(s, project_id)
         sh = _shot(s, project_id, shot_id)
         t = PT.get(s, p, "video", str(sh.id))
-        if not (t.prompt or "").strip() or PT.needs_writing(s, t):
-            raise ToolError("O prompt de vídeo deste plano está por escrever ou desatualizado: write_video_prompt ou "
+        if not (t.prompt or "").strip():
+            raise ToolError("O prompt de vídeo deste plano está por escrever: write_video_prompt ou "
                             f"set_field(screen=\"video_shot:{sh.id}\", field=\"shot:{sh.id}.video_prompt\") primeiro.")
+        if PT.state(s, t) == "stale":
+            if not keep_prompt:
+                raise ToolError("O prompt de vídeo está desatualizado (mudou: " + "; ".join(PT.stale_reasons(s, t)) + "). "
+                                "Pergunta ao utilizador: reescrever (write_video_prompt) ou gerar com este texto "
+                                "(generate_video com keep_prompt=true).")
+            if confirm_cost:  # só fica a valer quando o pedido segue mesmo
+                PT.keep_written(s, t)
+                s.flush()
         if any(j.status in ("queued", "running") for j in jobs.jobs_for(s, p, "clip", shot_id=sh.id)):
             raise ToolError("Já há um vídeo a ser gerado para este plano. Espera que termine (list_takes).")
         model = shot_model(s, sh)

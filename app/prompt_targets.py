@@ -439,14 +439,48 @@ def _video_format(session: Session, t: Target) -> str:
     return model_profiles.video_format((shot_model(session, t.obj) or {}).get("name"))
 
 
+BASIS_LABELS = ("o guia de prompts (Configuração)", "a bíblia ou as regras do projeto",
+                "o que o prompt descreve (o plano, a cena e os planos à volta, o asset…)", "o modelo de vídeo do plano",
+                "as imagens que seguem no pedido", "as imagens que o escritor vê", "as vozes")
+
+
+def _basis_items(session: Session, t: Target) -> list[str]:
+    return [guide_text(session, t), shared_context(session, t.project), context(session, t),
+            _video_format(session, t),
+            ",".join(str(m.id) for m in inputs(session, t)),
+            ",".join(str(m.id) for m, _l in seen_only(session, t)),
+            ",".join(str(m.id) for m in voices(session, t))]
+
+
 def basis(session: Session, t: Target) -> str:
     """Impressão digital do que o escritor usa: quando muda, o prompt escrito fica desatualizado."""
-    parts = [guide_text(session, t), shared_context(session, t.project), context(session, t),
-             _video_format(session, t),
-             ",".join(str(m.id) for m in inputs(session, t)),
-             ",".join(str(m.id) for m, _l in seen_only(session, t)),
-             ",".join(str(m.id) for m in voices(session, t))]
-    return hashlib.sha1("\n".join(parts).encode()).hexdigest()[:12]
+    return hashlib.sha1("\n".join(_basis_items(session, t)).encode()).hexdigest()[:12]
+
+
+def basis_parts(session: Session, t: Target) -> dict[str, str]:
+    """A mesma impressão, parte a parte (guardada com cada versão escrita, para dizer o que mudou)."""
+    return {label: hashlib.sha1(x.encode()).hexdigest()[:10] for label, x in zip(BASIS_LABELS, _basis_items(session, t))}
+
+
+def stale_reasons(session: Session, t: Target) -> list[str]:
+    """O que mudou desde que o escritor escreveu o prompt (vazio se não está desatualizado)."""
+    if state(session, t) != "stale":
+        return []
+    last = session.exec(select(PromptVersion).where(PromptVersion.project_id == t.project.id,
+                                                    PromptVersion.field_key == t.field_key)
+                        .order_by(PromptVersion.id.desc())).first()
+    if last is None or not last.parts:
+        return ["os dados de que o prompt depende (versão escrita antes de a app guardar o pormenor)"]
+    now = basis_parts(session, t)
+    return [label for label, h in now.items() if last.parts.get(label) != h] or ["os dados de que o prompt depende"]
+
+
+def keep_written(session: Session, t: Target) -> None:
+    """«Gerar com este texto»: o prompt do escritor, tal como está, passa a valer para os dados atuais."""
+    from app.prompt_versions import record
+
+    record(session, t.project.id, t.field_key, t.prompt or "", "assistente", basis=basis(session, t),
+           parts=basis_parts(session, t))
 
 
 def state(session: Session, t: Target) -> str:

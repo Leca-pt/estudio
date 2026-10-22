@@ -7,15 +7,16 @@ from app.models import PromptVersion
 
 
 def record(session: Session, project_id: int, field_key: str, body: str, source: str = "manual",
-           basis: str | None = None) -> None:
+           basis: str | None = None, parts: dict | None = None) -> None:
     latest = session.exec(
         select(PromptVersion).where(PromptVersion.project_id == project_id, PromptVersion.field_key == field_key)
         .order_by(PromptVersion.id.desc())
     ).first()
     if latest is None or latest.text != body or latest.source != source:
-        session.add(PromptVersion(project_id=project_id, field_key=field_key, text=body, source=source, basis=basis))
-    elif basis and latest.basis != basis:
-        latest.basis = basis
+        session.add(PromptVersion(project_id=project_id, field_key=field_key, text=body, source=source, basis=basis,
+                                  parts=parts))
+    elif basis and (latest.basis != basis or (parts and latest.parts != parts)):
+        latest.basis, latest.parts = basis, parts or latest.parts
         session.add(latest)
 
 

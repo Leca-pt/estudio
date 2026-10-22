@@ -151,10 +151,12 @@ async def write_prompt(project_id: int, screen: str, kind: str, look_id: int | N
                          "candidatas (1 a 4). Corre em segundo plano: devolve logo um generation_id para generation_status. "
                          "confirm_cost=true só depois de o utilizador aceitar o custo que generation_status indicar "
                          "(o Artlist pede essa confirmação). resolution: \"1K\" | \"2K\" | \"4K\" (sem ele, a do "
-                         "projeto; list_models diz as que cada modelo aceita). " + KIND_HELP + ".")
+                         "projeto; list_models diz as que cada modelo aceita). Se o prompt escrito pelo escritor ficou "
+                         "desatualizado, não gera: diz o que mudou e o utilizador escolhe — reescrever (write_prompt) "
+                         "ou gerar com o texto atual (keep_prompt=true, só quando ele disser). " + KIND_HELP + ".")
 def generate_image(project_id: int, screen: str, kind: str, look_id: int | None = None, view_id: int | None = None,
                    model: str | None = None, count: int = 1, confirm_cost: bool = False,
-                   resolution: str | None = None) -> str:
+                   resolution: str | None = None, keep_prompt: bool = False) -> str:
     from app import image_models, jobs
     from app.routes.gpt import default_generator, generator_options, parse_generator
 
@@ -165,8 +167,15 @@ def generate_image(project_id: int, screen: str, kind: str, look_id: int | None 
         if model and model not in {v for v, _l in generator_options(s, t.use)}:
             raise ToolError(f"O modelo «{model}» não está disponível para isto. Vê list_models.")
         _render_ok(s, p, kind, view_id)
-        if not (t.prompt or "").strip() or PT.needs_writing(s, t):
-            raise ToolError("O prompt deste ecrã está por escrever ou desatualizado: chama write_prompt primeiro.")
+        if not (t.prompt or "").strip():
+            raise ToolError("O prompt deste ecrã está por escrever: chama write_prompt primeiro.")
+        if PT.state(s, t) == "stale":
+            if not keep_prompt:
+                raise ToolError("O prompt está desatualizado (mudou: " + "; ".join(PT.stale_reasons(s, t)) + "). "
+                                "Pergunta ao utilizador: reescrever (write_prompt) ou gerar com este texto "
+                                "(generate_image com keep_prompt=true).")
+            PT.keep_written(s, t)
+            s.flush()
         if resolution is not None:
             resolution = str(resolution).strip().upper()
             allowed = image_models.resolutions(*parse_generator(model or default_generator(s, use=t.use, project=p)))

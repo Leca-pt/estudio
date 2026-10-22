@@ -349,6 +349,7 @@ class PromptVersion(TimestampedModel, table=True):
     text: str
     source: str = "manual"  # manual | assistente
     basis: Optional[str] = None  # só do Assistente: impressão digital dos dados com que escreveu
+    parts: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # a mesma, parte a parte (para dizer o que mudou)
 
 
 class PromptTask(TimestampedModel, table=True):

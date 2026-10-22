@@ -274,6 +274,20 @@ def _neighbours(session: Session, scene: Scene, shot: Shot) -> tuple[Shot | None
     return (shots[idx - 1] if idx > 0 else None), (shots[idx + 1] if idx + 1 < len(shots) else None)
 
 
+def _view_prompt_state(session: Session, project, v) -> dict:
+    """O estado do prompt da vista (para o botão Gerar: com o prompt desatualizado escolhe-se reescrever ou não)."""
+    if v is None:
+        return {"pstate": None, "stale_why": []}
+    from app import prompt_targets as PT
+
+    try:
+        t = PT.get(session, project, "vista", str(v.id))
+    except PT.TargetError:
+        return {"pstate": None, "stale_why": []}
+    st = PT.state(session, t)
+    return {"pstate": st, "stale_why": PT.stale_reasons(session, t) if st == "stale" else []}
+
+
 def _moments_ctx(session: Session, project: Project, shot: Shot) -> dict:
     """Os momentos da câmara, cada um com a vista do local, as opções de vista e o que falta para a imagem."""
     from app import location3d, prompt_writer
@@ -291,6 +305,7 @@ def _moments_ctx(session: Session, project: Project, shot: Shot) -> dict:
             "jobs": gpt_jobs(session, project, "locview", locview_id=v.id) if v else [],
             "task": prompt_writer.task_for(session, project.id, "vista", str(v.id)) if v else None,
             "render_ok": bool(v and v.render_id), "ready": moments.ready(r),
+            **_view_prompt_state(session, project, v),
             "look_ref": location3d.look_reference(session, loc, v) if v is not None and loc is not None and v.kind == "view" else None,
         })
     pending_views = [{"id": v.id, "zone": v.zone, "cam": v.cam,

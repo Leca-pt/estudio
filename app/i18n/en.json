@@ -2544,9 +2544,54 @@
 "Abrir o guião da cena": "Open the scene's script",
 "Falta o áudio das falas do plano (carrega-o no guião da cena).": "The shot's line audio is missing (upload it in the scene's script).",
 "Tirar essas escolhas (a app volta a escolher)": "Remove those choices (the app picks again)",
-"Ver o que segue no pedido": "See what goes with the request"
+"Ver o que segue no pedido": "See what goes with the request",
+"Reescrever e gerar": "Rewrite and generate",
+"Gerar com este texto": "Generate with this text",
+"Gera com o prompt tal como está": "Generates with the prompt as it is",
+"Os dados mudaram depois de o escritor o escrever: ao gerar escolhes reescrevê-lo ou gerar com este texto": "The data changed after the writer wrote it: when generating you choose to rewrite it or generate with this text",
+"o guia de prompts (Configuração)": "the prompt guide (Settings)",
+"a bíblia ou as regras do projeto": "the project's bible or rules",
+"o que o prompt descreve (o plano, a cena e os planos à volta, o asset…)": "what the prompt describes (the shot, the scene and the shots around it, the asset…)",
+"o modelo de vídeo do plano": "the shot's video model",
+"as imagens que seguem no pedido": "the images sent with the request",
+"as imagens que o escritor vê": "the images the writer sees",
+"as vozes": "the voices",
+"os dados de que o prompt depende (versão escrita antes de a app guardar o pormenor)": "the data the prompt depends on (version written before the app kept the details)",
+"os dados de que o prompt depende": "the data the prompt depends on"
 },
 "patterns": [
+[
+"Desatualizado: mudou (.{1,400}?)\\. Escolhe «Reescrever e gerar» \\(o escritor volta a escrevê-lo; a versão atual fica em Versões\\) ou «Gerar com este texto»\\.",
+"Outdated: \\1 changed. Choose “Rewrite and generate” (the writer writes it again; the current version stays in Versions) or “Generate with this text”.",
+"Desatualizado: mudou",
+[
+"Desatualizado: mudou"
+]
+],
+[
+"O prompt está desatualizado \\(mudou: (.{1,400}?)\\)\\. Escolhe «Reescrever e gerar» ou «Gerar com este texto»\\.",
+"The prompt is outdated (changed: \\1). Choose “Rewrite and generate” or “Generate with this text”.",
+"está desatualizado",
+[
+"O prompt está desatualizado (mudou:"
+]
+],
+[
+"Prompt desatualizado: mudou (.{1,400}?)\\.",
+"Outdated prompt: \\1 changed.",
+"Prompt desatualizado",
+[
+"Prompt desatualizado: mudou"
+]
+],
+[
+"Desatualizado: mudou (.{1,400}?)\\. O escritor volta a escrevê-lo \\(a versão atual fica em Versões\\) e gera a seguir",
+"Outdated: \\1 changed. The writer writes it again (the current version stays in Versions) and then generates",
+"Desatualizado: mudou",
+[
+"O escritor volta a escrevê-lo"
+]
+],
 [
 "Este plano tem escolhidas (\\d+) imagem\\(ns\\) que já não podem seguir: (.{1,400}?)\\. O pedido sairia sem elas \\(ex\\.: sem a frame inicial ou sem a cara de uma personagem\\)\\.",
 "This shot has \\1 chosen image(s) that can no longer be sent: \\2. The request would go without them (e.g. without the start frame or without a character's face).",

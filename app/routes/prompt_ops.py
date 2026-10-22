@@ -51,6 +51,7 @@ def panel(session: Session, t: PT.Target, title: str, *, people: int = 0, dialog
         warnings.append("Imagens que seguem mas o prompt não refere: " + ", ".join(unused) + ".")
     task = prompt_writer.task_for(session, t.project.id, t.kind, t.ref)
     return {
+        "stale_why": PT.stale_reasons(session, t) if st == "stale" else [],
         "kind": t.kind, "ref": t.ref, "name": f"p:{t.kind}:{t.ref}", "title": title, "text": current, "state": st,
         "state_label": STATE_LABELS[st], "use": t.use, "video": video, "task": task,
         "busy": task is not None and task.status == "running",
@@ -91,7 +92,7 @@ def save(session: Session, project: Project, form, op: str = "") -> None:
 def run(request: Request, session: Session, project: Project, form, op: str) -> bool:
     """Ações Gerar / Escrever. Devolve True se a op era uma destas (a página só tem de voltar para onde estava)."""
     verb, _, rest = (op or "").partition(":")
-    if verb not in ("pgen", "pwrite", "pdismiss", "pkeep"):
+    if verb not in ("pgen", "pgenw", "pgenk", "pwrite", "pdismiss", "pkeep"):
         return False
     kind, _, ref = rest.partition(":")
     if verb == "pdismiss":
@@ -117,7 +118,14 @@ def run(request: Request, session: Session, project: Project, form, op: str) -> 
     t = targets[0]
     gen = {"audio": bool(form.get("audio"))} if kind == "video" else {"gen": text(form, f"gen:{kind}:{ref}"),
                                                                      "res": text(form, f"res:{kind}:{ref}")}
-    if PT.needs_writing(session, t):
+    st = PT.state(session, t)
+    if st == "stale" and verb == "pgen":  # escrito pelo escritor, mas os dados mudaram: decide o utilizador
+        flash(request, "O prompt está desatualizado (mudou: " + "; ".join(PT.stale_reasons(session, t)) + "). Escolhe "
+                       "«Reescrever e gerar» ou «Gerar com este texto».")
+        return True
+    if st == "stale" and verb == "pgenk":  # «Gerar com este texto»: vale para os dados atuais e gera já
+        PT.keep_written(session, t)
+    elif st == "missing" or verb == "pgenw":
         if prompt_writer.start(session, project, kind, ref, generate=gen) is None:
             flash(request, "O Assistente já está a escrever este prompt. Espera que termine.")
         else:

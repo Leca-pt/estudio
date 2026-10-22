@@ -339,7 +339,9 @@
             {% elif r.panel.busy %}<span class="hint">A escrever o prompt…</span>
             {% elif gens.options %}<span class="gen-split">
               <select name="gen:vista:{{ v.id }}" form="views3d-form" class="gen-select" aria-label="Modelo para gerar">{% for val, l in gens.options %}<option value="{{ val }}" data-res="{{ gens.res.get(val, '') }}"{% if val == gens.default %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{{ m.res_select("res:vista:%d" % v.id, "views3d-form") }}
-              <button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgen:vista:{{ v.id }}" {% if not r.render %}disabled title="Falta o render (abre a maquete acima)"{% else %}title="{{ 'Gera com este prompt' if r.state in ('manual', 'assistant') else 'O escritor de prompts escreve o prompt e a imagem gera-se logo a seguir' }}"{% endif %}>{{ i.icon("image", 13) }}Gerar</button>
+              {% if r.state == "stale" %}<button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgenw:vista:{{ v.id }}" {% if not r.render %}disabled{% endif %} title="Desatualizado: mudou {{ r.panel.stale_why|join('; ') }}. O escritor volta a escrevê-lo (a versão atual fica em Versões) e gera a seguir">{{ i.icon("image", 13) }}Reescrever e gerar</button>
+              <button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgenk:vista:{{ v.id }}" {% if not r.render %}disabled{% endif %} title="Gera com o prompt tal como está">Gerar com este texto</button>
+              {% else %}<button class="btn sm gpt-btn" type="submit" form="views3d-form" name="op" value="pgen:vista:{{ v.id }}" {% if not r.render %}disabled title="Falta o render (abre a maquete acima)"{% else %}title="{{ 'Gera com este prompt' if r.state in ('manual', 'assistant') else 'O escritor de prompts escreve o prompt e a imagem gera-se logo a seguir' }}"{% endif %}>{{ i.icon("image", 13) }}Gerar</button>{% endif %}
             </span>{% endif %}
           </div>
           {% else %}<span class="hint">Ainda sem vistas nesta zona: usa «Propor vistas automáticas» ou guarda uma vista na maquete.</span>{% endfor %}
