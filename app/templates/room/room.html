@@ -51,7 +51,7 @@
 {% block body %}
 <main class="main">
   <div id="live" hidden data-p="{{ project.id }}" data-v="{{ live_version(project.id) }}"></div>
-  <div class="content content-lg">
+  <div class="room-page">
     <div class="phead">
       <div><div class="crumbs"><span class="mono">{{ project.prefix }}</span>/<span>Sala de argumentistas</span></div><h1 class="h1">Sala de argumentistas</h1></div>
       <span class="sp"></span><a class="btn" href="{{ back_place }}">{{ i.icon("chev-left", 14) }}Voltar ao projeto</a>
@@ -86,7 +86,7 @@
         </details>
       </aside>
 
-      <section class="rm-main">
+      <section class="rm-main content">
         {% if view == "geral" %}
         <div class="pn">
           <p class="hint">Aqui o ChatGPT, o Claude e tu escrevem e discutem a história e os guiões em ficheiros de texto, sem mexer na app. Cada mudança fica como uma versão; as mudanças que merecem discussão vão como propostas, com pareceres; há uma fila de tarefas partilhada. Quando aprovares um ficheiro, o texto passa para a app e o ficheiro fica trancado até o destrancares.</p>
