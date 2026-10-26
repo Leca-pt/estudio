@@ -63,7 +63,9 @@ def video_models(session: Session) -> list[dict]:
     art = [{"name": m["name"], "kind": "video", "group": gid, "provider": "artlist", "cost": m.get("cost"),
             "video_refs": bool(m.get("video_refs")), "audio_refs": bool(m.get("audio_refs")), "resolution": " / ".join(lab for lab, _v in m["res"]),
             "durations_s": sorted({int(d) for d in m["durations"]}), "refs": bool(m.get("refs")),
-            "end_frame": m.get("end", True), "audio": m.get("audio", False), "audio_always": m.get("audio_always", False),
+            "end_frame": m.get("end", True), "audio": m.get("audio", False),
+            "audio_always": m.get("audio_always", False) or bool(m.get("avatar")), "avatar": bool(m.get("avatar")),
+            **({"cost_text": "cotado com o áudio das falas (dura o áudio)"} if m.get("avatar") else {}),
             **{k: m[k] for k in ("max_images", "max_videos", "max_audios", "max_audio_s", "max_files") if k in m}}
            for gid, m in artlist.VIDEO_MODELS.items()] if artlist_enabled(session) else []
     bd = [{"name": m["name"], "kind": "video", "group": None, "provider": "bytedance", "key": k, "cost": None,

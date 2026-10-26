@@ -782,3 +782,14 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   «Cancelar» / «Gerar com o texto atual» / «Reescrever o prompt e gerar» (macro stale_dialog; também nos cartões das
   vistas). Corrigido de caminho: as janelas fechavam-se no submit antes de o pedido partir e o htmx esquecia o botão
   carregado (o pedido ia sem «op»); agora fecham-se um instante depois.
+
+## Artlist: Fabric 1.0 e Kling v3 Standard 720p sem som (2026-10-26)
+
+- **Fabric 1.0 720p** (Artlist): o mesmo avatar que fala do VEED Fabric da fal, pago em créditos. Funciona como os
+  avatares da fal: segue a 1.ª imagem do plano e o áudio das falas que o plano cobre (vários juntam-se por ordem num só
+  ficheiro). O vídeo dura o que dura o áudio. Sem áudio, ou com áudio desatualizado, o pedido fica parado em «Antes
+  de gerar». O preço só se sabe com a imagem e o áudio, por isso só sai da cotação do pedido (não há preço de tabela).
+- **Kling v3 Standard 720p sem som**: o Kling v3 do Artlist preso à variante mais barata (720p, `generate_audio`
+  desligado: 400 créditos por 5 s, contra 600 com som e 750 a 1080p com som). O som vem da montagem. É uma entrada
+  própria com `group: 349` (`artlist.video_group`), para não depender da resolução do projeto nem do som da
+  Configuração.

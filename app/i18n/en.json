@@ -2429,6 +2429,8 @@
 "· sem modelo 3D": "· no 3D model",
 "· sem voz aprovada (": "· no approved voice (",
 "· só imagem inicial": "· start image only",
+"· avatar que fala (1.ª imagem e áudio das falas)": "· talking avatar (first image and line audio)",
+"cotado com o áudio das falas (dura o áudio)": "quoted with the line audio (lasts as long as the audio)",
 "· vale o perfil do modelo por omissão (Modelos e geração)": "· the default model profile applies (Models and generation)",
 "· versão": "· version",
 "· vistas, elenco e vídeo-guia": "· views, cast and guide video",

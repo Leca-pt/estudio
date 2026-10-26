@@ -418,6 +418,8 @@ async def _run_one(job_id: int) -> None:
             images = [x for x, k in zip(inputs, kinds) if k == "image"]
             videos = [x for x, k in zip(inputs, kinds) if k == "video"]
             audios = [x for x, k in zip(inputs, kinds) if k == "audio"]
+            if (artlist.VIDEO_MODELS.get(int(chosen_model or 0)) or {}).get("avatar") and audios:
+                audios = [(_join_audio([p for p, _l in audios]), "falas")]  # avatar: as falas num só áudio, por ordem
             screen = (ctx.get("params") or {}).get("quote")  # o custo que o ecrã mostrava (para comparar)
             try:
                 data, credits, gid = await artlist.generate_video(

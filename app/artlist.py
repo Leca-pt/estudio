@@ -90,6 +90,14 @@ VIDEO_MODELS = {
           "aspects": ("16:9", "9:16"), "refs": False, "audio": True, "cost": 800},
     349: {"name": "Kling v3", "res": [("720p", "standard"), ("1080p", "pro")], "durations": list(range(3, 16)),
           "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": True, "cost": 600},
+    # o mesmo Kling v3, preso à variante mais barata: 720p e sem som (400 cr./5 s contra 600 com som e 750 a 1080p)
+    3143: {"name": "Kling v3 Standard 720p sem som", "group": 349, "res": [("720p", "standard")],
+           "durations": list(range(3, 16)), "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": False,
+           "audio_off": True, "cost": 400},
+    # avatar que fala (o VEED Fabric da fal): a 1.ª imagem do plano e o áudio das falas; dura o que dura o áudio
+    370: {"name": "Fabric 1.0 720p", "res": [("720p", "720p")], "durations": list(range(1, 61)),
+          "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": False, "end": False, "avatar": True,
+          "settings": {"quality": "premium"}, "cost": None},
     347: {"name": "Kling O3", "res": [("720p", "standard"), ("1080p", "pro")], "durations": list(range(3, 16)),
           "aspects": ("1:1", "16:9", "9:16"), "refs": False, "audio": True, "cost": None},
     599: {"name": "MiniMax H3 Max", "res": [("480p", "480P"), ("768p", "768P")], "durations": list(range(5, 16)),
@@ -106,6 +114,11 @@ VIDEO_MODELS = {
 DEFAULT_VIDEO_MODEL = 416
 
 
+def video_group(key: int) -> int:
+    """O modelGroupId do Artlist (uma entrada pode ser uma variante presa de outro grupo, ex.: Kling v3 720p sem som)."""
+    return int((VIDEO_MODELS.get(int(key)) or {}).get("group") or key)
+
+
 def video_model_by_name(name: str | None) -> tuple[int, dict] | None:
     return next(((g, m) for g, m in VIDEO_MODELS.items() if m["name"] == name), None)
 
@@ -117,11 +130,15 @@ def video_settings(group: int, aspect_ratio: str | None, quality: str, duration:
     labels = [lab for lab, _v in m["res"]]
     wanted = quality if quality in labels else labels[0]
     res_value = dict(m["res"])[wanted]
+    if m.get("avatar"):  # sem duração nem formato: o vídeo dura o áudio e segue a imagem
+        return {"resolution": res_value, **m.get("settings", {})}
     target = duration or 5
     dur = min(m["durations"], key=lambda d: (abs(int(d) - target), int(d)))
     out = {"resolution": res_value, "duration": dur, "aspect_ratio": closest_aspect(aspect_ratio, m["aspects"])}
     if m.get("audio"):
         out["generate_audio"] = bool(audio)
+    elif m.get("audio_off"):
+        out["generate_audio"] = False
     if m.get("mode_key"):
         key, frames_value, refs_value = m["mode_key"]
         out[key] = frames_value if frames else refs_value
@@ -556,7 +573,11 @@ async def generate_video(prompt: str, aspect_ratio: str | None, frames: list[tup
     if group not in VIDEO_MODELS:
         raise ArtlistError("Modelo de vídeo desconhecido.")
     m = VIDEO_MODELS[group]
-    if refs and not m.get("refs"):  # modelo sem referências múltiplas: usa só a primeira como Start Frame
+    if m.get("avatar"):  # avatar que fala: uma imagem e o áudio das falas (já num só ficheiro), como lista de inputs
+        refs, frames = (frames or refs)[:1], []
+        if not audios:
+            raise ArtlistError("Falta o áudio das falas do plano (carrega-o no guião da cena).")
+    elif refs and not m.get("refs"):  # modelo sem referências múltiplas: usa só a primeira como Start Frame
         frames, refs = refs[:1], []
     if len(frames) > 1 and m.get("end") is False:
         frames = frames[:1]
@@ -570,11 +591,11 @@ async def generate_video(prompt: str, aspect_ratio: str | None, frames: list[tup
     videos = (videos or []) if (refs and m.get("video_refs")) else []
     vids = [(f"{public_base}/pub/ref/{share(path)}{path.suffix.lower() if path.suffix.lower() in ('.mp4', '.webm') else '.mp4'}",
              re.sub(r"[^A-Za-z0-9_.-]+", "_", label)[:80] + (path.suffix.lower() or ".mp4")) for path, label in videos]
-    audios = (audios or []) if (refs and m.get("audio_refs")) else []
+    audios = (audios or []) if (refs and (m.get("audio_refs") or m.get("avatar"))) else []
     auds = [(f"{public_base}/pub/ref/{share(path)}{path.suffix.lower()}",
              re.sub(r"[^A-Za-z0-9_.-]+", "_", label)[:80] + path.suffix.lower()) for path, label in audios]
     settings_ = video_settings(group, aspect_ratio, quality, duration, audio, frames=bool(frames))
-    args = {"prompt": prompt.strip(), "modelGroupId": group, "settings": settings_}
+    args = {"prompt": prompt.strip(), "modelGroupId": video_group(group), "settings": settings_}
     if frames:
         how = ("Add \"input\": {\"startFrame\": {\"assetId\": <first assetId>}"
                + (", \"endFrame\": {\"assetId\": <second assetId>}}" if len(frames) > 1 else "}") + ".")
@@ -670,7 +691,9 @@ async def quote_request(group: int, settings_: dict, images: list[tuple[Path, st
              re.sub(r"[^A-Za-z0-9_.-]+", "_", lab)[:80] + (p_.suffix.lower() or ".mp4")) for p_, lab in videos]
     ups += [("upload_audio", "audioUrl", link(p_, p_.suffix.lower()), re.sub(r"[^A-Za-z0-9_.-]+", "_", lab)[:80]
              + p_.suffix.lower()) for p_, lab in audios]
-    args = {"kind": "video", "modelGroupId": group, "settings": settings_, "prompt": "video"}
+    if (VIDEO_MODELS.get(group) or {}).get("avatar"):
+        frames = False  # imagem e áudio vão juntos na lista de inputs
+    args = {"kind": "video", "modelGroupId": video_group(group), "settings": settings_, "prompt": "video"}
     n_img, n_vid = len(images), len(videos)
     if frames:
         how = ('"input": {"startFrame": {"assetId": <first assetId>}' + (', "endFrame": {"assetId": <second assetId>}}' if n_img > 1 else "}"))

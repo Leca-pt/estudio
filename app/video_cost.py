@@ -117,9 +117,11 @@ async def quote(model: dict | None, res: str, seconds: int | None, audio: bool, 
         if hit:
             return hit
         group = int(model["group"])
+        if model.get("avatar"):  # o preço depende da imagem e do áudio: só a cotação do pedido (shot_quote) serve
+            return None
         settings = artlist.video_settings(group, aspect, res, seconds, audio, frames=frames)
         try:
-            credits = await artlist.quote({"kind": "video", "modelGroupId": group, "settings": settings, "prompt": "video"})
+            credits = await artlist.quote({"kind": "video", "modelGroupId": artlist.video_group(group), "settings": settings, "prompt": "video"})
         except Exception as exc:  # noqa: BLE001 — sem cotação, a página continua
             log.warning("cotação do Artlist falhou: %s", exc)
             return None

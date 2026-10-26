@@ -161,8 +161,9 @@ def _generation_ctx(session: Session) -> dict:
     from app.routes.video import video_models
 
     art_on = artlist_enabled(session)
-    art_videos = [(f"artlist:{m['name']}", m["name"] + (" · vistas, elenco e vídeo-guia" if m.get("refs") else " · só imagem inicial")
-                   + (f" · ≈ {m['cost']} cr. (480p, 5 s)" if m.get("cost") else ""))
+    art_videos = [(f"artlist:{m['name']}", m["name"] + (" · vistas, elenco e vídeo-guia" if m.get("refs") else
+                                 " · avatar que fala (1.ª imagem e áudio das falas)" if m.get("avatar") else " · só imagem inicial")
+                   + (f" · ≈ {m['cost']} cr. ({m['res'][0][0]}, 5 s)" if m.get("cost") else ""))
                   for m in sorted(artlist.VIDEO_MODELS.values(), key=lambda m: not m.get("refs"))]
     vid_default = "artlist:" + next((m["name"] for m in video_models(session) if m.get("default")), "")
     from app.options import video_settings
