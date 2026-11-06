@@ -12,7 +12,11 @@ from app import artlist as A
 class Settings(unittest.TestCase):
     def test_kling_720_no_sound(self):
         st = A.video_settings(3143, "16:9", "1080p", 5, True, frames=True)
-        self.assertEqual(st, {"resolution": "standard", "duration": 5, "aspect_ratio": "16:9", "generate_audio": False})
+        self.assertEqual(st, {"resolution": "standard", "duration": 5, "aspect_ratio": "auto", "generate_audio": False})
+        # sem imagem inicial (só referências) o formato pedido segue; com ela o Kling só aceita "auto"
+        self.assertEqual(A.video_settings(349, "16:9", "720p", 5, True, frames=False)["aspect_ratio"], "16:9")
+        self.assertEqual(A.video_settings(349, "16:9", "720p", 5, True, frames=True)["aspect_ratio"], "auto")
+        self.assertEqual(A.video_settings(416, "16:9", "480p", 5, True, frames=True)["aspect_ratio"], "16:9")
         self.assertEqual(A.video_group(3143), 349)
         self.assertEqual(A.video_group(349), 349)
 

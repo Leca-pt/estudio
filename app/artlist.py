@@ -67,7 +67,8 @@ MODELS.update({
 DEFAULT_MODEL = 513
 
 # Modelos de vídeo (imagem → vídeo). res: [(rótulo, valor)] da mais barata para a mais cara; durations: valores aceites
-# (tipo original: int ou texto); refs: aceita várias imagens de referência; audio: tem som gerado. Custos a 480p/5 s.
+# (tipo original: int ou texto); refs: aceita várias imagens de referência; audio: tem som gerado; frame_aspect: o
+# aspect_ratio a mandar quando há imagem inicial (modelos que só aceitam "auto" nesse caso). Custos a 480p/5 s.
 VIDEO_MODELS = {
     416: {"name": "Seedance 2.0 Mini", "res": [("480p", "480p"), ("720p", "720p")], "durations": list(range(4, 16)),
           "aspects": ("16:9", "9:16", "4:3", "3:4", "1:1", "21:9"), "refs": True, "audio": True, "cost": 250,
@@ -88,18 +89,19 @@ VIDEO_MODELS = {
           "aspects": ("16:9", "9:16"), "refs": False, "audio": True, "cost": 252},
     115: {"name": "Veo 3.1 Fast", "res": [("720p", "720p"), ("1080p", "1080p")], "durations": [4, 6, 8],
           "aspects": ("16:9", "9:16"), "refs": False, "audio": True, "cost": 800},
+    # Kling: com imagem inicial o formato vem da imagem e o Artlist só aceita aspect_ratio "auto" (recusa 16:9 — 2026-11-06)
     349: {"name": "Kling v3", "res": [("720p", "standard"), ("1080p", "pro")], "durations": list(range(3, 16)),
-          "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": True, "cost": 600},
+          "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": True, "cost": 600, "frame_aspect": "auto"},
     # o mesmo Kling v3, preso à variante mais barata: 720p e sem som (400 cr./5 s contra 600 com som e 750 a 1080p)
     3143: {"name": "Kling v3 Standard 720p sem som", "group": 349, "res": [("720p", "standard")],
            "durations": list(range(3, 16)), "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": False,
-           "audio_off": True, "cost": 400},
+           "audio_off": True, "cost": 400, "frame_aspect": "auto"},
     # avatar que fala (o VEED Fabric da fal): a 1.ª imagem do plano e o áudio das falas; dura o que dura o áudio
     370: {"name": "Fabric 1.0 720p", "res": [("720p", "720p")], "durations": list(range(1, 61)),
           "aspects": ("16:9", "9:16", "1:1"), "refs": False, "audio": False, "end": False, "avatar": True,
           "settings": {"quality": "premium"}, "cost": None},
     347: {"name": "Kling O3", "res": [("720p", "standard"), ("1080p", "pro")], "durations": list(range(3, 16)),
-          "aspects": ("1:1", "16:9", "9:16"), "refs": False, "audio": True, "cost": None},
+          "aspects": ("1:1", "16:9", "9:16"), "refs": False, "audio": True, "cost": None, "frame_aspect": "auto"},
     599: {"name": "MiniMax H3 Max", "res": [("480p", "480P"), ("768p", "768P")], "durations": list(range(5, 16)),
           "aspects": ("16:9", "9:16", "1:1", "4:3", "21:9", "3:4"), "refs": False, "audio": False, "audio_always": True,
           "cost": 350},  # sem interruptor de som no Artlist, mas gera voz e ambiente (teste real de 29/09/2026)
@@ -135,6 +137,8 @@ def video_settings(group: int, aspect_ratio: str | None, quality: str, duration:
     target = duration or 5
     dur = min(m["durations"], key=lambda d: (abs(int(d) - target), int(d)))
     out = {"resolution": res_value, "duration": dur, "aspect_ratio": closest_aspect(aspect_ratio, m["aspects"])}
+    if frames and m.get("frame_aspect"):  # com imagem inicial o formato é o da imagem (o modelo recusa outro valor)
+        out["aspect_ratio"] = m["frame_aspect"]
     if m.get("audio"):
         out["generate_audio"] = bool(audio)
     elif m.get("audio_off"):
