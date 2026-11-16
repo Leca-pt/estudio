@@ -976,6 +976,7 @@ async def video_cost_view(request: Request, project_id: int, shot_id: int, sessi
     project = get_project(session, project_id)
     shot, _scene = get_shot(session, project, shot_id)
     args = video_cost.shot_args(session, shot)
+    session.close()  # a cotação demora (sobe ficheiros e pergunta ao Artlist): não segura uma ligação entretanto
     q = await video_cost.shot_quote(args)
     if not q:
         return HTMLResponse('<span class="dim">custo indisponível</span>')
@@ -992,6 +993,7 @@ async def draft_cost_view(request: Request, project_id: int, shot_id: int, media
     shot, _scene = get_shot(session, project, shot_id)
     job = session.exec(select(ImageJob).where(ImageJob.result_media_id == media_id, ImageJob.shot_id == shot.id)).first()
     gid = (job.params or {}).get("generation_id") if job else None
+    session.close()  # idem: não segura uma ligação enquanto o Artlist responde
     credits = await video_cost.draft_quote(gid) if gid else None
     return HTMLResponse(f"{credits} créditos" if credits is not None else "custo indisponível")
 

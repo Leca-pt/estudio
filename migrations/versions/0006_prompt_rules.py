@@ -51,11 +51,14 @@ def upgrade() -> None:
     op.create_index("ix_promptversion_project_id", "promptversion", ["project_id"])
     op.create_index("ix_promptversion_field_key", "promptversion", ["field_key"])
 
-    from app.seeds import DEFAULT_SHEET_RECIPES
+    try:
+        from app.seeds import DEFAULT_SHEET_RECIPES
+    except ImportError:  # as receitas de folhas já não são seeds; numa base de dados nova não há nada para converter
+        DEFAULT_SHEET_RECIPES = None
 
     conn = op.get_bind()
     row = conn.execute(sa.text("SELECT value FROM globalconfig WHERE key = 'sheet_recipes'")).first()
-    if row:
+    if row and DEFAULT_SHEET_RECIPES:
         sheets = json.loads(row[0])
         for kind, old in OLD_SHEETS.items():
             if sheets.get(kind) == old:

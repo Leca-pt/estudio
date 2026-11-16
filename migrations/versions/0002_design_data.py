@@ -57,7 +57,12 @@ def upgrade() -> None:
         batch.drop_column("script")
 
     # Configuração geral: formato do design.
-    from app.seeds import DEFAULT_MODELS, DEFAULT_RECIPE, DEFAULT_RULES
+    try:
+        from app.seeds import DEFAULT_MODELS, DEFAULT_RECIPE, DEFAULT_RULES
+    except ImportError:  # as seeds antigas já não existem; numa base de dados nova não há nada para converter
+        from app.seeds import DEFAULT_RULES
+
+        DEFAULT_MODELS, DEFAULT_RECIPE = [], None
 
     def get(key):
         row = conn.execute(sa.text("SELECT value FROM globalconfig WHERE key = :k"), {"k": key}).first()
@@ -83,7 +88,7 @@ def upgrade() -> None:
             })
         put("models", converted)
     recipe = get("video_prompt_recipe")
-    if recipe is not None and recipe.get("steps") and isinstance(recipe["steps"][0], str):
+    if DEFAULT_RECIPE and recipe is not None and recipe.get("steps") and isinstance(recipe["steps"][0], str):
         put("video_prompt_recipe", DEFAULT_RECIPE)
     rules = get("prompt_rules")
     if rules is not None and rules and isinstance(rules[0], str):

@@ -5,6 +5,7 @@ from sqlmodel import Session
 from app.db import get_session
 from app.models import Credential
 from app.security import (
+    forget_verified,
     MIN_PASSWORD_LENGTH,
     csrf_protect,
     get_credential,
@@ -112,6 +113,7 @@ async def change_password(
     cred.password_hash = hash_password(new_password)
     cred.must_change_password = False
     cred.session_version += 1  # termina outras sessões
+    forget_verified()
     session.add(cred)
     session.commit()
     session.refresh(cred)

@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.security import require_login
+from app.security import require_login_media
 
-router = APIRouter(dependencies=[Depends(require_login)])
+router = APIRouter(dependencies=[Depends(require_login_media)])
 
 
 THUMB_WIDTHS = (640, 1600)

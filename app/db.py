@@ -3,10 +3,12 @@ from sqlmodel import Session, create_engine
 
 from app.config import settings
 
-# Mais ligações e uma espera mais curta: um pico de pedidos atrasa, mas não esgota a app (SQLite em WAL aguenta
-# muitas leituras ao mesmo tempo).
+# Muitas ligações e uma espera curta pela pool. Uma página pode disparar mais de cem pedidos de uma vez (miniaturas,
+# custos, estado) e cada um pode precisar de uma ligação; o SQLite em WAL aguenta muitas leituras ao mesmo tempo. A
+# espera pela pool acontece em código síncrono, muitas vezes no próprio ciclo de eventos: com 20 s, cada pedido à
+# espera parava a app inteira 20 s (2026-11-16: 10 minutos sem resposta). Com 5 s, falha depressa e a app continua.
 engine = create_engine(settings.database_url, connect_args={"check_same_thread": False, "timeout": 15},
-                       pool_size=20, max_overflow=30, pool_timeout=20)
+                       pool_size=30, max_overflow=90, pool_timeout=5)
 
 
 @event.listens_for(engine, "connect")

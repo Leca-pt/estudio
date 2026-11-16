@@ -108,8 +108,14 @@ app.include_router(agenda_routes.router)
 
 @app.on_event("startup")
 async def _start_jobs() -> None:
+    import anyio
+
     from app import prompt_writer
 
+    # As rotas e dependências síncronas correm num conjunto de threads (40 por omissão). Uma página com muitas imagens
+    # ou cartões pede mais de cem coisas ao mesmo tempo: com poucas threads, umas esperam pelas outras e, se cada uma
+    # também espera por uma ligação à base de dados, a app para. Mais threads do que ligações, para nunca ser o gargalo.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 160
     prompt_writer.recover()  # o que o escritor de prompts tinha a meio fica como falhado (para repetir)
     jobs.start()
 app.include_router(config_page.router)

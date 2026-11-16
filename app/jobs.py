@@ -362,6 +362,9 @@ async def _run_one(job_id: int) -> None:
         role, kind, duration, audio = job.role, job.kind, job.duration_s, job.audio
         found = _inputs(session, job)
         missing = [mid for mid in (job.inputs or []) if mid not in {m.id for _p, _l, m in found}]
+        gone = [session.get(MediaFile, mid) for mid in missing]
+        missing_names = ", ".join("o vídeo-guia" if g is not None and g.role == "guide" else (g.path.rsplit("/", 1)[-1] if g else f"#{mid}")
+                                  for g, mid in zip(gone, missing))
         inputs = [(path, label) for path, label, _m in found]
         ctx = _provider_ctx(session, job)
         ctx["roles"] = [m.role for _p, _l, m in found]
@@ -388,10 +391,7 @@ async def _run_one(job_id: int) -> None:
     extra_params: dict = {}
     try:
         if role == "clip" and missing:  # sem isto o take seguia sem o ficheiro (ex.: o vídeo-guia) e pagava-se na mesma
-            gone = [session.get(MediaFile, mid) for mid in missing]
-            names = ", ".join("o vídeo-guia" if g is not None and g.role == "guide" else (g.path.rsplit("/", 1)[-1] if g else f"#{mid}")
-                              for g, mid in zip(gone, missing))
-            raise RuntimeError(f"Já não existe {names} (foi rejeitado ou apagado depois do pedido): o take não foi "
+            raise RuntimeError(f"Já não existe {missing_names} (foi rejeitado ou apagado depois do pedido): o take não foi "
                                "gerado. Volta a pedir.")
         if role == "key" and missing and (ctx.get("params") or {}).get("base"):  # o previs mudou entretanto
             raise RuntimeError("O previs ou uma imagem do pedido mudou depois do pedido (a cena 3D foi alterada): a "

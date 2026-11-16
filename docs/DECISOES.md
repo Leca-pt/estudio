@@ -805,3 +805,23 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
 - **Formato com imagem inicial** (2026-11-06): com start frame o Artlist só aceita `aspect_ratio: "auto"` nos Kling (o
   vídeo segue o formato da imagem) e recusava o 16:9 do projeto. Os Kling v3, v3 720p sem som, O3, 4.0 e 4.0 Flash
   têm `frame_aspect: "auto"`; só por referências é que vai o formato do projeto. Os outros modelos não mudam.
+
+## 16 de novembro de 2026: app parada 10 minutos (pool de ligações esgotada) — mais capacidade e menos ligações por pedido
+
+- O que se viu: às 18:43 a página dos planos do episódio foi carregada duas vezes (112 miniaturas no mesmo segundo)
+  enquanto o conector MCP trabalhava no mesmo projeto; a partir daí nada respondeu durante 10 minutos (nem o /healthz,
+  que não usa a base de dados). O log mostrava «QueuePool limit of size 20 overflow 30 reached». CPU a 0%: tudo à espera.
+- Porquê: a espera por uma ligação da pool é síncrona e muitas vezes corre no próprio ciclo de eventos (rotas async com
+  Session síncrona, o ciclo dos trabalhos, as ferramentas do MCP). Com a pool esgotada, cada pedido que chegava parava
+  a app inteira 20 s (pool_timeout); como os pedidos continuavam a chegar (sondagem da versão, MCP, refresh), a
+  paragem encadeou-se até as ligações serem libertadas. As 40 threads das rotas síncronas também se esgotavam, porque
+  cada miniatura gastava uma thread na verificação do login (base de dados) e outra na própria rota.
+- Mudanças: pool 30 + 90 e espera de 5 s (falha depressa em vez de parar a app); 160 threads para as rotas síncronas;
+  os ficheiros de media (`/media/...`) verificam o login na base de dados uma vez por minuto (security.require_login_media,
+  cookie assinada; mudar a password ou terminar sessões limpa a cache); as rotas de custo (`/custo`) fecham a sessão
+  antes de esperar pelo Artlist; o aviso de ficheiros em falta em jobs._run_one deixou de usar a sessão já fechada.
+- As migrações 0002 e 0006 importavam constantes de seeds que já não existem: uma base de dados nova não arrancava.
+  Agora toleram a falta (numa base nova não há nada para converter). Teste de carga num contentor isolado
+  (scratchpad/load.py): 400 pedidos simultâneos (miniaturas + /projetos) em 2,6 s, healthz 0,7 s no pior caso, sem erros.
+- Por confirmar: quem segurou as ~50 ligações durante 600 s (não foi possível tirar um retrato das threads). As
+  mudanças tornam a app tolerante a isso; se voltar a acontecer, instalar py-spy no contentor e correr `py-spy dump`.

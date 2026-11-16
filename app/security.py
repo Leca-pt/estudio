@@ -133,6 +133,48 @@ def require_login(cred: Credential = Depends(require_login_allow_pending)) -> Cr
     return cred
 
 
+# Sessões já verificadas (cred_id, versão) → até quando valem sem voltar à base de dados. Uma página pede dezenas ou
+# centenas de imagens de uma vez; verificar cada uma na base de dados gastava uma ligação e uma thread por imagem e
+# esgotava as duas (2026-11-16). A cookie é assinada, por isso o par só pode vir de um login real; a verificação na base
+# de dados (sessão terminada, password mudada) repete-se de minuto a minuto.
+_VERIFIED: dict[tuple, float] = {}
+_VERIFIED_TTL_S = 60
+
+
+def _verified(request: Request) -> bool:
+    key = (request.session.get("cred_id"), request.session.get("ver"))
+    return key[0] is not None and _VERIFIED.get(key, 0) > time.monotonic()
+
+
+def _check_media_login(request: Request) -> None:
+    from app.db import engine
+
+    with Session(engine) as session:
+        cred = _session_credential(request, session)
+        if cred is None:
+            raise LoginRequired()
+        if cred.must_change_password:
+            raise PasswordChangeRequired()
+        if len(_VERIFIED) > 100:
+            _VERIFIED.clear()
+        _VERIFIED[(cred.id, cred.session_version)] = time.monotonic() + _VERIFIED_TTL_S
+
+
+async def require_login_media(request: Request) -> None:
+    """O mesmo que require_login, para ficheiros de media: sem base de dados nem thread quando a sessão foi verificada
+    há menos de um minuto."""
+    if _verified(request):
+        return
+    from fastapi.concurrency import run_in_threadpool
+
+    await run_in_threadpool(_check_media_login, request)
+
+
+def forget_verified() -> None:
+    """Depois de terminar sessões ou mudar a password: a próxima imagem volta a verificar na base de dados."""
+    _VERIFIED.clear()
+
+
 # ── CSRF ─────────────────────────────────────────────────────
 
 def csrf_token(request: Request) -> str:
