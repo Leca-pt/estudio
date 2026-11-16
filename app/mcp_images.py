@@ -318,7 +318,7 @@ async def list_models(project_id: int | None = None, kinds: list[str] | None = N
     if "video" in want:
         out = []
         for m in videos:
-            accepts = (["referências (até %s imagens)" % m.get("max_images", 9)] if m.get("refs") else []) + ["imagem inicial e final"] \
+            accepts = (["referências (até %s imagens)" % m.get("max_images", 9)] if m.get("refs") else []) + (["imagem inicial e final"] if m.get("end_frame", True) else ["imagem inicial (sem frame final)"]) \
                 + (["vídeo-guia"] if m.get("video_refs") else []) + (["vozes de referência"] if m.get("audio_refs") else []) \
                 + (["som"] if m.get("audio") or m.get("audio_always") else [])
             durs = m.get("durations_s") or []
