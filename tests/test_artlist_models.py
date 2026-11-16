@@ -20,6 +20,19 @@ class Settings(unittest.TestCase):
         self.assertEqual(A.video_group(3143), 349)
         self.assertEqual(A.video_group(349), 349)
 
+    def test_kling_4(self):
+        # com imagem inicial manda "auto"; por referências (lista) segue o formato do projeto e aceita vídeos
+        st = A.video_settings(643, "16:9", "1080p", 12, False, frames=True)
+        self.assertEqual(st, {"resolution": "1080p", "duration": 12, "aspect_ratio": "auto", "generate_audio": False})
+        st = A.video_settings(643, "21:9", "720p", 40, True, frames=False)
+        self.assertEqual(st, {"resolution": "720p", "duration": 30, "aspect_ratio": "21:9", "generate_audio": True})
+        self.assertTrue(A.VIDEO_MODELS[643]["video_refs"] and A.VIDEO_MODELS[622]["video_refs"])
+        # o Flash só tem 720p, vai até 20 s e não tem frame final
+        st = A.video_settings(622, "16:9", "1080p", 25, True, frames=True)
+        self.assertEqual(st, {"resolution": "720p", "duration": 20, "aspect_ratio": "auto", "generate_audio": True})
+        self.assertIs(A.VIDEO_MODELS[622]["end"], False)
+        self.assertEqual(A.video_group(643), 643)
+
     def test_fabric_has_no_duration(self):
         self.assertEqual(A.video_settings(370, "9:16", "480p", 8, True, frames=True),
                          {"resolution": "720p", "quality": "premium"})

@@ -68,7 +68,8 @@ DEFAULT_MODEL = 513
 
 # Modelos de vídeo (imagem → vídeo). res: [(rótulo, valor)] da mais barata para a mais cara; durations: valores aceites
 # (tipo original: int ou texto); refs: aceita várias imagens de referência; audio: tem som gerado; frame_aspect: o
-# aspect_ratio a mandar quando há imagem inicial (modelos que só aceitam "auto" nesse caso). Custos a 480p/5 s.
+# aspect_ratio a mandar quando há imagem inicial (modelos que só aceitam "auto" nesse caso). Custos na resolução
+# mais baixa do modelo, a 5 s.
 VIDEO_MODELS = {
     416: {"name": "Seedance 2.0 Mini", "res": [("480p", "480p"), ("720p", "720p")], "durations": list(range(4, 16)),
           "aspects": ("16:9", "9:16", "4:3", "3:4", "1:1", "21:9"), "refs": True, "audio": True, "cost": 250,
@@ -102,6 +103,15 @@ VIDEO_MODELS = {
           "settings": {"quality": "premium"}, "cost": None},
     347: {"name": "Kling O3", "res": [("720p", "standard"), ("1080p", "pro")], "durations": list(range(3, 16)),
           "aspects": ("1:1", "16:9", "9:16"), "refs": False, "audio": True, "cost": None, "frame_aspect": "auto"},
+    # Kling 4.0 [Kling direct] (cotado em 2026-11-16: 875 cr. a 720p/5 s com ou sem som, 1375 a 1080p): imagem inicial e
+    # final, ou referências (até 10 imagens e 5 vídeos — o Artlist escolhe a variante R2V quando o input é uma lista)
+    643: {"name": "Kling 4.0", "res": [("720p", "720p"), ("1080p", "1080p")], "durations": list(range(3, 31)),
+          "aspects": ("16:9", "9:16", "1:1", "21:9"), "refs": True, "audio": True, "cost": 875, "video_refs": True,
+          "max_images": 10, "max_videos": 5, "max_audios": 0, "frame_aspect": "auto"},
+    # Kling 4.0 Flash: a variante barata (500 cr. a 720p/5 s), só 720p, até 20 s, sem frame final
+    622: {"name": "Kling 4.0 Flash", "res": [("720p", "720p")], "durations": list(range(3, 21)),
+          "aspects": ("16:9", "9:16", "1:1", "21:9"), "refs": True, "audio": True, "cost": 500, "video_refs": True,
+          "end": False, "max_images": 10, "max_videos": 5, "max_audios": 0, "frame_aspect": "auto"},
     599: {"name": "MiniMax H3 Max", "res": [("480p", "480P"), ("768p", "768P")], "durations": list(range(5, 16)),
           "aspects": ("16:9", "9:16", "1:1", "4:3", "21:9", "3:4"), "refs": False, "audio": False, "audio_always": True,
           "cost": 350},  # sem interruptor de som no Artlist, mas gera voz e ambiente (teste real de 29/09/2026)

@@ -793,3 +793,15 @@ vistas (detalhe a mais é copiado pelos modelos de vídeo, como os bonecos artic
   desligado: 400 créditos por 5 s, contra 600 com som e 750 a 1080p com som). O som vem da montagem. É uma entrada
   própria com `group: 349` (`artlist.video_group`), para não depender da resolução do projeto nem do som da
   Configuração.
+
+## Artlist: Kling 4.0 e Kling 4.0 Flash; formato «auto» com imagem inicial (2026-11-16)
+
+- **Kling 4.0** (Artlist, [Kling direct]): imagem inicial e final, ou referências até 10 imagens e 5 vídeos (serve o
+  vídeo-guia da maquete) — o Artlist escolhe a variante I2V ou R2V pela forma do input. 3 a 30 s, 720p ou 1080p, com ou
+  sem som (o preço não muda com o som): 875 cr. a 720p/5 s, 1375 a 1080p/5 s.
+- **Kling 4.0 Flash**: a variante barata, só 720p, 3 a 20 s, sem frame final, mesmas referências; 500 cr. a 5 s.
+- Os dois entram nas listas da app (Configuração, página de vídeo, cotações) e do MCP (`list_models`) por virem da
+  tabela `VIDEO_MODELS` do `app/artlist.py`, como os outros modelos do Artlist. O modelo por omissão não muda.
+- **Formato com imagem inicial** (2026-11-06): com start frame o Artlist só aceita `aspect_ratio: "auto"` nos Kling (o
+  vídeo segue o formato da imagem) e recusava o 16:9 do projeto. Os Kling v3, v3 720p sem som, O3, 4.0 e 4.0 Flash
+  têm `frame_aspect: "auto"`; só por referências é que vai o formato do projeto. Os outros modelos não mudam.

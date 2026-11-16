@@ -192,7 +192,7 @@ Perfis afinados por pesquisa de 29/09/2026 aos guias dos fabricantes (O = oficia
 | Vídeo · LTX | LTX 2.5 Pro | 150; 200 com tempos | um parágrafo, começa pela ação | O (até 200 palavras) |
 | Vídeo · MiniMax H3 | MiniMax H3 / H3 Max | 300; 450 com tempos | ancora a imagem e depois a ação; `Soundscape:` / `Music:`; falas `<d>…</d>`; câmara em prosa | O (350–500 palavras; 7000 caracteres) |
 | Vídeo · Veo | Veo 3.1 / Fast / Lite | 150; 220 com tempos | `[00:00-00:02]`, `SFX:`, `Ambient noise:`; Lite sem referências | O (1024 tokens) |
-| Vídeo · Kling | Kling v3 / O3 | 150; 220 com tempos | falas com etiqueta única, ação antes da fala | O; limite de 2500 caracteres via P |
+| Vídeo · Kling | Kling v3 / O3 / 4.0 | 150; 220 com tempos | falas com etiqueta única, ação antes da fala | O; limite de 2500 caracteres via P |
 
 Limites de caracteres dos prompts de vídeo (confirmados no Artlist por `get_model_config`, 29/09/2026, ou do fabricante quando o Artlist não indica): Kling 2500, Grok 4096 (perfil curto: 4000), Wan e LTX 5000, Luma 6000, Seedance 6000 (≈ 1000 palavras, fabricante), Veo 4000 (≈ 1024 tokens, fabricante), MiniMax 7000 (fabricante; o Artlist aceita 50000). Os prompts de imagem mantêm o limite geral da Configuração.
 

@@ -144,7 +144,7 @@ VIDEO_PROFILES = {
     },
     "kling": {
         "name": "Kling",
-        "models": "Kling v3, Kling O3",
+        "models": "Kling v3, Kling O3, Kling 4.0",
         "match": ("kling",),
         "ref_format": "@Image{n}",  # o O3 por referências: image_urls nomeadas @Image1, @Image2… (esquema da fal)
         "max_chars": 2500, "video_max_words": 180, "video_max_words_timed": 220,
